@@ -11,6 +11,7 @@ Este repositorio contiene la web oficial de Tatan, una marca de ropa para niños
 
 - TypeScript
 - Tailwind CSS
+- i18n
 
 ## Identidad visual
 
