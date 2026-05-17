@@ -1,13 +1,16 @@
+import CustomButton from "@/components/ui/CustomButton";
 import CustomInput from "@/components/ui/CustomInput";
+import Header from "@/components/ui/Header";
 import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-linear-to-b from-[#FFF7F0] via-white to-[#F7FBFF] px-4 py-10 sm:px-6">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-linear-to-b from-[#FFF7F0] via-white to-[#F7FBFF]">
+      <Header />
       <main className="w-full max-w-3xl py-8">
         <Image
           className="mx-auto"
-          src="/tatan-logo.png"
+          src="/tatanLogo.png"
           alt="Tatan logo"
           width={200}
           height={40}
@@ -38,6 +41,24 @@ export default function Home() {
             className="w-full"
             type="password"
           />
+
+          <div className="flex justify-center flex-col items-center w-full gap-5">
+            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">TIPOS DE BOTONES</h2>
+          <CustomButton className="w-full" type="filled">
+            filled
+          </CustomButton>
+          <CustomButton className="w-full" type="ghost">
+            ghost
+          </CustomButton>
+          <CustomButton className="w-full" type="outline">
+            outline
+          </CustomButton>
+          <div className="w-full flex justify-center">
+          <CustomButton  type="text">
+            text
+            </CustomButton>
+            </div>
+            </div>
         </div>
       </main>
     </div>

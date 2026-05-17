@@ -17,6 +17,24 @@ function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
 }
 
+function IconSearch(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
+      <path d="M21 21l-5.2-5.2" />
+    </svg>
+  );
+}
+
 const CustomInput = React.forwardRef<HTMLInputElement, CustomInputProps>(
   (
     {
@@ -41,6 +59,7 @@ const CustomInput = React.forwardRef<HTMLInputElement, CustomInputProps>(
         ? "text"
         : "password"
       : type;
+    const isSearch = resolvedType === "search";
 
     return (
       <div className={cx("w-full min-w-0", containerClassName, className)}>
@@ -54,6 +73,11 @@ const CustomInput = React.forwardRef<HTMLInputElement, CustomInputProps>(
         ) : null}
 
         <div className="relative w-full min-w-0">
+          {isSearch ? (
+            <span className="pointer-events-none border-[#FCD1B1] absolute inset-y-0 left-3 flex items-center text-zinc-500">
+              <IconSearch className="h-5 w-5" />
+            </span>
+          ) : null}
           <input
             ref={ref}
             id={inputId}
@@ -66,6 +90,7 @@ const CustomInput = React.forwardRef<HTMLInputElement, CustomInputProps>(
               "outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus:shadow-none",
               "border-[#FCD1B1]",
               "disabled:cursor-not-allowed disabled:opacity-60",
+              isSearch && "pl-10",
               isPassword && "pr-12",
               error && "border-red-500",
               inputClassName,
