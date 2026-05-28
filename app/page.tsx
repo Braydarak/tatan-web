@@ -1,6 +1,7 @@
 import CustomButton from "@/components/ui/CustomButton";
 import CustomInput from "@/components/ui/CustomInput";
 import Header from "@/components/ui/Header";
+import ProductCard from "@/components/ui/productCard/ProductCard";
 import Image from "next/image";
 
 export default function Home() {
@@ -43,22 +44,43 @@ export default function Home() {
           />
 
           <div className="flex justify-center flex-col items-center w-full gap-5">
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">TIPOS DE BOTONES</h2>
-          <CustomButton className="w-full" type="filled">
-            filled
-          </CustomButton>
-          <CustomButton className="w-full" type="ghost">
-            ghost
-          </CustomButton>
-          <CustomButton className="w-full" type="outline">
-            outline
-          </CustomButton>
-          <div className="w-full flex justify-center">
-          <CustomButton  type="text">
-            text
+            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">
+              TIPOS DE BOTONES
+            </h2>
+            <CustomButton className="w-full" type="filled">
+              filled
             </CustomButton>
+            <CustomButton className="w-full" type="ghost">
+              ghost
+            </CustomButton>
+            <CustomButton className="w-full" type="outline">
+              outline
+            </CustomButton>
+            <div className="w-full flex justify-center">
+              <CustomButton type="text">text</CustomButton>
             </div>
-            </div>
+          </div>
+        </div>
+        <div className="flex justify-center flex-col items-center w-full gap-5 mt-10">
+          <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">
+            PRODUCT CARD
+          </h2>
+          <div className="flex justify-center w-full bg-tatan-fondo p-5 rounded-xl border border-zinc-200">
+            <ProductCard
+              id="1"
+              title="BODY PARIS XS-L"
+              originalPrice={37900}
+              discountedPrice={28425}
+              discountPercentage={25}
+              installments={3}
+              installmentPrice={9475}
+              taxFreePrice={23492}
+              showPointsBadge={true}
+              colorHex="#f5ebd9"
+              productUrl="#"
+              imageSrc="/tatanLogo.png"
+            />
+          </div>
         </div>
       </main>
     </div>
