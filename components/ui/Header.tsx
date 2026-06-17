@@ -225,7 +225,7 @@ export default function Header() {
           </button>
 
           <Link
-            href="/carrito"
+            href="/cart"
             className="relative inline-flex h-10 w-10 items-center justify-center text-zinc-900 transition hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]"
             aria-label="Carrito"
           >
