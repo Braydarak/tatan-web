@@ -111,7 +111,7 @@ export default function ProductForm({
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!onSubmit) return;
 
@@ -152,7 +152,7 @@ export default function ProductForm({
         </div>
 
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-semibold tracking-tight text-[#FCD1B1]">
+          <label className="mb-1 block text-sm font-semibold tracking-tight text-tatan-primario1">
             Imagen del producto
           </label>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-10">
@@ -169,7 +169,7 @@ export default function ProductForm({
                   <span className="text-xs text-zinc-400">Sin imagen</span>
                 )}
               </div>
-              <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold tracking-tight text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus-within:ring-2 focus-within:ring-[#FCD1B1]">
+              <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold tracking-tight text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus-within:ring-2 focus-within:ring-tatan-primario1">
                 <span>Subir foto</span>
                 <input
                   type="file"
@@ -181,7 +181,7 @@ export default function ProductForm({
             </div>
 
             <div className="min-w-0 flex-1 sm:pt-1">
-              <label className="mb-2 block text-sm font-semibold tracking-tight text-[#FCD1B1]">
+              <label className="mb-2 block text-sm font-semibold tracking-tight text-tatan-primario1">
                 Talles disponibles
               </label>
               <div className="flex flex-wrap gap-2">
@@ -193,9 +193,9 @@ export default function ProductForm({
                       type="button"
                       onClick={() => toggleSize(size)}
                       className={cx(
-                        "inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]",
+                        "inline-flex h-8 min-w-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1",
                         isSelected
-                          ? "border-[#FCD1B1] bg-[#FCD1B1] text-zinc-900 shadow-sm"
+                          ? "border-tatan-primario1 bg-tatan-primario1 text-zinc-900 shadow-sm"
                           : "border-black/10 bg-white text-zinc-500 hover:bg-zinc-50",
                       )}
                     >
@@ -209,7 +209,7 @@ export default function ProductForm({
         </div>
 
         <div className="sm:col-span-2">
-          <label className="mb-2 block text-sm font-semibold tracking-tight text-[#FCD1B1]">
+          <label className="mb-2 block text-sm font-semibold tracking-tight text-tatan-primario1">
             Descripción
           </label>
           <div className="overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
@@ -217,9 +217,9 @@ export default function ProductForm({
               <button
                 type="button"
                 className={cx(
-                  "inline-flex h-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]",
+                  "inline-flex h-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1",
                   editor?.isActive("bold")
-                    ? "border-[#FCD1B1] bg-[#FCD1B1] text-zinc-900 shadow-sm"
+                    ? "border-tatan-primario1 bg-tatan-primario1 text-zinc-900 shadow-sm"
                     : "border-black/10 bg-white text-zinc-600 hover:bg-zinc-50",
                 )}
                 onClick={() => editor?.chain().focus().toggleBold().run()}
@@ -230,9 +230,9 @@ export default function ProductForm({
               <button
                 type="button"
                 className={cx(
-                  "inline-flex h-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]",
+                  "inline-flex h-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1",
                   editor?.isActive("italic")
-                    ? "border-[#FCD1B1] bg-[#FCD1B1] text-zinc-900 shadow-sm"
+                    ? "border-tatan-primario1 bg-tatan-primario1 text-zinc-900 shadow-sm"
                     : "border-black/10 bg-white text-zinc-600 hover:bg-zinc-50",
                 )}
                 onClick={() => editor?.chain().focus().toggleItalic().run()}
@@ -243,9 +243,9 @@ export default function ProductForm({
               <button
                 type="button"
                 className={cx(
-                  "inline-flex h-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]",
+                  "inline-flex h-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1",
                   editor?.isActive("strike")
-                    ? "border-[#FCD1B1] bg-[#FCD1B1] text-zinc-900 shadow-sm"
+                    ? "border-tatan-primario1 bg-tatan-primario1 text-zinc-900 shadow-sm"
                     : "border-black/10 bg-white text-zinc-600 hover:bg-zinc-50",
                 )}
                 onClick={() => editor?.chain().focus().toggleStrike().run()}
@@ -256,9 +256,9 @@ export default function ProductForm({
               <button
                 type="button"
                 className={cx(
-                  "inline-flex h-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]",
+                  "inline-flex h-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1",
                   editor?.isActive("bulletList")
-                    ? "border-[#FCD1B1] bg-[#FCD1B1] text-zinc-900 shadow-sm"
+                    ? "border-tatan-primario1 bg-tatan-primario1 text-zinc-900 shadow-sm"
                     : "border-black/10 bg-white text-zinc-600 hover:bg-zinc-50",
                 )}
                 onClick={() => editor?.chain().focus().toggleBulletList().run()}
@@ -268,9 +268,9 @@ export default function ProductForm({
               <button
                 type="button"
                 className={cx(
-                  "inline-flex h-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]",
+                  "inline-flex h-8 items-center justify-center rounded-lg border px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1",
                   editor?.isActive("orderedList")
-                    ? "border-[#FCD1B1] bg-[#FCD1B1] text-zinc-900 shadow-sm"
+                    ? "border-tatan-primario1 bg-tatan-primario1 text-zinc-900 shadow-sm"
                     : "border-black/10 bg-white text-zinc-600 hover:bg-zinc-50",
                 )}
                 onClick={() =>
@@ -281,7 +281,7 @@ export default function ProductForm({
               </button>
               <button
                 type="button"
-                className="inline-flex h-8 items-center justify-center rounded-lg border border-black/10 bg-white px-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]"
+                className="inline-flex h-8 items-center justify-center rounded-lg border border-black/10 bg-white px-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
                 onClick={() => editorImageInputRef.current?.click()}
               >
                 Imagen
@@ -309,7 +309,7 @@ export default function ProductForm({
               <div className="ml-auto flex items-center gap-1">
                 <button
                   type="button"
-                  className="inline-flex h-8 items-center justify-center rounded-lg border border-black/10 bg-white px-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]"
+                  className="inline-flex h-8 items-center justify-center rounded-lg border border-black/10 bg-white px-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
                   onClick={() => editor?.chain().focus().undo().run()}
                   disabled={!editor?.can().chain().focus().undo().run()}
                 >
@@ -317,7 +317,7 @@ export default function ProductForm({
                 </button>
                 <button
                   type="button"
-                  className="inline-flex h-8 items-center justify-center rounded-lg border border-black/10 bg-white px-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]"
+                  className="inline-flex h-8 items-center justify-center rounded-lg border border-black/10 bg-white px-2 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
                   onClick={() => editor?.chain().focus().redo().run()}
                   disabled={!editor?.can().chain().focus().redo().run()}
                 >

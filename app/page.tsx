@@ -1,5 +1,4 @@
 import CustomButton from "@/components/ui/CustomButton";
-import Card from "@/components/ui/Card";
 import CustomInput from "@/components/ui/CustomInput";
 import Header from "@/components/ui/Header";
 import ProductCard from "@/components/ui/productCard/ProductCard";
@@ -50,7 +49,7 @@ export default function Home() {
         />
         <div className="mt-6 flex flex-col gap-5">
           <div className="flex flex-col items-center gap-2 text-center">
-            <span className="inline-flex items-center rounded-full border border-[#FCD1B1] bg-[#FCD1B1]/20 px-3 py-1 text-xs font-semibold text-zinc-800">
+            <span className="inline-flex items-center rounded-full border border-tatan-primario1 bg-tatan-primario1/20 px-3 py-1 text-xs font-semibold text-zinc-800">
               Playground
             </span>
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
@@ -102,16 +101,27 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-6 grid gap-6 justify-items-center sm:grid-cols-2 lg:grid-cols-4">
             {products.map((p) => (
-              <Card
-                key={p.id}
-                name={p.name}
+              <ProductCard
+                key={`product-card-${p.id}`}
+                id={p.id}
+                title={p.name}
                 imageSrc={p.imageSrc}
-                price={p.price}
                 originalPrice={p.originalPrice}
-                badge={p.badge}
-                href={`/product/${p.id}`}
+                discountedPrice={p.price}
+                discountPercentage={
+                  p.originalPrice
+                    ? Math.round(
+                        ((p.originalPrice - p.price) / p.originalPrice) * 100,
+                      )
+                    : undefined
+                }
+                installments={6}
+                installmentPrice={Math.round(p.price / 6)}
+                taxFreePrice={Math.round(p.price * 0.79)}
+                showPointsBadge={p.id === "p-001"}
+                productUrl={`/product/${p.id}`}
               />
             ))}
           </div>

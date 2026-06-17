@@ -140,7 +140,7 @@ export default function Sidebar({
             </span>
             <button
               type="button"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
               aria-label="Cerrar sidebar"
               onClick={() => {
                 if (!isControlled) setDesktopOpen(false);
@@ -157,7 +157,7 @@ export default function Sidebar({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-[#FCD1B1]/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]"
+                  className="rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-tatan-primario1/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
                   onClick={() => onNavigate?.(item.href)}
                 >
                   {item.label}
@@ -176,7 +176,7 @@ export default function Sidebar({
         {!desktopIsOpen ? (
           <button
             type="button"
-            className="absolute left-4 top-4 z-10 hidden h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1] lg:inline-flex"
+            className="absolute left-4 top-4 z-10 hidden h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1 lg:inline-flex"
             aria-label="Abrir sidebar"
             onClick={() => {
               if (!isControlled) setDesktopOpen(true);
@@ -190,7 +190,7 @@ export default function Sidebar({
         {!mobileIsOpen ? (
           <button
             type="button"
-            className="fixed left-4 top-4 z-40 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1] lg:hidden"
+            className="fixed left-4 top-4 z-40 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1 lg:hidden"
             aria-label="Abrir sidebar"
             onClick={() => {
               if (!isControlled) setMobileOpen(true);
@@ -216,7 +216,7 @@ export default function Sidebar({
               </span>
               <button
                 type="button"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-900 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
                 aria-label="Cerrar sidebar"
                 onClick={() => {
                   if (!isControlled) setMobileOpen(false);
@@ -233,7 +233,7 @@ export default function Sidebar({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="rounded-xl px-3 py-3 text-sm font-semibold text-zinc-800 transition hover:bg-[#FCD1B1]/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1]"
+                    className="rounded-xl px-3 py-3 text-sm font-semibold text-zinc-800 transition hover:bg-tatan-primario1/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
                     onClick={() => {
                       onNavigate?.(item.href);
                       if (!isControlled) setMobileOpen(false);

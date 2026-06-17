@@ -114,7 +114,7 @@ export default function Cart() {
               </h2>
               <Link
                 href="/"
-                className="text-sm font-semibold text-zinc-900 underline decoration-[#FCD1B1] underline-offset-4 hover:opacity-80"
+                className="text-sm font-semibold text-zinc-900 underline decoration-tatan-primario1 underline-offset-4 hover:opacity-80"
               >
                 Seguir comprando
               </Link>
@@ -236,7 +236,7 @@ export default function Cart() {
               </CustomButton>
             </div>
 
-            <div className="mt-4 rounded-xl border border-[#FCD1B1] bg-[#FCD1B1]/15 p-3 text-xs font-semibold text-zinc-700">
+            <div className="mt-4 rounded-xl border border-tatan-primario1 bg-tatan-primario1/15 p-3 text-xs font-semibold text-zinc-700">
               Pagos y envío todavía son de muestra. Más adelante se conecta con
               Mercado Pago y cálculo de envío.
             </div>
@@ -255,7 +255,7 @@ export default function Cart() {
             </div>
             <Link
               href="/"
-              className="hidden text-sm font-semibold text-zinc-900 underline decoration-[#FCD1B1] underline-offset-4 hover:opacity-80 sm:inline"
+              className="hidden text-sm font-semibold text-zinc-900 underline decoration-tatan-primario1 underline-offset-4 hover:opacity-80 sm:inline"
             >
               Ver todos
             </Link>
@@ -278,7 +278,7 @@ export default function Cart() {
                     />
                   </div>
                   {p.badge ? (
-                    <span className="absolute left-2 top-2 inline-flex items-center rounded-full border border-[#FCD1B1] bg-[#FCD1B1] px-2 py-1 text-[11px] font-bold text-zinc-900 shadow-sm">
+                    <span className="absolute left-2 top-2 inline-flex items-center rounded-full border border-tatan-primario1 bg-tatan-primario1 px-2 py-1 text-[11px] font-bold text-zinc-900 shadow-sm">
                       {p.badge}
                     </span>
                   ) : null}

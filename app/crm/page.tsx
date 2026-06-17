@@ -34,7 +34,7 @@ function Spinner({ className }: { className?: string }) {
       aria-live="polite"
       aria-label="Cargando"
     >
-      <div className="h-10 w-10 animate-spin rounded-full border-2 border-black/10 border-t-[#FCD1B1]" />
+      <div className="h-10 w-10 animate-spin rounded-full border-2 border-black/10 border-t-tatan-primario1" />
     </div>
   );
 }
@@ -118,7 +118,7 @@ export default function CrmPage() {
                   height={40}
                   priority
                 />
-                <span className="mt-5 inline-flex items-center rounded-full border border-[#FCD1B1] bg-[#FCD1B1]/20 px-3 py-1 text-xs font-semibold text-zinc-800">
+                <span className="mt-5 inline-flex items-center rounded-full border border-tatan-primario1 bg-tatan-primario1/20 px-3 py-1 text-xs font-semibold text-zinc-800">
                   CRM
                 </span>
                 <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">

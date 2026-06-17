@@ -84,7 +84,7 @@ export default function Login() {
             height={40}
             priority
           />
-          <span className="mt-5 inline-flex items-center rounded-full border border-[#FCD1B1] bg-[#FCD1B1]/20 px-3 py-1 text-xs font-semibold text-zinc-800">
+          <span className="mt-5 inline-flex items-center rounded-full border border-tatan-primario1 bg-tatan-primario1/20 px-3 py-1 text-xs font-semibold text-zinc-800">
             Acceso CRM
           </span>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">

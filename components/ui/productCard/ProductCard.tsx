@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ProductCardProps } from "./types";
 
 export default function ProductCard({
   id,
-  imageSrc,
-  title,
+  imageSrc = "/tatanLogo.png",
+  title = "Producto",
   originalPrice,
-  discountedPrice,
+  discountedPrice = 0,
   discountPercentage,
   installments,
   installmentPrice,
@@ -21,9 +21,17 @@ export default function ProductCard({
 }: ProductCardProps) {
   // Estado para saber si el producto está en favoritos o no
   const [isFavorite, setIsFavorite] = useState(false);
+  const favoriteLabel = title
+    ? `${isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}: ${title}`
+    : isFavorite
+      ? "Quitar de favoritos"
+      : "Agregar a favoritos";
 
   return (
-    <div className="w-full max-w-[320px] flex flex-col gap-3 font-sans group">
+    <div
+      className="w-full max-w-[320px] flex flex-col gap-3 font-sans group"
+      data-product-id={id}
+    >
       <div className="relative background rounded-md p-5 flex justify-center items-center overflow-hidden border border-zinc-100">
         {discountPercentage && (
           <div className="absolute top-3 left-3 bg-tatan-primario2 text-zinc-800 rounded-full w-12 h-12 flex flex-col items-center justify-center text-center text-[11px] font-bold leading-tight z-10 shadow-sm">
@@ -41,7 +49,7 @@ export default function ProductCard({
           className={`absolute top-3 right-3 transition-colors z-10 ${
             isFavorite ? "text-red-600" : "text-zinc-800 hover:text-zinc-500"
           }`}
-          aria-label={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+          aria-label={favoriteLabel}
         >
           <svg
             width="24"
@@ -89,7 +97,7 @@ export default function ProductCard({
               $ {originalPrice.toLocaleString("es-AR")}
             </span>
           )}
-        
+
           <span className="text-base text-[#4da96c] font-bold">
             $ {discountedPrice.toLocaleString("es-AR")}
           </span>
