@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@theme {
+  --color-tatan-primario1: #FCD1B1;
+  --color-tatan-primario2: #C7E2D6;
+  --color-tatan-primario3: #C6E1D3;
+}
+
 :root {
   --background: #FEFDF8;
   --foreground: #171717;

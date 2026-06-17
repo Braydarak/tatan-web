@@ -256,7 +256,7 @@ export default function Header() {
           "lg:hidden",
           "overflow-hidden border-b border-black/5 bg-[#FEFDF8]",
           "transition-[max-height] duration-300 ease-out",
-          menuOpen || searchOpen ? "max-h-[520px]" : "max-h-0",
+          menuOpen || searchOpen ? "max-h-520px" : "max-h-0",
         )}
       >
         <div className="mx-auto max-w-7xl px-4 pb-4 pt-3 sm:px-6">

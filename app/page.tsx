@@ -2,6 +2,7 @@ import CustomButton from "@/components/ui/CustomButton";
 import Card from "@/components/ui/Card";
 import CustomInput from "@/components/ui/CustomInput";
 import Header from "@/components/ui/Header";
+import ProductCard from "@/components/ui/productCard/ProductCard";
 import Image from "next/image";
 
 export default function Home() {
@@ -91,7 +92,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
         <section className="mt-12">
           <div className="flex flex-col gap-2 text-center">
             <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">
