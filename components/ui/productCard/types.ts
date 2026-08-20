@@ -11,4 +11,6 @@ export interface ProductCardProps {
   showPointsBadge?: boolean;
   colorHex?: string;
   productUrl?: string;
+  loading?: "eager" | "lazy";
+  priority?: boolean;
 }

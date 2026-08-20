@@ -18,6 +18,8 @@ export default function ProductCard({
   showPointsBadge = false,
   colorHex = "#f5ebd9",
   productUrl = "#",
+  loading = "lazy",
+  priority = false,
 }: ProductCardProps) {
   // Estado para saber si el producto está en favoritos o no
   const [isFavorite, setIsFavorite] = useState(false);
@@ -32,7 +34,7 @@ export default function ProductCard({
       className="w-full max-w-[320px] flex flex-col gap-3 font-sans group"
       data-product-id={id}
     >
-      <div className="relative background rounded-md p-5 flex justify-center items-center overflow-hidden border border-zinc-100">
+      <div className="relative background rounded-2xl p-5 flex justify-center items-center overflow-hidden paper-card">
         {discountPercentage && (
           <div className="absolute top-3 left-3 bg-tatan-primario2 text-zinc-800 rounded-full w-12 h-12 flex flex-col items-center justify-center text-center text-[11px] font-bold leading-tight z-10 shadow-sm">
             <span>{discountPercentage}%</span>
@@ -71,6 +73,9 @@ export default function ProductCard({
             alt={title}
             width={300}
             height={400}
+            loading={loading}
+            priority={priority}
+            sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 280px"
             className="w-full h-auto object-cover mix-blend-multiply group-hover:scale-105 transition-transform duration-300 ease-out"
           />
         </Link>
