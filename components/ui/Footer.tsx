@@ -134,7 +134,7 @@ export default function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <MapPin className="w-4 h-4" strokeWidth={2} />
-                Córdoba, Argentina
+                Buenos Aires, Argentina
               </li>
             </ul>
             <div className="flex gap-3 mt-4">
