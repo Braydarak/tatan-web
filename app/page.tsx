@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import Header from "@/components/ui/Header";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import {
   Sparkles,
@@ -146,8 +145,6 @@ export default function Home() {
 
   return (
     <div className="min-h-dvh flex flex-col relative z-10">
-      <Header />
-
       <main className="flex-1 w-full">
         <section className="relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 sm:pt-12 sm:pb-20">

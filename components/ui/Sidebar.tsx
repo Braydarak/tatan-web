@@ -47,6 +47,7 @@ function IconClose(props: React.SVGProps<SVGSVGElement>) {
 export type SidebarItem = {
   label: string;
   href: string;
+  kind?: "link" | "group";
 };
 
 export type SidebarProps = {
@@ -62,12 +63,16 @@ export type SidebarProps = {
 };
 
 const DEFAULT_ITEMS: SidebarItem[] = [
+  { label: "Operaciones", href: "#group", kind: "group" },
   { label: "Dashboard", href: "/crm" },
   { label: "Ventas", href: "/crm#ventas" },
   { label: "Productos", href: "/crm#productos" },
   { label: "Clientes", href: "/crm#clientes" },
   { label: "Inventario", href: "/crm#inventario" },
   { label: "Ajustes", href: "/crm#ajustes" },
+  { label: "Contenido del sitio", href: "#group", kind: "group" },
+  { label: "Home", href: "/crm#hero" },
+  { label: "Envíos", href: "/crm#envios" },
 ];
 
 export default function Sidebar({
@@ -153,16 +158,27 @@ export default function Sidebar({
 
           <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="CRM">
             <div className="grid gap-1">
-              {items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-tatan-primario1/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
-                  onClick={() => onNavigate?.(item.href)}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {items.map((item) =>
+                item.kind === "group" ? (
+                  <p
+                    key={item.label + item.href}
+                    className={cx(
+                      "mt-3 first:mt-0 mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400",
+                    )}
+                  >
+                    {item.label}
+                  </p>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-tatan-primario1/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
+                    onClick={() => onNavigate?.(item.href)}
+                  >
+                    {item.label}
+                  </Link>
+                ),
+              )}
             </div>
           </nav>
 
@@ -229,20 +245,31 @@ export default function Sidebar({
 
             <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="CRM">
               <div className="grid gap-1">
-                {items.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="rounded-xl px-3 py-3 text-sm font-semibold text-zinc-800 transition hover:bg-tatan-primario1/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
-                    onClick={() => {
-                      onNavigate?.(item.href);
-                      if (!isControlled) setMobileOpen(false);
-                      onOpenChange?.(false);
-                    }}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+                {items.map((item) =>
+                  item.kind === "group" ? (
+                    <p
+                      key={item.label + item.href}
+                      className={cx(
+                        "mt-3 first:mt-0 mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400",
+                      )}
+                    >
+                      {item.label}
+                    </p>
+                  ) : (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="rounded-xl px-3 py-3 text-sm font-semibold text-zinc-800 transition hover:bg-tatan-primario1/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario1"
+                      onClick={() => {
+                        onNavigate?.(item.href);
+                        if (!isControlled) setMobileOpen(false);
+                        onOpenChange?.(false);
+                      }}
+                    >
+                      {item.label}
+                    </Link>
+                  ),
+                )}
               </div>
             </nav>
 

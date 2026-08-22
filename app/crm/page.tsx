@@ -2,6 +2,8 @@
 
 import CustomButton from "@/components/ui/CustomButton";
 import ProductsCrm from "@/components/sections/ProductsCrm";
+import HomeHeroEditor from "@/components/sections/HomeHeroEditor";
+import EnviosEditor from "@/components/sections/EnviosEditor";
 import Sidebar from "@/components/ui/Sidebar";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -13,11 +15,15 @@ type CrmView =
   | "productos"
   | "clientes"
   | "inventario"
-  | "ajustes";
+  | "ajustes"
+  | "hero"
+  | "envios";
 
 function viewFromLocation(): CrmView {
   if (typeof window === "undefined") return "home";
   const hash = window.location.hash.replace(/^#/, "");
+  if (hash === "hero") return "hero";
+  if (hash === "envios") return "envios";
   if (hash === "productos") return "productos";
   if (hash === "ventas") return "ventas";
   if (hash === "clientes") return "clientes";
@@ -62,17 +68,21 @@ export default function CrmPage() {
     (href: string) => {
       const nextHash = href.split("#")[1] ?? "";
       const nextView =
-        nextHash === "productos"
-          ? "productos"
-          : nextHash === "ventas"
-            ? "ventas"
-            : nextHash === "clientes"
-              ? "clientes"
-              : nextHash === "inventario"
-                ? "inventario"
-                : nextHash === "ajustes"
-                  ? "ajustes"
-                  : "home";
+        nextHash === "hero"
+          ? "hero"
+          : nextHash === "envios"
+            ? "envios"
+            : nextHash === "productos"
+              ? "productos"
+              : nextHash === "ventas"
+                ? "ventas"
+                : nextHash === "clientes"
+                  ? "clientes"
+                  : nextHash === "inventario"
+                    ? "inventario"
+                    : nextHash === "ajustes"
+                      ? "ajustes"
+                      : "home";
       loadTo(nextView);
     },
     [loadTo],
@@ -138,6 +148,14 @@ export default function CrmPage() {
           ) : view === "productos" ? (
             <div className="w-full">
               <ProductsCrm />
+            </div>
+          ) : view === "hero" ? (
+            <div className="w-full">
+              <HomeHeroEditor />
+            </div>
+          ) : view === "envios" ? (
+            <div className="w-full">
+              <EnviosEditor />
             </div>
           ) : (
             <section

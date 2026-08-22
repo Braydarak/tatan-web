@@ -4,6 +4,7 @@ import { Fredoka, Geist, Geist_Mono, Nunito } from "next/font/google";
 import "./globals.css";
 import ScrollToTop from "@/components/ui/ScrollToTop";
 import Footer from "@/components/ui/Footer";
+import Header from "@/components/ui/Header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,6 +48,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <ScrollToTop />
         </Suspense>
+        <Header />
         {children}
         <Footer />
       </body>

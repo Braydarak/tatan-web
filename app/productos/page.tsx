@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Header from "@/components/ui/Header";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import FilterPanel from "@/components/ui/FilterPanel";
 import { Sparkles, Gift, ArrowLeft, Star, Search } from "lucide-react";
@@ -526,7 +525,6 @@ export default async function ProductosPage({
 
   return (
     <div className="min-h-dvh flex flex-col relative z-10">
-      <Header />
       <main className="flex-1 w-full">
         <section className="relative overflow-hidden">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-full max-h-[560px] pointer-events-none">

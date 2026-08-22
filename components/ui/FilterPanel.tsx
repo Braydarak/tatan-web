@@ -128,14 +128,6 @@ export default function FilterPanel({
   const [maxH, setMaxH] = React.useState<number | undefined>(undefined);
 
   React.useEffect(() => {
-    const mql = window.matchMedia("(min-width: 1024px)");
-    const apply = () => setOpen((prev) => (mql.matches ? true : prev));
-    apply();
-    mql.addEventListener("change", apply);
-    return () => mql.removeEventListener("change", apply);
-  }, []);
-
-  React.useEffect(() => {
     if (!panelRef.current) return;
     const update = () => setMaxH(panelRef.current?.scrollHeight);
     update();

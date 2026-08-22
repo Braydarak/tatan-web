@@ -83,7 +83,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-zinc-500">
               <li>
                 <Link
-                  href="/productos#envios"
+                  href="/envios#zonas"
                   className="hover:text-zinc-700 transition-colors"
                 >
                   Envíos y entregas
@@ -91,7 +91,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/productos#envios"
+                  href="/envios#cambios"
                   className="hover:text-zinc-700 transition-colors"
                 >
                   Cambios y devoluciones
@@ -99,15 +99,15 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/productos#contacto"
+                  href="/envios#costos"
                   className="hover:text-zinc-700 transition-colors"
                 >
-                  Medios de pago
+                  Medios de pago y costos
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/productos#contacto"
+                  href="/envios#faq"
                   className="hover:text-zinc-700 transition-colors"
                 >
                   Preguntas frecuentes
