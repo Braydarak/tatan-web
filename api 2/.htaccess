@@ -1,0 +1,45 @@
+# ============================================================
+
+# Tatan - API PHP (.htaccess)
+
+# Versión MINIMALISTA — solo lo estrictamente soportado en Ferozo (LiteSpeed/Apache 2.4)
+
+# Si Ferozo no acepta alguna directiva, no rompe el sitio.
+
+# ============================================================
+
+# Desactivar listado de directorios
+
+Options -Indexes -MultiViews
+
+# Bloquear archivos sensibles (directiva simple, no regex complejo)
+
+<Files "config.php">
+Require all denied
+</Files>
+<FilesMatch "\.(ini|log|sql|bak|swp|env)$">
+Require all denied
+</FilesMatch>
+
+# Charset por defecto
+
+AddDefaultCharset UTF-8
+
+# Seguridad de headers SOLO si está el módulo
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header unset X-Powered-By
+</IfModule>
+
+# Sin cache en endpoints dinámicos (LiteSpeed)
+
+<IfModule LiteSpeed>
+    RewriteRule .* - [E=Cache-Control:no-store]
+</IfModule>
+
+# Permitir acceso a todo el resto
+
+Require all granted

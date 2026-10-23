@@ -1,0 +1,40 @@
+# ============================================================
+
+# Tatan - API PHP (.htaccess de /api)
+
+# ⚠️ Versión ultra minimalista. Solo directivas que Ferozo soporta.
+
+# Si sigue dando error 500, BORRÁ ESTE ARCHIVO COMPLETAMENTE.
+
+# (la carpeta /api/ va a heredar el .htaccess raíz y funcionará igual)
+
+# ============================================================
+
+# 1) NUNCA mostrar el listado de archivos de la carpeta api/
+
+Options -Indexes
+
+# 2) No cachear nada de PHP (si hay mod_expires)
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType application/json "access plus 0 seconds"
+    ExpiresByType text/plain "access plus 0 seconds"
+</IfModule>
+
+# 3) Cabeceras de seguridad (SOLO si existe mod_headers)
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header unset X-Powered-By
+</IfModule>
+
+# 4) En LiteSpeed/Ferozo, no cachear endpoints dinámicos
+
+<IfModule LiteSpeed>
+    RewriteRule .* - [E=Cache-Control:no-store]
+</IfModule>
+
+# FIN — no agregues nada más aquí, por favor.

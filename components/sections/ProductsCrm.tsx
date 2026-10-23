@@ -5,6 +5,12 @@ import Image from "next/image";
 import CustomButton from "@/components/ui/CustomButton";
 import ProductForm, { ProductFormData } from "@/components/ui/ProductForm";
 import { ChevronDown, Mail, Smartphone, MapPin, Clock } from "lucide-react";
+import {
+  apiProducts,
+  apiProductSave,
+  apiProductDelete,
+  type Product,
+} from "@/lib/tatan-api";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -64,112 +70,6 @@ const SIZE_GROUP_LABEL: Record<SizeGroup, string> = {
   bebe: "Bebé (RN → 24M)",
   ninios: "Niños (2 → 10)",
 };
-
-const DEFAULT_PRODUCTS: ProductCrm[] = [
-  {
-    id: "b-001",
-    slug: "body-osito-amor",
-    name: "Body Osito Amor",
-    tagline: "Clásico del mes",
-    imageSrc: "/tatanLogo.png",
-    gallery: [],
-    category: "body",
-    sizeGroup: "bebe",
-    sizes: ["RN", "1M", "3M", "6M", "9M", "12M", "18M"],
-    stockBySize: {
-      RN: 6,
-      "1M": 8,
-      "3M": 12,
-      "6M": 9,
-      "9M": 4,
-      "12M": 2,
-      "18M": 1,
-    },
-    stockTotal: 42,
-    soldTotal: 124,
-    colorHex: "#F5E6D3",
-    colorVariants: [
-      { name: "Beige Osito", hex: "#F5E6D3" },
-      { name: "Rosa Suave", hex: "#F8E0E8" },
-    ],
-    description:
-      "<p>Body de algodón orgánico con estampa de osito en tonos beige.</p>",
-    features: [
-      "100% Algodón orgánico peinado",
-      "Broches de presión sin níquel",
-      "Costuras planas antirozaduras",
-    ],
-    price: 12990,
-    originalPrice: 15990,
-    installments: 6,
-    taxFreePrice: 10262,
-    showPointsBadge: true,
-    rating: 4.9,
-    reviews: 124,
-    relatedIds: ["b-002", "b-004"],
-  },
-  {
-    id: "p-001",
-    slug: "pijama-ovejiita-dulce",
-    name: "Pijama Ovejiita Dulce",
-    tagline: "Nuevo ingreso",
-    imageSrc: "/tatanLogo.png",
-    gallery: [],
-    category: "pijama",
-    sizeGroup: "bebe",
-    sizes: ["RN", "0-3", "3-6", "6-9", "9-12"],
-    stockBySize: {
-      RN: 3,
-      "0-3": 6,
-      "3-6": 1,
-      "6-9": 0,
-      "9-12": 2,
-    },
-    stockTotal: 12,
-    soldTotal: 21,
-    colorHex: "#F8E0E8",
-    colorVariants: [{ name: "Rosa Ovejita", hex: "#F8E0E8" }],
-    description: "<p>Pijama enterito rosa con estampa de ovejitas.</p>",
-    features: ["Algodón jersey pesado", "Cierre antipánico"],
-    price: 21990,
-    originalPrice: undefined,
-    installments: 6,
-    taxFreePrice: 17372,
-    showPointsBadge: false,
-    rating: 4.7,
-    reviews: 52,
-    relatedIds: [],
-  },
-  {
-    id: "r-001",
-    slug: "remera-dino-aventura",
-    name: "Remera Dino Aventura",
-    tagline: "Más vendida",
-    imageSrc: "/tatanLogo.png",
-    gallery: [],
-    category: "remera",
-    sizeGroup: "ninios",
-    sizes: ["2-4", "4-6", "6-8", "8-10"],
-    stockBySize: { "2-4": 10, "4-6": 7, "6-8": 5, "8-10": 2 },
-    stockTotal: 24,
-    soldTotal: 142,
-    colorHex: "#F5E6B8",
-    colorVariants: [
-      { name: "Mostaza Dino", hex: "#F5E6B8" },
-      { name: "Verde Oliva", hex: "#D8E8C8" },
-    ],
-    description: "<p>Remera mostaza con estampa de dinosaurio aventurero.</p>",
-    features: ["100% Algodón cardado", "Cuello redondo rib reforzado"],
-    price: 9990,
-    originalPrice: 12990,
-    installments: 6,
-    taxFreePrice: 7892,
-    showPointsBadge: true,
-    rating: 4.9,
-    reviews: 142,
-    relatedIds: ["r-003"],
-  },
-];
 
 const ICONS: Record<"mail" | "tel" | "pin" | "clock", React.ElementType> = {
   mail: Mail,
@@ -593,24 +493,141 @@ function ProductDetailRow({ product }: { product: ProductCrm }) {
 }
 
 export default function ProductsCrm({
-  products = DEFAULT_PRODUCTS,
+  products: initialPropProducts,
   className,
 }: ProductsCrmProps) {
+  const [remoteProducts, setRemoteProducts] = React.useState<ProductCrm[]>([]);
+  const [loadStatus, setLoadStatus] = React.useState<
+    "idle" | "loading" | "ok" | "error"
+  >("idle");
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [toast, setToast] = React.useState<{
+    type: "ok" | "err";
+    text: string;
+  } | null>(null);
+
   const [editingProduct, setEditingProduct] = React.useState<ProductCrm | null>(
     null,
   );
   const [isCreating, setIsCreating] = React.useState(false);
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
+  const toastTimer = React.useRef<number | null>(null);
+  const notify = (type: "ok" | "err", text: string) => {
+    setToast({ type, text });
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 3200);
+  };
+
+  const adapt = (p: Product): ProductCrm => {
+    const totalStock = Object.values(p.stockBySize).reduce((a, b) => a + b, 0);
+    return {
+      id: p.id,
+      slug: p.slug ?? undefined,
+      name: p.name,
+      tagline: p.tagline ?? undefined,
+      imageSrc: p.imageSrc,
+      gallery: p.gallery,
+      category: p.category as ProductCrm["category"],
+      sizeGroup: p.sizeGroup,
+      sizes: p.sizes,
+      stockBySize: p.stockBySize,
+      stockTotal: totalStock,
+      soldTotal: p.soldTotal,
+      colorHex: p.colorHex,
+      colorVariants: p.colorVariants,
+      description: p.description ?? "",
+      features: p.features,
+      price: p.price,
+      originalPrice: p.originalPrice ?? undefined,
+      installments: p.installments,
+      taxFreePrice: p.taxFreePrice ?? undefined,
+      showPointsBadge: p.showPointsBadge,
+      rating: p.rating,
+      reviews: p.reviews,
+      relatedIds: p.relatedIds,
+    };
+  };
+
+  const loadProducts = React.useCallback(async () => {
+    setLoadStatus("loading");
+    try {
+      const list = await apiProducts();
+      setRemoteProducts(list.map(adapt));
+      setLoadStatus("ok");
+      setLoadError(null);
+    } catch (e) {
+      setLoadStatus("error");
+      setLoadError(
+        e instanceof Error ? e.message : "Error al cargar productos",
+      );
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
+
+  // Datos a renderizar: los productos pasados por props o los traídos de la API.
+  const products: ProductCrm[] =
+    initialPropProducts && initialPropProducts.length
+      ? initialPropProducts
+      : remoteProducts;
+
+  /* ------------------------------------------------------------------ */
+  /*  CRUD actions                                                      */
+  /* ------------------------------------------------------------------ */
+
+  const handleCreateOrSave = async (
+    data: ProductFormData,
+    mode: "create" | "update",
+  ) => {
+    setSaving(true);
+    try {
+      const payload = {
+        id: mode === "update" && editingProduct ? editingProduct.id : undefined,
+        ...data,
+        category: (data as any).category as string,
+      };
+      const r = await apiProductSave(payload as any);
+      if (!r.ok) throw new Error(r.error || "No se pudo guardar el producto");
+      notify(
+        "ok",
+        mode === "create" ? "Producto creado ✓" : "Producto guardado ✓",
+      );
+      setEditingProduct(null);
+      setIsCreating(false);
+      void loadProducts();
+    } catch (e) {
+      notify("err", e instanceof Error ? e.message : "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (p: ProductCrm) => {
+    const ok = window.confirm(
+      `¿Borrar el producto "${p.name}" (ID ${p.id})?\nEsta acción no se puede deshacer.`,
+    );
+    if (!ok) return;
+    try {
+      const r = await apiProductDelete(p.id);
+      if (!r) throw new Error("No se pudo borrar (¿sesión expirada?)");
+      notify("ok", "Producto borrado ✓");
+      void loadProducts();
+    } catch (e) {
+      notify("err", e instanceof Error ? e.message : "Error al borrar");
+    }
+  };
+
   if (isCreating) {
     return (
       <section id="productos" className={cx("w-full scroll-mt-20", className)}>
         <ProductForm
-          onSubmit={(data) => {
-            console.log("Producto creado:", data);
-            setIsCreating(false);
-          }}
+          onSubmit={(data) => handleCreateOrSave(data, "create")}
           onCancel={() => setIsCreating(false)}
+          submitting={saving}
         />
       </section>
     );
@@ -648,11 +665,9 @@ export default function ProductsCrm({
       <section id="productos" className={cx("w-full scroll-mt-20", className)}>
         <ProductForm
           initialData={initialData}
-          onSubmit={(data) => {
-            console.log("Producto guardado:", data);
-            setEditingProduct(null);
-          }}
+          onSubmit={(data) => handleCreateOrSave(data, "update")}
           onCancel={() => setEditingProduct(null)}
+          submitting={saving}
         />
       </section>
     );
@@ -660,20 +675,77 @@ export default function ProductsCrm({
 
   return (
     <section id="productos" className={cx("w-full scroll-mt-20", className)}>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 relative">
+        {/* Toast */}
+        {toast ? (
+          <div
+            className={cx(
+              "fixed top-6 right-6 z-50 rounded-2xl shadow-2xl px-4 py-3 border text-sm font-bold",
+              toast.type === "ok"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                : "bg-rose-50 border-rose-200 text-rose-900",
+            )}
+            role="status"
+          >
+            {toast.text}
+          </div>
+        ) : null}
+
         <div className="flex items-center justify-between gap-3 px-1 flex-wrap">
           <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight text-zinc-900">
-              Productos
-            </h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl font-bold tracking-tight text-zinc-900">
+                Productos
+              </h2>
+              <span
+                className={cx(
+                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider",
+                  loadStatus === "loading"
+                    ? "bg-sky-50 border-sky-200 text-sky-700"
+                    : loadStatus === "error"
+                      ? "bg-rose-50 border-rose-200 text-rose-700"
+                      : loadStatus === "ok"
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                        : "bg-zinc-50 border-zinc-200 text-zinc-600",
+                )}
+              >
+                {loadStatus === "loading"
+                  ? "Cargando de DB…"
+                  : loadStatus === "error"
+                    ? "Sin conexión (datos locales)"
+                    : loadStatus === "ok"
+                      ? "Conectado a tatankids.com.ar"
+                      : "Esperando…"}
+              </span>
+              <span className="text-[11px] font-mono text-zinc-400">
+                {products.length} productos
+              </span>
+            </div>
             <p className="mt-0.5 text-sm text-zinc-500">
-              Mismos campos y valores que se renderizan en la web pública. Tocá
-              “Más detalles” para expandir el acordeón.
+              Mismos campos y valores que se renderizan en la web pública.
+              {loadError ? (
+                <>
+                  {" "}
+                  <span className="text-rose-600 font-semibold">
+                    Aviso: {loadError}
+                  </span>
+                </>
+              ) : null}
             </p>
           </div>
-          <CustomButton onClick={() => setIsCreating(true)}>
-            Crear producto
-          </CustomButton>
+          <div className="flex items-center gap-2">
+            <CustomButton
+              type="outline"
+              className="text-xs py-1.5"
+              onClick={() => void loadProducts()}
+              disabled={loadStatus === "loading"}
+            >
+              Recargar
+            </CustomButton>
+            <CustomButton onClick={() => setIsCreating(true)} disabled={saving}>
+              Crear producto
+            </CustomButton>
+          </div>
         </div>
 
         <div className="w-full overflow-x-auto">
@@ -795,18 +867,27 @@ export default function ProductsCrm({
                       </td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex flex-col items-end gap-2">
-                          <CustomButton
-                            type="outline"
-                            className="w-28 text-xs py-1.5"
-                            onClick={() => setEditingProduct(p)}
-                          >
-                            Editar
-                          </CustomButton>
+                          <div className="flex gap-2">
+                            <CustomButton
+                              type="outline"
+                              className="w-20 text-xs py-1.5"
+                              onClick={() => setEditingProduct(p)}
+                            >
+                              Editar
+                            </CustomButton>
+                            <CustomButton
+                              type="outline"
+                              className="w-20 text-xs py-1.5 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                              onClick={() => void handleDelete(p)}
+                            >
+                              Borrar
+                            </CustomButton>
+                          </div>
                           <CustomButton
                             type="ghost"
                             aria-expanded={expanded}
                             aria-controls={`detail-${p.id}`}
-                            className="w-28 text-xs py-1.5"
+                            className="w-full text-xs py-1.5"
                             onClick={() =>
                               setExpandedId((prev) =>
                                 prev === p.id ? null : p.id,

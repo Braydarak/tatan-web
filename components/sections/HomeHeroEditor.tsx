@@ -14,6 +14,12 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import * as React from "react";
+import {
+  apiSiteContent,
+  apiSiteContentSave,
+  type SiteContentKey,
+} from "@/lib/tatan-api";
+import { HOME_HERO_DEFAULT as DEFAULT_HERO } from "@/lib/site-content-defaults";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -52,59 +58,6 @@ export type HomeHeroData = {
   benefits: HomeBenefit[];
 };
 
-const DEFAULT_HERO: HomeHeroData = {
-  eyebrow: "Nueva colección Otoño",
-  titleLine1: "Ropa suavecita para",
-  titleLine2: "tus pequeños",
-  description:
-    "Descubrí nuestra selección de bodys, remeras y prendas de algodón premium. Confeccionadas con amor para los más chiquitos.",
-  imageSrc:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20baby%20onesie%20body%20beige%20cotton%20with%20teddy%20bear%20print%20soft%20pastel%20colors%20flat%20lay%20kids%20clothing%20photography&image_size=square_hd",
-  cta1Text: "Ver colección",
-  cta1Href: "/productos",
-  cta2Text: "Ofertas",
-  cta2Href: "/ofertas",
-  cottonBadge: {
-    show: true,
-    showIcon: true,
-    title: "100% Algodón",
-    subtitle: "Orgánico",
-  },
-  shippingBadge: {
-    show: true,
-    showIcon: true,
-    title: "Envío gratis",
-    subtitle: "Compras mayores a $25k",
-  },
-  benefits: [
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "Truck",
-      title: "Envío a todo el país",
-      description: "Llegamos a todas las provincias en 3-7 días hábiles",
-      color: "#E58B60",
-    },
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "CreditCard",
-      title: "Hasta 12 cuotas",
-      description: "Pagá como quieras: Mercado Pago, transferencia o efectivo",
-      color: "#7BA5C9",
-    },
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "Heart",
-      title: "Cambios sin costo",
-      description:
-        "Si no te convence, lo cambiás gratis en los primeros 30 días",
-      color: "#E58BA0",
-    },
-  ],
-};
-
 type Toast = { id: number; kind: "ok" | "error"; msg: string } | null;
 
 function mergeBenefits(
@@ -138,10 +91,52 @@ function initialHeroData(): HomeHeroData {
 }
 
 export default function HomeHeroEditor() {
-  const [data, setData] = React.useState<HomeHeroData>(initialHeroData);
+  const [data, setData] = React.useState<HomeHeroData>(DEFAULT_HERO);
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(0);
   const [toast, setToast] = React.useState<Toast>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [remoteStatus, setRemoteStatus] = React.useState<
+    "idle" | "loading" | "ok" | "error"
+  >("loading");
+
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setRemoteStatus("loading");
+      setLoading(true);
+      try {
+        const r = await apiSiteContent<HomeHeroData>("home_hero");
+        if (cancelled) return;
+        if (r.ok && r.data) {
+          const { benefits: parsedBenefits, ...rest } =
+            r.data as Partial<HomeHeroData>;
+          setData({
+            ...DEFAULT_HERO,
+            ...rest,
+            benefits: mergeBenefits(
+              DEFAULT_HERO.benefits,
+              parsedBenefits ?? null,
+            ),
+          });
+          setRemoteStatus("ok");
+        } else {
+          // fallback a localStorage en el browser
+          setData(initialHeroData());
+          setRemoteStatus("error");
+        }
+      } catch {
+        if (cancelled) return;
+        setData(initialHeroData());
+        setRemoteStatus("error");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const toastTimerRef = React.useRef<number | null>(null);
   React.useEffect(() => {
@@ -194,13 +189,37 @@ export default function HomeHeroEditor() {
   const onSave = async () => {
     if (saving) return;
     setSaving(true);
-    await new Promise((r) => window.setTimeout(r, 450));
     try {
-      window.localStorage.setItem("crm:home-hero", JSON.stringify(data));
+      // 1) Guardar en DB remota (PHP API)
+      const r = await apiSiteContentSave<HomeHeroData>("home_hero", data);
+      if (!r.ok) {
+        throw new Error(
+          r.error ||
+            "No se pudo guardar en la base de datos (¿sesión expirada?)",
+        );
+      }
+
+      // 2) Cache local (backup offline)
+      try {
+        window.localStorage.setItem("crm:home-hero", JSON.stringify(data));
+      } catch {
+        /* ignore */
+      }
+
       setSaved((n) => n + 1);
-      pushToast("ok", "¡Cambios del hero guardados!");
-    } catch {
-      pushToast("error", "No se pudo guardar en localStorage");
+      setRemoteStatus("ok");
+      pushToast("ok", `¡Cambios del hero guardados! (v${r.version ?? "?"})`);
+    } catch (e) {
+      // Fallback: salvar solo en localStorage
+      try {
+        window.localStorage.setItem("crm:home-hero", JSON.stringify(data));
+        pushToast(
+          "error",
+          `Error DB, pero guardado local: ${e instanceof Error ? e.message : "desconocido"}`,
+        );
+      } catch {
+        pushToast("error", "No se pudo guardar (DB ni localStorage)");
+      }
     } finally {
       setSaving(false);
     }
@@ -244,9 +263,27 @@ export default function HomeHeroEditor() {
       <div className="flex flex-col gap-3">
         <header className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-black/5 bg-[#FEFDF8]/80 p-4 backdrop-blur">
           <div className="min-w-0">
-            <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
-              Editar Hero del Home
-            </h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
+                Editar Hero del Home
+              </h2>
+              <span
+                className={cx(
+                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider",
+                  loading
+                    ? "bg-sky-50 border-sky-200 text-sky-700"
+                    : remoteStatus === "ok"
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                      : "bg-amber-50 border-amber-200 text-amber-800",
+                )}
+              >
+                {loading
+                  ? "Leyendo DB…"
+                  : remoteStatus === "ok"
+                    ? "BD sincronizada"
+                    : "Datos locales"}
+              </span>
+            </div>
             <p className="mt-1 text-sm text-zinc-500">
               Cambiá el texto, la imagen y los botones del primer bloque del
               home. La vista previa se actualiza en tiempo real.
@@ -256,7 +293,7 @@ export default function HomeHeroEditor() {
                 Guardado {saved} vez{saved === 1 ? "" : "es"} en esta sesión ·
                 persistence:{" "}
                 <code className="rounded bg-black/5 px-1 py-0.5 text-[11px]">
-                  localStorage crm:home-hero
+                  DB + crm:home-hero (cache)
                 </code>
               </p>
             ) : null}

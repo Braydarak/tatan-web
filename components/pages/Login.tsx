@@ -5,6 +5,7 @@ import CustomInput from "@/components/ui/CustomInput";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { apiLogin } from "@/lib/tatan-api";
 
 const INVALID_USER_MESSAGE = "Usuario incorrecto.";
 const INVALID_PASSWORD_MESSAGE = "Contraseña incorrecta.";
@@ -38,16 +39,7 @@ export default function Login() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/crm-login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ user, password }),
-      });
-
-      const data = (await res.json().catch(() => null)) as
-        | { ok: true }
-        | { ok: false; userOk: boolean; passwordOk: boolean }
-        | null;
+      const data = await apiLogin(user, password);
 
       if (!data || !("ok" in data)) {
         setErrors({ password: "Error al iniciar sesión. Probá de nuevo." });
@@ -56,8 +48,10 @@ export default function Login() {
 
       if (!data.ok) {
         setErrors({
-          user: data.userOk ? undefined : INVALID_USER_MESSAGE,
-          password: data.passwordOk ? undefined : INVALID_PASSWORD_MESSAGE,
+          user: (data as any).userOk ? undefined : INVALID_USER_MESSAGE,
+          password: (data as any).passwordOk
+            ? undefined
+            : INVALID_PASSWORD_MESSAGE,
         });
         return;
       }

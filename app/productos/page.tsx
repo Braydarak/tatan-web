@@ -2,6 +2,7 @@ import Link from "next/link";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import FilterPanel from "@/components/ui/FilterPanel";
 import { Sparkles, Gift, ArrowLeft, Star, Search } from "lucide-react";
+import type { Product as ApiProduct } from "@/lib/tatan-api";
 
 export const metadata = {
   title: "Productos Tatan — Toda la colección de ropa infantil",
@@ -9,40 +10,63 @@ export const metadata = {
     "Bodys, remeras, pijamas y accesorios para bebés y niños. Filtra por categoría, talle y precio. 100% algodón.",
 };
 
-const productImages = {
-  bodyOsito:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20baby%20onesie%20body%20beige%20cotton%20with%20teddy%20bear%20print%20soft%20pastel%20colors%20flat%20lay%20kids%20clothing%20photography&image_size=square_hd",
-  bodyNubes:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=adorable%20baby%20onesie%20body%20white%20with%20clouds%20and%20stars%20pastel%20blue%20pink%20soft%20cotton%20flat%20lay%20baby%20clothing&image_size=square_hd",
-  bodyArcoiris:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20baby%20onesie%20rainbow%20print%20soft%20cream%20color%20cotton%20bodysuit%20flat%20lay%20aesthetic%20kids%20fashion&image_size=square_hd",
-  bodyAnimalitos:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=baby%20bodysuit%20onesie%20sage%20green%20with%20cute%20safari%20animals%20print%20soft%20cotton%20flat%20lay%20aesthetic%20baby%20clothing&image_size=square_hd",
-  remeraDino:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20kids%20t-shirt%20mustard%20yellow%20with%20cartoon%20dinosaur%20print%20soft%20cotton%20flat%20lay%20children%20clothing%20photography&image_size=square_hd",
-  remeraFlores:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=adorable%20little%20girl%20t-shirt%20soft%20pink%20with%20cute%20flowers%20print%20cotton%20flat%20lay%20aesthetic%20kids%20fashion%20pastel&image_size=square_hd",
-  remeraCohete:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20boys%20tshirt%20soft%20blue%20with%20rocket%20space%20print%20cotton%20flat%20lay%20kids%20clothing%20photography%20pastel%20colors&image_size=square_hd",
-  remeraCorazones:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=kids%20tshirt%20cream%20white%20with%20cute%20little%20hearts%20print%20soft%20cotton%20flat%20lay%20children%20fashion%20aesthetic&image_size=square_hd",
-  bodyManta:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cozy%20baby%20onesie%20pijama%20mint%20green%20soft%20fleece%20stars%20pattern%20flat%20lay%20warm%20baby%20clothing&image_size=square_hd",
-  bodyPijama:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=baby%20pajama%20onesie%20sleeper%20soft%20pink%20little%20sheep%20print%20cozy%20cotton%20flat%20lay%20aesthetic%20toddler%20pjs&image_size=square_hd",
-  remeraRayada:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=kids%20striped%20tshirt%20red%20white%20soft%20cotton%20classic%20mariniere%20flat%20lay%20unisex%20children%20clothing&image_size=square_hd",
-  bodySet:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=set%20of%203%20baby%20bodysuits%20pastel%20colors%20stripes%20dots%20soft%20cotton%20flat%20lay%20neutrals%20beige%20pink%20green&image_size=square_hd",
-  pantalonJogger:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=kids%20jogger%20pants%20sage%20green%20soft%20cotton%20cuffed%20flat%20lay%20unisex%20children%20clothing%20aesthetic%20pastel&image_size=square_hd",
-  buzoPolar:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=toddler%20hoodie%20zip%20up%20soft%20cream%20color%20fleece%20inside%20teddy%20bear%20ears%20on%20hood%20flat%20lay%20kids%20outerwear&image_size=square_hd",
-  accesorioBabero:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=baby%20bib%20set%20of%203%20cotton%20muslin%20pastel%20beige%20pink%20green%20prints%20soft%20flat%20lay%20aesthetic%20baby%20accessories&image_size=square_hd",
-  accesorioMedias:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20baby%20socks%20set%205%20pairs%20pastel%20colors%20bunny%20ears%20soft%20cotton%20flat%20lay%20adorable%20baby%20clothes&image_size=square_hd",
-};
+const PHP_API_BASE = "https://tatankids.com.ar/api";
+
+async function fetchProductsSSR(): Promise<ApiProduct[]> {
+  try {
+    const res = await fetch(`${PHP_API_BASE}/products.php`, {
+      next: { revalidate: 60, tags: ["tatan-products"] },
+      cache: "force-cache",
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { ok?: boolean; data?: ApiProduct[] };
+    return Array.isArray(json?.data) ? json.data : [];
+  } catch {
+    return [];
+  }
+}
+
+function badgeFromApi(
+  api: Pick<
+    ApiProduct,
+    "id" | "createdAt" | "soldTotal" | "rating" | "reviews"
+  >,
+): Product["badge"] | undefined {
+  const idNum = Number(api.id.match(/^[a-z]+-(\d+)$/)?.[1] ?? 0);
+  if (api.soldTotal >= 50 || (api.rating >= 4.8 && api.reviews >= 40))
+    return "Top";
+  if (!idNum || idNum <= 2) return "Nuevo";
+  if (api.reviews > 0 && api.reviews <= 20 && api.rating >= 4.7)
+    return "Último";
+  return undefined;
+}
+
+function mapApiToListProduct(api: ApiProduct): Product {
+  return {
+    id: api.id,
+    name: api.name,
+    category: api.category,
+    imageSrc:
+      api.imageSrc ||
+      `https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20${encodeURIComponent(api.category)}%20kids%20clothing%20pastel%20flat%20lay&image_size=square_hd`,
+    price: Number(api.price) || 0,
+    originalPrice:
+      api.originalPrice != null
+        ? Number(api.originalPrice) || undefined
+        : undefined,
+    colorHex: api.colorHex || "#F5E6D3",
+    sizeGroup: api.sizeGroup,
+    badge: badgeFromApi(api),
+    rating: Number(api.rating) || 4.6,
+    reviews: Number(api.reviews) || 0,
+    tagline: api.tagline || "100% Algodón",
+  };
+}
+
+async function getAllProductsForPage(): Promise<Product[]> {
+  const fromApi = await fetchProductsSSR();
+  return fromApi.map(mapApiToListProduct);
+}
 
 type CategoryKey =
   | "todos"
@@ -72,266 +96,6 @@ type Product = {
   reviews: number;
   tagline: string;
 };
-
-const ALL_PRODUCTS: Product[] = [
-  {
-    id: "b-001",
-    name: "Body Osito Amor",
-    category: "body",
-    imageSrc: productImages.bodyOsito,
-    price: 12990,
-    originalPrice: 15990,
-    colorHex: "#F5E6D3",
-    sizeGroup: "bebe",
-    badge: "Top",
-    rating: 4.9,
-    reviews: 124,
-    tagline: "Clásico del mes",
-  },
-  {
-    id: "b-002",
-    name: "Body Nubes y Estrellas",
-    category: "body",
-    imageSrc: productImages.bodyNubes,
-    price: 11990,
-    colorHex: "#E8F0F8",
-    sizeGroup: "bebe",
-    rating: 4.8,
-    reviews: 89,
-    tagline: "Recién nacido",
-  },
-  {
-    id: "b-003",
-    name: "Body Arcoiris Mágico",
-    category: "body",
-    imageSrc: productImages.bodyArcoiris,
-    price: 13490,
-    colorHex: "#F0E8F5",
-    sizeGroup: "bebe",
-    badge: "Nuevo",
-    rating: 4.9,
-    reviews: 67,
-    tagline: "Edición limitada",
-  },
-  {
-    id: "b-004",
-    name: "Body Safari Animalitos",
-    category: "body",
-    imageSrc: productImages.bodyAnimalitos,
-    price: 14490,
-    originalPrice: 17990,
-    colorHex: "#D8E8D8",
-    sizeGroup: "bebe",
-    rating: 4.7,
-    reviews: 52,
-    tagline: "Manga larga",
-  },
-  {
-    id: "r-001",
-    name: "Remera Dino Aventura",
-    category: "remera",
-    imageSrc: productImages.remeraDino,
-    price: 12990,
-    originalPrice: 15490,
-    colorHex: "#F5E6B8",
-    sizeGroup: "ninios",
-    badge: "Top",
-    rating: 4.9,
-    reviews: 142,
-    tagline: "Más vendida",
-  },
-  {
-    id: "r-002",
-    name: "Remera Flores Boho",
-    category: "remera",
-    imageSrc: productImages.remeraFlores,
-    price: 10990,
-    colorHex: "#F8E0E8",
-    sizeGroup: "ninios",
-    rating: 4.8,
-    reviews: 76,
-    tagline: "Volados",
-  },
-  {
-    id: "r-003",
-    name: "Remera Cohete Espacial",
-    category: "remera",
-    imageSrc: productImages.remeraCohete,
-    price: 13490,
-    colorHex: "#D8E8F5",
-    sizeGroup: "ninios",
-    badge: "Nuevo",
-    rating: 4.9,
-    reviews: 58,
-    tagline: "Verano 2026",
-  },
-  {
-    id: "r-004",
-    name: "Remera Corazones Dulces",
-    category: "remera",
-    imageSrc: productImages.remeraCorazones,
-    price: 9490,
-    colorHex: "#F5F0EB",
-    sizeGroup: "ninios",
-    rating: 4.7,
-    reviews: 104,
-    tagline: "Básico infaltable",
-  },
-  {
-    id: "r-005",
-    name: "Remera Rayada Clásica",
-    category: "remera",
-    imageSrc: productImages.remeraRayada,
-    price: 10490,
-    originalPrice: 12990,
-    colorHex: "#F2D0C8",
-    sizeGroup: "ninios",
-    rating: 4.6,
-    reviews: 41,
-    tagline: "Unisex",
-  },
-  {
-    id: "p-001",
-    name: "Pijama Ovejiita Dulce",
-    category: "pijama",
-    imageSrc: productImages.bodyPijama,
-    price: 18990,
-    colorHex: "#F8E0E8",
-    sizeGroup: "bebe",
-    badge: "Nuevo",
-    rating: 4.9,
-    reviews: 36,
-    tagline: "Manga larga",
-  },
-  {
-    id: "p-002",
-    name: "Pijama Manta Estrellitas",
-    category: "pijama",
-    imageSrc: productImages.bodyManta,
-    price: 21990,
-    originalPrice: 26490,
-    colorHex: "#D8E8D8",
-    sizeGroup: "bebe",
-    rating: 4.8,
-    reviews: 29,
-    tagline: "Micropolar",
-  },
-  {
-    id: "s-001",
-    name: "Set x3 Bodys Neutros",
-    category: "set",
-    imageSrc: productImages.bodySet,
-    price: 34990,
-    originalPrice: 41990,
-    colorHex: "#F0E8F5",
-    sizeGroup: "bebe",
-    badge: "Top",
-    rating: 5.0,
-    reviews: 88,
-    tagline: "Pack ahorro",
-  },
-  {
-    id: "pn-001",
-    name: "Jogger Verde Menta",
-    category: "pantalon",
-    imageSrc: productImages.pantalonJogger,
-    price: 15490,
-    colorHex: "#D8E8D8",
-    sizeGroup: "ninios",
-    badge: "Nuevo",
-    rating: 4.8,
-    reviews: 22,
-    tagline: "Algodón peinado",
-  },
-  {
-    id: "pn-002",
-    name: "Jogger Beige Clásico",
-    category: "pantalon",
-    imageSrc: productImages.pantalonJogger,
-    price: 14990,
-    colorHex: "#F5E6D3",
-    sizeGroup: "ninios",
-    rating: 4.7,
-    reviews: 18,
-    tagline: "Unisex",
-  },
-  {
-    id: "bz-001",
-    name: "Buzo Orejitas Osito",
-    category: "buzo",
-    imageSrc: productImages.buzoPolar,
-    price: 27990,
-    colorHex: "#F5F0EB",
-    sizeGroup: "bebe",
-    badge: "Último",
-    rating: 4.9,
-    reviews: 15,
-    tagline: "Forrado polar",
-  },
-  {
-    id: "bz-002",
-    name: "Buzo Canguro Clásico",
-    category: "buzo",
-    imageSrc: productImages.buzoPolar,
-    price: 24990,
-    originalPrice: 29990,
-    colorHex: "#E8F0F8",
-    sizeGroup: "ninios",
-    rating: 4.6,
-    reviews: 12,
-    tagline: "Cierre con capucha",
-  },
-  {
-    id: "ac-001",
-    name: "Set x3 Baberos Muselina",
-    category: "accesorio",
-    imageSrc: productImages.accesorioBabero,
-    price: 11990,
-    colorHex: "#F0E8F5",
-    sizeGroup: "bebe",
-    rating: 4.9,
-    reviews: 112,
-    tagline: "Ideal regalo",
-  },
-  {
-    id: "ac-002",
-    name: "Pack Medias x5 Conejitos",
-    category: "accesorio",
-    imageSrc: productImages.accesorioMedias,
-    price: 8990,
-    colorHex: "#F8E0E8",
-    sizeGroup: "bebe",
-    badge: "Nuevo",
-    rating: 4.8,
-    reviews: 73,
-    tagline: "Antideslizantes",
-  },
-  {
-    id: "ac-003",
-    name: "Gorrito Recién Nacido",
-    category: "accesorio",
-    imageSrc: productImages.bodyManta,
-    price: 5990,
-    colorHex: "#F5F0EB",
-    sizeGroup: "bebe",
-    rating: 4.7,
-    reviews: 49,
-    tagline: "Algodón orgánico",
-  },
-  {
-    id: "s-002",
-    name: "Set Remera + Jogger",
-    category: "set",
-    imageSrc: productImages.remeraDino,
-    price: 26990,
-    colorHex: "#F5E6B8",
-    sizeGroup: "ninios",
-    badge: "Nuevo",
-    rating: 4.9,
-    reviews: 8,
-    tagline: "Conjunto listo",
-  },
-];
 
 const CATEGORY_FILTERS: {
   key: CategoryKey;
@@ -411,7 +175,7 @@ function applyFilters(params: {
   return { cat, size, pr, sort, q };
 }
 
-function filterAndSort() {
+function filterAndSort(all: Product[]) {
   return function (state: {
     cat: CategoryKey;
     size: SizeGroup;
@@ -420,7 +184,7 @@ function filterAndSort() {
     q: string;
   }) {
     const priceRule = PRICE_FILTERS.find((r) => r.key === state.pr)!.test;
-    let list = ALL_PRODUCTS.filter((p) => {
+    let list = all.filter((p) => {
       if (state.cat !== "todos" && p.category !== state.cat) return false;
       if (state.size !== "todos" && p.sizeGroup !== state.size) return false;
       if (!priceRule(p.price)) return false;
@@ -470,8 +234,9 @@ export default async function ProductosPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const resolvedSp = await searchParams;
+  const allProducts = await getAllProductsForPage();
   const state = applyFilters({ searchParams: resolvedSp });
-  const items = filterAndSort()(state);
+  const items = filterAndSort(allProducts)(state);
 
   const activeCount = [
     state.cat !== "todos",
@@ -495,8 +260,8 @@ export default async function ProductosPage({
         icon: c.Icon,
         count:
           c.key === "todos"
-            ? ALL_PRODUCTS.length
-            : ALL_PRODUCTS.filter((p) => p.category === c.key).length,
+            ? allProducts.length
+            : allProducts.filter((p) => p.category === c.key).length,
       })),
     },
     {

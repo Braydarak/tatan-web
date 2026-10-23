@@ -1,0 +1,41 @@
+# ============================================================
+# Tatan - API PHP (.htaccess)
+# Este archivo protege la carpeta /api en Ferozo (Apache LiteSpeed).
+# ============================================================
+
+# ------ Seguridad básica ------
+Options -Indexes -MultiViews
+AllowOverride All
+Require all granted
+
+# ------ Desactivar acceso a archivos sensibles ------
+<FilesMatch "^(\.|config(\.php)?|.*\.ini|.*\.log|.*\.sql|.*\.bak|.*\.swp)$">
+    Require all denied
+</FilesMatch>
+
+# ------ Enviar charset UTF-8 por defecto ------
+AddDefaultCharset UTF-8
+AddType application/json .php
+
+# ------ Seguridad de cabeceras ------
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    # Permitir CORS a dominios confiables (el header final lo envía config.php en PHP)
+    Header unset X-Powered-By
+</IfModule>
+
+# ------ OPCIONAL: URLs amigables sin .php ------
+# Si querés que funcione /api/products en vez de /api/products.php:
+# <IfModule mod_rewrite.c>
+#     RewriteEngine On
+#     RewriteCond %{REQUEST_FILENAME} !-f
+#     RewriteCond %{REQUEST_FILENAME} !-d
+#     RewriteRule ^([a-z0-9-]+)(\?.*)?$ $1.php [QSA,L,NC]
+# </IfModule>
+
+# ------ LitSpeed Cache: desactivar cache en endpoints dinámicos ------
+<IfModule LiteSpeed>
+    RewriteRule .* - [E=Cache-Control:no-cache,E=NoCache:1]
+</IfModule>

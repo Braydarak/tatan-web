@@ -17,173 +17,63 @@ export const metadata = {
     "Ofertas en bodys, remeras, pijamas y accesorios para bebés y niños. Hasta 40% OFF. Envío gratis a partir de $25.000.",
 };
 
-const productImages = {
-  bodyOsito:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20baby%20onesie%20body%20beige%20cotton%20with%20teddy%20bear%20print%20soft%20pastel%20colors%20flat%20lay%20kids%20clothing%20photography&image_size=square_hd",
-  bodyNubes:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=adorable%20baby%20onesie%20body%20white%20with%20clouds%20and%20stars%20pastel%20blue%20pink%20soft%20cotton%20flat%20lay%20baby%20clothing&image_size=square_hd",
-  bodyArcoiris:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20baby%20onesie%20rainbow%20print%20soft%20cream%20color%20cotton%20bodysuit%20flat%20lay%20aesthetic%20kids%20fashion&image_size=square_hd",
-  bodyAnimalitos:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=baby%20bodysuit%20onesie%20sage%20green%20with%20cute%20safari%20animals%20print%20soft%20cotton%20flat%20lay%20aesthetic%20baby%20clothing&image_size=square_hd",
-  remeraDino:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20kids%20t-shirt%20mustard%20yellow%20with%20cartoon%20dinosaur%20print%20soft%20cotton%20flat%20lay%20children%20clothing%20photography&image_size=square_hd",
-  remeraFlores:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=adorable%20little%20girl%20t-shirt%20soft%20pink%20with%20cute%20flowers%20print%20cotton%20flat%20lay%20aesthetic%20kids%20fashion%20pastel&image_size=square_hd",
-  remeraCohete:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20boys%20tshirt%20soft%20blue%20with%20rocket%20space%20print%20cotton%20flat%20lay%20kids%20clothing%20photography%20pastel%20colors&image_size=square_hd",
-  remeraCorazones:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=kids%20tshirt%20cream%20white%20with%20cute%20little%20hearts%20print%20soft%20cotton%20flat%20lay%20children%20fashion%20aesthetic&image_size=square_hd",
-  bodyManta:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cozy%20baby%20onesie%20pijama%20mint%20green%20soft%20fleece%20stars%20pattern%20flat%20lay%20warm%20baby%20clothing&image_size=square_hd",
-  bodyPijama:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=baby%20pajama%20onesie%20sleeper%20soft%20pink%20little%20sheep%20print%20cozy%20cotton%20flat%20lay%20aesthetic%20toddler%20pjs&image_size=square_hd",
-  remeraRayada:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=kids%20striped%20tshirt%20red%20white%20soft%20cotton%20classic%20mariniere%20flat%20lay%20unisex%20children%20clothing&image_size=square_hd",
-  bodySet:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=set%20of%203%20baby%20bodysuits%20pastel%20colors%20stripes%20dots%20soft%20cotton%20flat%20lay%20neutrals%20beige%20pink%20green&image_size=square_hd",
-};
+import type { Product as ApiProduct } from "@/lib/tatan-api";
+
+const PHP_API_BASE = "https://tatankids.com.ar/api";
 
 type OfferProduct = {
   id: string;
   name: string;
-  category: "Body" | "Remera" | "Pijama" | "Set";
+  category: string;
   imageSrc: string;
   originalPrice: number;
   offerPrice: number;
   colorHex: string;
-  badge?: "Hot" | "Últimas unidades" | "Nuevo";
+  badge?: "Hot" | "Últimas unidades";
   tag: string;
 };
 
-const OFFERS: OfferProduct[] = [
-  {
-    id: "of-001",
-    name: "Body Osito Amor",
-    category: "Body",
-    imageSrc: productImages.bodyOsito,
-    originalPrice: 15990,
-    offerPrice: 10990,
-    colorHex: "#F5E6D3",
-    badge: "Hot",
-    tag: "Más vendido",
-  },
-  {
-    id: "of-002",
-    name: "Remera Dino Aventura",
-    category: "Remera",
-    imageSrc: productImages.remeraDino,
-    originalPrice: 12990,
-    offerPrice: 8990,
-    colorHex: "#F5E6B8",
-    badge: "Últimas unidades",
-    tag: "Talles 4-6 solo",
-  },
-  {
-    id: "of-003",
-    name: "Remera Cohete Espacial",
-    category: "Remera",
-    imageSrc: productImages.remeraCohete,
-    originalPrice: 13490,
-    offerPrice: 9490,
-    colorHex: "#D8E8F5",
-    tag: "Verano 2026",
-  },
-  {
-    id: "of-004",
-    name: "Body Pijama Ovejiita",
-    category: "Pijama",
-    imageSrc: productImages.bodyPijama,
-    originalPrice: 18990,
-    offerPrice: 12990,
-    colorHex: "#F8E0E8",
-    badge: "Nuevo",
-    tag: "Manga larga",
-  },
-  {
-    id: "of-005",
-    name: "Remera Rayada Clásica",
-    category: "Remera",
-    imageSrc: productImages.remeraRayada,
-    originalPrice: 10490,
-    offerPrice: 6990,
-    colorHex: "#F2D0C8",
-    tag: "Unisex",
-  },
-  {
-    id: "of-006",
-    name: "Body Manta Estrellitas",
-    category: "Pijama",
-    imageSrc: productImages.bodyManta,
-    originalPrice: 21990,
-    offerPrice: 15990,
-    colorHex: "#D8E8D8",
-    badge: "Hot",
-    tag: "Micro polar",
-  },
-  {
-    id: "of-007",
-    name: "Set x3 Bodys Neutros",
-    category: "Set",
-    imageSrc: productImages.bodySet,
-    originalPrice: 34990,
-    offerPrice: 22990,
-    colorHex: "#F0E8F5",
-    badge: "Últimas unidades",
-    tag: "Pack ahorro",
-  },
-  {
-    id: "of-008",
-    name: "Body Nubes y Estrellas",
-    category: "Body",
-    imageSrc: productImages.bodyNubes,
-    originalPrice: 11990,
-    offerPrice: 8990,
-    colorHex: "#E8F0F8",
-    tag: "Recién nacido",
-  },
-  {
-    id: "of-009",
-    name: "Body Arcoiris Mágico",
-    category: "Body",
-    imageSrc: productImages.bodyArcoiris,
-    originalPrice: 13490,
-    offerPrice: 9990,
-    colorHex: "#F0E8F5",
-    tag: "Babyshower",
-  },
-  {
-    id: "of-010",
-    name: "Body Safari Animalitos",
-    category: "Body",
-    imageSrc: productImages.bodyAnimalitos,
-    originalPrice: 14490,
-    offerPrice: 10490,
-    colorHex: "#D8E8D8",
-    tag: "Manga larga",
-  },
-  {
-    id: "of-011",
-    name: "Remera Flores Boho",
-    category: "Remera",
-    imageSrc: productImages.remeraFlores,
-    originalPrice: 10990,
-    offerPrice: 7790,
-    colorHex: "#F8E0E8",
-    tag: "Volados",
-  },
-  {
-    id: "of-012",
-    name: "Remera Corazones Dulces",
-    category: "Remera",
-    imageSrc: productImages.remeraCorazones,
-    originalPrice: 9490,
-    offerPrice: 6790,
-    colorHex: "#F5F0EB",
-    badge: "Hot",
-    tag: "Básico infaltable",
-  },
-];
+async function fetchOffersSSR(): Promise<ApiProduct[]> {
+  try {
+    const res = await fetch(`${PHP_API_BASE}/products.php`, {
+      next: { revalidate: 60, tags: ["tatan-products"] },
+      cache: "force-cache",
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { ok?: boolean; data?: ApiProduct[] };
+    return Array.isArray(json?.data) ? json.data : [];
+  } catch {
+    return [];
+  }
+}
+
+function mapApiToOffer(api: ApiProduct): OfferProduct | null {
+  const originalPrice =
+    api.originalPrice != null ? Number(api.originalPrice) : 0;
+  const offerPrice = Number(api.price) || 0;
+  if (!originalPrice || originalPrice <= offerPrice) return null;
+  const pct = Math.round(((originalPrice - offerPrice) / originalPrice) * 100);
+  return {
+    id: api.id,
+    name: api.name,
+    category: (api.category || "").toLowerCase(),
+    imageSrc:
+      api.imageSrc ||
+      `https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20${encodeURIComponent(api.category)}%20kids%20clothing%20pastel%20flat%20lay&image_size=square_hd`,
+    originalPrice,
+    offerPrice,
+    colorHex: api.colorHex || "#F5E6D3",
+    badge: pct >= 30 ? "Hot" : pct >= 20 ? "Últimas unidades" : undefined,
+    tag: api.tagline || "Oferta",
+  };
+}
+
+async function getOffersForPage(): Promise<OfferProduct[]> {
+  const fromApi = await fetchOffersSSR();
+  return fromApi
+    .map(mapApiToOffer)
+    .filter((o): o is OfferProduct => o !== null);
+}
 
 type FilterKey = "todos" | "body" | "remera" | "pijama" | "set";
 type SortKey = "recomendado" | "menor" | "mayor" | "descuento";
@@ -207,20 +97,13 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "descuento", label: "Mayor % OFF" },
 ];
 
-const CATEGORY_MAP: Record<OfferProduct["category"], FilterKey> = {
-  Body: "body",
-  Remera: "remera",
-  Pijama: "pijama",
-  Set: "set",
-};
-
 function discountPct(p: OfferProduct) {
   return Math.round(((p.originalPrice - p.offerPrice) / p.originalPrice) * 100);
 }
 
 function filterAndSort(items: OfferProduct[], f: FilterKey, s: SortKey) {
   const filtered =
-    f === "todos" ? items : items.filter((p) => CATEGORY_MAP[p.category] === f);
+    f === "todos" ? items : items.filter((p) => p.category === f);
 
   const sorted = [...filtered];
   switch (s) {
@@ -259,7 +142,8 @@ export default async function OfertasPage({
     ? (rawSort as SortKey)
     : "recomendado";
 
-  const items = filterAndSort(OFFERS, filterKey, sortKey);
+  const allOffers = await getOffersForPage();
+  const items = filterAndSort(allOffers, filterKey, sortKey);
 
   if (!items.length && filterKey !== "todos") {
     // notFound();
@@ -281,8 +165,8 @@ export default async function OfertasPage({
         icon: f.Icon,
         count:
           f.key === "todos"
-            ? OFFERS.length
-            : OFFERS.filter((o) => CATEGORY_MAP[o.category] === f.key).length,
+            ? allOffers.length
+            : allOffers.filter((o) => o.category === f.key).length,
       })),
     },
   ];
@@ -369,9 +253,7 @@ export default async function OfertasPage({
                       installmentPrice={Math.round(p.offerPrice / 6)}
                       taxFreePrice={Math.round(p.offerPrice * 0.79)}
                       colorHex={p.colorHex}
-                      productUrl={`/product/${
-                        OFFERS.find((o) => o.name === p.name)?.id ?? "b-001"
-                      }`}
+                      productUrl={`/product/${p.id}`}
                       loading={idx === 0 ? "eager" : "lazy"}
                       priority={idx === 0}
                     />

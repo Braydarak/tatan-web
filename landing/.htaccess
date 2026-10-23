@@ -1,0 +1,25 @@
+RewriteEngine on
+RewriteCond %{HTTPS} off
+RewriteCond %{HTTP:CDN-LOOP} !cloudflare
+RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge/
+RewriteCond %{HTTP_HOST} ^(www\.)?tatankids\.com\.ar
+RewriteRule (.\*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L,QSA]
+
+FileETag None
+<IfModule mod_headers.c>
+Header unset ETag
+Header unset Last-Modified
+<FilesMatch "\.(html|htm)$">
+Header unset Cache-Control
+Header unset Pragma
+Header unset Expires
+Header set Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0, stale-while-revalidate=0, stale-if-error=0"
+Header set Pragma "no-cache"
+Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+</FilesMatch>
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>

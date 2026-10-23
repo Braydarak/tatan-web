@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
+import { apiSiteContent, apiSiteContentSave } from "@/lib/tatan-api";
+import { ENVIOS_DEFAULT as DEFAULT_ENVios } from "@/lib/site-content-defaults";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -156,326 +158,6 @@ export type EnviosData = {
   finalCta: EnviosCta;
 };
 
-/* ---------- Defaults (mirrors envios/page.tsx actual) ---------- */
-
-const DEFAULT_ENVios: EnviosData = {
-  sections: {
-    zones: {
-      show: true,
-      showEyebrow: true,
-      eyebrow: "Zonas de entrega",
-      eyebrowBarColor: "#F7CA5C",
-      title: "Enviamos a todo el país y Sudamérica",
-      showDescription: true,
-      description:
-        "Los tiempos son estimados desde el despacho (24 h hábiles después de acreditado el pago). Feriados y fin de semana no se cuentan.",
-    },
-    costos: {
-      show: true,
-      showEyebrow: true,
-      eyebrow: "Costos",
-      eyebrowBarColor: "#F2B27B",
-      title: "Envío gratis en compras mayores a $25.000",
-      showDescription: true,
-      description:
-        "Sin costos sorpresa. El valor final aparece antes de pagar y se calcula según tu zona y el monto del carrito.",
-    },
-    proceso: {
-      show: true,
-      showEyebrow: true,
-      eyebrow: "Cómo funciona",
-      eyebrowBarColor: "#F29BAF",
-      title: "Del carrito a la puerta de tu casa en 4 pasos",
-      showDescription: true,
-      description:
-        "Te contamos todo el recorrido que hace tu pedido desde que pagás hasta que estás abrazando tus prendas nuevas.",
-    },
-    seguimiento: { show: true },
-    cambios: { show: true },
-    faq: {
-      show: true,
-      showEyebrow: true,
-      eyebrow: "Preguntas frecuentes",
-      eyebrowBarColor: "#CDE1A4",
-      title: "Todo lo que querés saber de los envíos",
-      showDescription: false,
-      description: "",
-    },
-    finalCta: { show: true },
-  },
-  hero: {
-    show: true,
-    eyebrow: "Envíos y entregas",
-    title: "Tus prendas viajan seguras hasta tu casa",
-    subtitle:
-      "Explicá cómo funciona el envío de nuestros productos: zonas de entrega, tiempos, costos, seguimiento y cambios sin costo. Entregamos a todo el país.",
-    ctaPrimaryText: "Ver productos",
-    ctaPrimaryHref: "/productos",
-    ctaSecondaryText: "Ver zonas y tiempos",
-    ctaSecondaryHref: "#zonas",
-    summaryCardShow: true,
-    summaryTime: "3-7 días hábiles",
-    summaryTimeLabel: "Interior del país",
-    summaryFreeBadgeText: "Gratis",
-    summaryFreeAmount: "$25k+",
-    summaryFreeLabel: "Envío sin costo",
-    summaryChangesDays: "30 días",
-    summaryChangesTitle: "Cambios",
-    summaryChangesLabel: "Sin letra chica",
-    stats: [
-      {
-        show: true,
-        showIcon: true,
-        iconKey: "Truck",
-        label: "Tiempo promedio",
-        value: "3-7 días hábiles",
-        tone: "#5B85A8",
-        tintBg: "#F7FBFF",
-      },
-      {
-        show: true,
-        showIcon: true,
-        iconKey: "Sparkles",
-        label: "Gratis",
-        value: "$25k+",
-        tone: "#599E7D",
-        tintBg: "#F6FBF7",
-      },
-      {
-        show: true,
-        showIcon: true,
-        iconKey: "RotateCcw",
-        label: "30 días",
-        value: "Cambios",
-        tone: "#D27856",
-        tintBg: "#FFF6F0",
-      },
-    ],
-  },
-  zones: [
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "MapPin",
-      color: "#D27856",
-      title: "CABA y GBA",
-      time: "24 a 48 hábiles",
-      items: [
-        "Despacho en 24 h",
-        "Entrega a domicilio",
-        "Retiro en puntos sin cargo",
-      ],
-    },
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "Truck",
-      color: "#7BA5C9",
-      title: "Interior del país",
-      time: "3 a 7 días hábiles",
-      items: [
-        "Correo Argentino / Andreani",
-        "Entrega a domicilio",
-        "Retiro en sucursal",
-      ],
-    },
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "Package",
-      color: "#E58BA0",
-      title: "Resto de Sudamérica",
-      time: "10 a 20 días hábiles",
-      items: [
-        "Envío internacional",
-        "Sin impuestos a < USD 50",
-        "Seguimiento completo",
-      ],
-    },
-  ],
-  costos: [
-    {
-      show: true,
-      title: "Envío GRATIS",
-      subtitle: "Compras mayores a",
-      amount: "$25.000",
-      badge: "Más elegido",
-      details: [
-        "Todas las zonas",
-        "Aplica Mercado Envíos",
-        "Despacho en 24 h hábiles",
-      ],
-      ctaText: "Ver prendas",
-      ctaHref: "/productos",
-      highlight: true,
-    },
-    {
-      show: true,
-      title: "Envío estándar",
-      subtitle: "Compras menores a",
-      amount: "$25.000",
-      badge: "Costo fijo",
-      details: [
-        "CABA y GBA: $1.200",
-        "Interior del país: desde $1.800",
-        "Se calcula al finalizar compra",
-      ],
-      ctaText: "Ver prendas",
-      ctaHref: "/productos",
-      highlight: false,
-    },
-    {
-      show: true,
-      title: "Retiro sin cargo",
-      subtitle: "En puntos de retiro",
-      amount: "$0",
-      badge: "Gratis siempre",
-      details: [
-        "Correo Argentino / Andreani",
-        "Horarios de sucursal",
-        "Te avisan por SMS cuando llega",
-      ],
-      ctaText: "Ver prendas",
-      ctaHref: "/productos",
-      highlight: false,
-    },
-  ],
-  steps: [
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "CreditCard",
-      number: "01",
-      title: "Elegís y pagás tu pedido",
-      description:
-        "Agregás las prendas al carrito y pagás por Mercado Pago, transferencia o efectivo. Confirmamos stock en 2 horas hábiles.",
-      tone: "from-tatan-acento-rosa/40 via-white to-tatan-primario1/50",
-    },
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "Gift",
-      number: "02",
-      title: "Armamos y despachamos",
-      description:
-        "Controlamos calidad, doblamos con papel de regalo y despachamos en 24 hs hábiles. Te enviamos el número de seguimiento por WhatsApp.",
-      tone: "from-tatan-acento-amarillo/40 via-white to-tatan-primario2/50",
-    },
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "Truck",
-      number: "03",
-      title: "Te llega a la puerta",
-      description:
-        "Trabajamos con transportes de confianza. En CABA podés seguir en tiempo real; en el interior recibís notificación del correo.",
-      tone: "from-tatan-acento-azul/40 via-white to-tatan-primario1/50",
-    },
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "RotateCcw",
-      number: "04",
-      title: "Si no te convence, lo cambiás",
-      description:
-        "Tenés 30 días desde que recibís el pedido para cambiar de talle o devolver sin costo. Sin letra chica.",
-      tone: "from-tatan-acento-verde/40 via-white to-tatan-primario2/50",
-    },
-  ],
-  seguimiento: [
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "Clock",
-      iconBg: "#F7FBFF",
-      iconColor: "#5B85A8",
-      title: "Seguimiento en tiempo real",
-      description:
-        "Apenas despachamos tu pedido te enviamos un código por WhatsApp y email. Desde la web del correo o la app de Mercado Libre podés seguir el recorrido paso a paso, ver la hora estimada de entrega y dejar instrucciones si no vas a estar.",
-      bullets: [
-        "Número único por pedido",
-        "Notificaciones por SMS/WhatsApp",
-        "Fecha estimada visible",
-      ],
-    },
-    {
-      show: true,
-      showIcon: true,
-      iconKey: "Package",
-      iconBg: "#F0FAF2",
-      iconColor: "#599E7D",
-      title: "Retiro sin cargo en sucursal",
-      description:
-        "Si preferís pasar a buscarlo vos, al finalizar la compra podés elegir la sucursal de Correo Argentino o Andreani más cercana. No pagás nada extra. Cuando llega te avisan por SMS y tenés 7 días para retirarlo.",
-      bullets: [
-        "Sin costo adicional",
-        "Cientos de puntos en todo el país",
-        "Aviso por SMS cuando llega",
-      ],
-    },
-  ],
-  cambios: {
-    show: true,
-    title: "Cambios y devoluciones sin costo en 30 días",
-    description:
-      "Si no te convence el talle, el color o simplemente no es lo que esperabas, lo devolvés o lo cambiás gratis. Sin preguntas, sin letra chica.",
-    bullets: [
-      "30 días desde que recibís el pedido",
-      "Envio de devolución a cargo nuestro",
-      "Cambio de talle o color sin costo adicional",
-      "Devolución del dinero en hasta 10 días hábiles",
-      "Etiqueta de devolución por email en 24 hs",
-      "Funciona en todo el país",
-    ],
-    cta1Text: "Pedir cambio por WhatsApp",
-    cta1Href: "/contacto",
-    cta2Text: "Escribir por mail",
-    cta2Href: "/contacto",
-  },
-  faqs: [
-    {
-      show: true,
-      q: "¿Con qué transportes trabajan?",
-      a: "Trabajamos principalmente con Mercado Envíos, Correo Argentino y Andreani. A CABA y GBA también usamos servicios de encomienda rápida para entregas en 24 hs. La opción exacta la elegís al finalizar la compra.",
-    },
-    {
-      show: true,
-      q: "¿Cómo sigo mi pedido?",
-      a: "Apenas despachamos te enviamos el número de seguimiento por WhatsApp y email. Ingresando el código en la web del correo podés ver el recorrido en tiempo real.",
-    },
-    {
-      show: true,
-      q: "¿Qué pasa si no hay nadie cuando entregan?",
-      a: "El transporte deja un aviso de visita y vuelve en 48 h hábiles. Después del 2do intento fallido, el paquete queda en sucursal para retiro durante 7 días.",
-    },
-    {
-      show: true,
-      q: "¿Se puede retirar por algún local?",
-      a: "Por ahora operamos 100% online. Podés elegir retiro sin cargo en la sucursal del correo más cercana (Correo Argentino o Andreani).",
-    },
-    {
-      show: true,
-      q: "¿El envío gratis aplica a todas las prendas?",
-      a: "Sí. El envío gratis se activa automáticamente cuando el total del carrito supera los $25.000 sin importar la combinación de productos (bodys, remeras, conjuntos, accesorios, etc.).",
-    },
-    {
-      show: true,
-      q: "¿Hay costos extra en aduana para envíos internacionales?",
-      a: "Para envíos dentro de Argentina no hay nada. Para Sudamérica, paquetes menores a USD 50 generalmente no pagan impuestos. Superado ese monto, el cliente se hace cargo de los aranceles de su país.",
-    },
-  ],
-  finalCta: {
-    show: true,
-    title: "¿Tu duda no apareció acá?",
-    description:
-      "Escribinos por WhatsApp o por email y te respondemos en menos de 24 horas hábiles. También podemos revisar el estado de tu envío en vivo.",
-    cta1Text: "WhatsApp",
-    cta1Href: "https://wa.me/5491112345678",
-    cta2Text: "Ir a contacto",
-    cta2Href: "/contacto",
-  },
-};
-
 /* ---------- Helpers ---------- */
 
 type Toast = { id: number; kind: "ok" | "error"; msg: string } | null;
@@ -488,6 +170,52 @@ function mergeByIndex<T>(defaults: T[], parsed?: unknown[] | null): T[] {
       ? (parsed[i] as Partial<T>)
       : ({} as Partial<T>)),
   }));
+}
+
+function mergeEnvios(defaults: EnviosData, raw: unknown): EnviosData {
+  const p = (
+    typeof raw === "string" ? JSON.parse(raw) : (raw ?? {})
+  ) as Partial<EnviosData>;
+  return {
+    ...defaults,
+    ...p,
+    sections: { ...defaults.sections, ...(p.sections ?? {}) },
+    hero: {
+      ...defaults.hero,
+      ...(p.hero ?? {}),
+      stats: mergeByIndex(defaults.hero.stats, p.hero?.stats ?? null) as [
+        EnviosHeroSummaryStat,
+        EnviosHeroSummaryStat,
+        EnviosHeroSummaryStat,
+      ],
+    },
+    zones: mergeByIndex(defaults.zones, p.zones ?? null) as [
+      EnviosZone,
+      EnviosZone,
+      EnviosZone,
+    ],
+    costos: mergeByIndex(defaults.costos, p.costos ?? null) as [
+      EnviosCostCard,
+      EnviosCostCard,
+      EnviosCostCard,
+    ],
+    steps: mergeByIndex(defaults.steps, p.steps ?? null) as [
+      EnviosStep,
+      EnviosStep,
+      EnviosStep,
+      EnviosStep,
+    ],
+    seguimiento: mergeByIndex(defaults.seguimiento, p.seguimiento ?? null) as [
+      EnviosSeguimientoCard,
+      EnviosSeguimientoCard,
+    ],
+    cambios: { ...defaults.cambios, ...(p.cambios ?? {}) },
+    faqs:
+      Array.isArray(p.faqs) && p.faqs.length > 0
+        ? p.faqs.map((f, i) => ({ ...(defaults.faqs[i] ?? f), ...f }))
+        : defaults.faqs,
+    finalCta: { ...defaults.finalCta, ...(p.finalCta ?? {}) },
+  };
 }
 
 function initialEnviosData(): EnviosData {
@@ -651,6 +379,46 @@ export default function EnviosEditor() {
   const [data, setData] = React.useState<EnviosData>(() => initialEnviosData());
   const [savedCount, setSavedCount] = React.useState(0);
   const [toast, setToast] = React.useState<Toast>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [loadStatus, setLoadStatus] = React.useState<
+    "idle" | "loading" | "ok" | "error"
+  >("loading");
+
+  // Cargar desde DB al montar
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setLoadStatus("loading");
+      try {
+        const r = await apiSiteContent<EnviosData>("envios");
+        if (cancelled) return;
+        if (r.ok && r.data) {
+          const parsed =
+            typeof r.data === "string" ? JSON.parse(r.data) : r.data;
+          setData(mergeEnvios(DEFAULT_ENVios, parsed));
+          setLoadStatus("ok");
+          try {
+            window.localStorage.setItem(
+              "crm:envios",
+              JSON.stringify(mergeEnvios(DEFAULT_ENVios, parsed)),
+            );
+          } catch {
+            /* ignore */
+          }
+        } else {
+          setData(initialEnviosData());
+          setLoadStatus("error");
+        }
+      } catch {
+        if (cancelled) return;
+        setData(initialEnviosData());
+        setLoadStatus("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const pushToast = React.useCallback((kind: "ok" | "error", msg: string) => {
     const id = Date.now() + Math.random();
@@ -843,13 +611,39 @@ export default function EnviosEditor() {
       faqs: d.faqs.filter((_, idx) => idx !== i),
     }));
 
-  const onSave = () => {
+  const onSave = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
-      window.localStorage.setItem("crm:envios", JSON.stringify(data));
+      const r = await apiSiteContentSave<EnviosData>("envios", data);
+      if (!r.ok) {
+        throw new Error(
+          r.error || "No se pudo guardar en la DB (¿sesión expirada?)",
+        );
+      }
+      // cache local offline
+      try {
+        window.localStorage.setItem("crm:envios", JSON.stringify(data));
+      } catch {
+        /* ignore */
+      }
       setSavedCount((x) => x + 1);
-      pushToast("ok", "¡Página de envíos guardada!");
-    } catch {
-      pushToast("error", "No se pudo guardar");
+      setLoadStatus("ok");
+      pushToast("ok", `¡Página de envíos guardada! (v${r.version ?? "?"})`);
+    } catch (e) {
+      // fallback: salvar solo en localStorage
+      try {
+        window.localStorage.setItem("crm:envios", JSON.stringify(data));
+        setSavedCount((x) => x + 1);
+        pushToast(
+          "error",
+          `Error DB, guardado local: ${e instanceof Error ? e.message : "desconocido"}`,
+        );
+      } catch {
+        pushToast("error", "No se pudo guardar (DB ni localStorage)");
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -869,10 +663,26 @@ export default function EnviosEditor() {
     <div className="relative w-full">
       <header className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <div className="inline-flex items-center gap-2 mb-1">
+          <div className="inline-flex items-center gap-2 mb-1 flex-wrap">
             <span className="w-6 h-1 rounded-full bg-tatan-acento-azul" />
             <span className="text-[11px] font-bold uppercase tracking-wider text-tatan-secundario2">
               Contenido del sitio
+            </span>
+            <span
+              className={cx(
+                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider",
+                loadStatus === "loading"
+                  ? "bg-sky-50 border-sky-200 text-sky-700"
+                  : loadStatus === "ok"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                    : "bg-amber-50 border-amber-200 text-amber-800",
+              )}
+            >
+              {loadStatus === "loading"
+                ? "Leyendo DB…"
+                : loadStatus === "ok"
+                  ? "BD sincronizada"
+                  : "Datos locales"}
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight leading-tight">
@@ -880,7 +690,17 @@ export default function EnviosEditor() {
           </h2>
           <p className="mt-1 text-sm text-zinc-500 max-w-2xl leading-relaxed">
             Modificá textos, colores, mostrá u ocultá secciones enteras y agregá
-            o quitá items. Los cambios se guardan en tu navegador.
+            o quitá items.
+            {savedCount > 0 ? (
+              <>
+                {" "}
+                Guardado <strong>{savedCount}</strong> vez
+                {savedCount === 1 ? "" : "es"} en esta sesión · persistence:{" "}
+                <code className="rounded bg-black/5 px-1 py-0.5 text-[11px]">
+                  DB + crm:envios (cache)
+                </code>
+              </>
+            ) : null}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -890,10 +710,14 @@ export default function EnviosEditor() {
           <CustomButton
             type="filled"
             onClick={onSave}
+            disabled={saving}
             className="text-xs bg-gradient-to-br from-tatan-primario1 to-tatan-primario2 text-zinc-900 border-transparent shadow-sm"
           >
+            {saving ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/20 border-t-zinc-900 mr-1.5" />
+            ) : null}
             Guardar cambios
-            {savedCount > 0 ? (
+            {savedCount > 0 && !saving ? (
               <span className="ml-1 text-[10px] opacity-80">
                 ({savedCount})
               </span>

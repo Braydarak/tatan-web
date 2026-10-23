@@ -1,6 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import ProductCard from "@/components/ui/productCard/ProductCard";
+import type { Product as ApiProduct } from "@/lib/tatan-api";
+import type {
+  HomeHeroData,
+  HomeBenefitIconKey,
+} from "@/components/sections/HomeHeroEditor";
+import { HOME_HERO_DEFAULT } from "@/lib/site-content-defaults";
 import {
   Sparkles,
   Flower2,
@@ -20,128 +26,157 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-const productImages = {
-  bodyOsito:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20baby%20onesie%20body%20beige%20cotton%20with%20teddy%20bear%20print%20soft%20pastel%20colors%20flat%20lay%20kids%20clothing%20photography&image_size=square_hd",
-  bodyNubes:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=adorable%20baby%20onesie%20body%20white%20with%20clouds%20and%20stars%20pastel%20blue%20pink%20soft%20cotton%20flat%20lay%20baby%20clothing&image_size=square_hd",
-  bodyArcoiris:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20baby%20onesie%20rainbow%20print%20soft%20cream%20color%20cotton%20bodysuit%20flat%20lay%20aesthetic%20kids%20fashion&image_size=square_hd",
-  remeraDino:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20kids%20t-shirt%20mustard%20yellow%20with%20cartoon%20dinosaur%20print%20soft%20cotton%20flat%20lay%20children%20clothing%20photography&image_size=square_hd",
-  remeraFlores:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=adorable%20little%20girl%20t-shirt%20soft%20pink%20with%20cute%20flowers%20print%20cotton%20flat%20lay%20aesthetic%20kids%20fashion%20pastel&image_size=square_hd",
-  remeraCohete:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20boys%20tshirt%20soft%20blue%20with%20rocket%20space%20print%20cotton%20flat%20lay%20kids%20clothing%20photography%20pastel%20colors&image_size=square_hd",
-  bodyAnimalitos:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=baby%20bodysuit%20onesie%20sage%20green%20with%20cute%20safari%20animals%20print%20soft%20cotton%20flat%20lay%20aesthetic%20baby%20clothing&image_size=square_hd",
-  remeraCorazones:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=kids%20tshirt%20cream%20white%20with%20cute%20little%20hearts%20print%20soft%20cotton%20flat%20lay%20children%20fashion%20aesthetic&image_size=square_hd",
+const PHP_API_BASE = "https://tatankids.com.ar/api";
+
+async function fetchProductsHomeSSR(): Promise<ApiProduct[]> {
+  try {
+    const res = await fetch(`${PHP_API_BASE}/products.php`, {
+      next: { revalidate: 60, tags: ["tatan-home-products"] },
+      cache: "force-cache",
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { ok?: boolean; data?: ApiProduct[] };
+    return Array.isArray(json?.data) ? json.data : [];
+  } catch {
+    return [];
+  }
+}
+
+async function fetchHomeHeroSSR(): Promise<HomeHeroData | null> {
+  try {
+    const res = await fetch(`${PHP_API_BASE}/site-content.php?key=home_hero`, {
+      next: { revalidate: 60, tags: ["tatan-site-content"] },
+      cache: "force-cache",
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { ok?: boolean; data?: HomeHeroData };
+    return json?.ok && json.data ? json.data : null;
+  } catch {
+    return null;
+  }
+}
+
+const BENEFIT_ICONS: Record<HomeBenefitIconKey, typeof Truck> = {
+  Truck,
+  CreditCard,
+  Heart,
 };
 
-const featuredProducts = [
-  {
-    id: "b-001",
-    name: "Body Osito Amor",
-    imageSrc: productImages.bodyOsito,
-    price: 12990,
-    originalPrice: 15990,
-    badge: "Nuevo",
-    colorHex: "#F5E6D3",
-  },
-  {
-    id: "b-002",
-    name: "Body Nubes y Estrellas",
-    imageSrc: productImages.bodyNubes,
-    price: 11990,
-    badge: "Top",
-    colorHex: "#E8F0F8",
-  },
-  {
-    id: "r-001",
-    name: "Remera Dino Aventura",
-    imageSrc: productImages.remeraDino,
-    price: 9990,
-    originalPrice: 12990,
-    colorHex: "#F5E6B8",
-  },
-  {
-    id: "r-002",
-    name: "Remera Flores Boho",
-    imageSrc: productImages.remeraFlores,
-    price: 10990,
-    badge: "Nuevo",
-    colorHex: "#F8E0E8",
-  },
-];
+type HomeProductCard = {
+  id: string;
+  name: string;
+  imageSrc: string;
+  price: number;
+  originalPrice?: number;
+  badge?: "Nuevo" | "Top" | "Último";
+  colorHex: string;
+};
 
-const allProducts = [
-  {
-    id: "b-003",
-    name: "Body Arcoiris Mágico",
-    imageSrc: productImages.bodyArcoiris,
-    price: 13490,
-    colorHex: "#F0E8F5",
-  },
-  {
-    id: "r-003",
-    name: "Remera Cohete Espacial",
-    imageSrc: productImages.remeraCohete,
-    price: 10490,
-    originalPrice: 13490,
-    colorHex: "#D8E8F5",
-  },
-  {
-    id: "b-004",
-    name: "Body Safari Animalitos",
-    imageSrc: productImages.bodyAnimalitos,
-    price: 14490,
-    badge: "Nuevo",
-    colorHex: "#D8E8D8",
-  },
-  {
-    id: "r-004",
-    name: "Remera Corazones Dulces",
-    imageSrc: productImages.remeraCorazones,
-    price: 9490,
-    colorHex: "#F5F0EB",
-  },
-];
+function badgeFromApi(
+  api: Pick<ApiProduct, "id" | "soldTotal" | "rating" | "reviews">,
+): HomeProductCard["badge"] | undefined {
+  const idNum = Number(api.id.match(/^[a-z]+-(\d+)$/)?.[1] ?? 0);
+  if (api.soldTotal >= 50 || (api.rating >= 4.8 && api.reviews >= 40))
+    return "Top";
+  if (!idNum || idNum <= 2) return "Nuevo";
+  if (api.reviews > 0 && api.reviews <= 20 && api.rating >= 4.7)
+    return "Último";
+  return undefined;
+}
+
+function mapApiToHomeCard(api: ApiProduct): HomeProductCard {
+  return {
+    id: api.id,
+    name: api.name,
+    imageSrc:
+      api.imageSrc ||
+      `https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20${encodeURIComponent(api.category)}%20kids%20clothing%20pastel%20flat%20lay&image_size=square_hd`,
+    price: Number(api.price) || 9990,
+    originalPrice:
+      api.originalPrice != null
+        ? Number(api.originalPrice) || undefined
+        : undefined,
+    badge: badgeFromApi(api),
+    colorHex: api.colorHex || "#F5E6D3",
+  };
+}
+
+async function loadHomeProducts(): Promise<{
+  featured: HomeProductCard[];
+  all: HomeProductCard[];
+  byCategory: Record<string, number>;
+}> {
+  const fromApi = await fetchProductsHomeSSR();
+  const apiCards = fromApi.map(mapApiToHomeCard);
+
+  const topApi = [...apiCards].sort((a, b) => {
+    const w = (x: HomeProductCard) =>
+      (x.badge === "Top"
+        ? 3
+        : x.badge === "Nuevo"
+          ? 2
+          : x.badge === "Último"
+            ? 1
+            : 0) + (x.originalPrice ? 0.5 : 0);
+    return w(b) - w(a);
+  });
+
+  const featured = topApi.slice(0, 4);
+  const all = topApi.slice(4, 12);
+
+  const byCategory: Record<string, number> = {};
+  for (const p of apiCards) {
+    // inferimos la categoría por prefijo de ID ya que la home no necesita el campo category
+    const prefix = p.id.split("-")[0] ?? "x";
+    const map: Record<string, string> = {
+      b: "Bodys",
+      r: "Remeras",
+      p: "Pijamas",
+      ac: "Accesorios",
+      s: "Sets",
+      pn: "Pantalones",
+      bz: "Buzos",
+    };
+    const label = map[prefix];
+    if (label) byCategory[label] = (byCategory[label] ?? 0) + 1;
+  }
+  return { featured, all, byCategory };
+}
 
 const categories = [
   {
     name: "Bodys",
     Icon: Baby,
     bg: "bg-tatan-acento-rosa/40",
-    count: 24,
     color: "#E58BA0",
   },
   {
     name: "Remeras",
     Icon: Shirt,
     bg: "bg-tatan-acento-azul/40",
-    count: 38,
     color: "#7BA5C9",
   },
   {
     name: "Pijamas",
     Icon: Moon,
     bg: "bg-tatan-acento-amarillo/40",
-    count: 16,
     color: "#E5CA70",
   },
   {
     name: "Accesorios",
     Icon: Gift,
     bg: "bg-tatan-acento-verde/40",
-    count: 12,
     color: "#6FA889",
   },
 ];
 
-export default function Home() {
+export default async function Home() {
   const reviewIcons = [Heart, Star, Flower2, Plane];
   const reviewColors = ["#F4B8C8", "#F7E4A3", "#8DBFA3", "#A8C8E0"];
+  const { featured, all, byCategory } = await loadHomeProducts();
+  const hero = (await fetchHomeHeroSSR()) ?? HOME_HERO_DEFAULT;
+
+  const benefits = hero.benefits.filter((b) => b.show);
 
   return (
     <div className="min-h-dvh flex flex-col relative z-10">
@@ -153,31 +188,35 @@ export default function Home() {
                 <div className="inline-flex items-center gap-2 rounded-full bg-tatan-primario2/60 px-4 py-1.5 mb-5">
                   <Sparkles className="w-5 h-5 text-zinc-700" strokeWidth={2} />
                   <span className="text-sm font-semibold text-zinc-700">
-                    Nueva colección Otoño
+                    {hero.eyebrow}
                   </span>
                 </div>
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-zinc-800 leading-[1.1] mb-5">
-                  Ropa suavecita para
+                  {hero.titleLine1}
                   <span className="block text-tatan-primario4 drop-shadow-sm">
-                    tus pequeños
+                    {hero.titleLine2}
                   </span>
                 </h1>
                 <p className="text-base sm:text-lg text-zinc-600 mb-8 max-w-md leading-relaxed">
-                  Descubrí nuestra selección de bodys, remeras y prendas de
-                  algodón premium. Confeccionadas con amor para los más
-                  chiquitos.
+                  {hero.description}
                 </p>
                 <div className="flex flex-wrap gap-4">
-                  <button className="btn-primary font-semibold px-8 py-3.5 rounded-2xl text-base">
-                    Ver colección
-                  </button>
-                  <button className="px-8 py-3.5 rounded-2xl text-base font-semibold border-2 border-tatan-secundario2/30 text-zinc-700 hover:bg-white/50 transition-colors paper-card inline-flex items-center gap-2">
-                    Ofertas
+                  <Link
+                    href={hero.cta1Href || "/productos"}
+                    className="btn-primary font-semibold px-8 py-3.5 rounded-2xl text-base"
+                  >
+                    {hero.cta1Text}
+                  </Link>
+                  <Link
+                    href={hero.cta2Href || "/ofertas"}
+                    className="px-8 py-3.5 rounded-2xl text-base font-semibold border-2 border-tatan-secundario2/30 text-zinc-700 hover:bg-white/50 transition-colors paper-card inline-flex items-center gap-2"
+                  >
+                    {hero.cta2Text}
                     <Flower2
                       className="w-5 h-5 text-pink-400"
                       strokeWidth={2}
                     />
-                  </button>
+                  </Link>
                 </div>
 
                 <div className="flex items-center gap-6 mt-10">
@@ -218,7 +257,7 @@ export default function Home() {
                 <div className="relative paper-card rounded-3xl p-4 sm:p-6">
                   <div className="aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-tatan-primario1/40 to-tatan-primario2/40 p-6 flex items-center justify-center relative">
                     <Image
-                      src={productImages.bodyOsito}
+                      src={hero.imageSrc}
                       alt="Producto destacado"
                       fill
                       priority
@@ -227,24 +266,37 @@ export default function Home() {
                       className="object-cover rounded-2xl drop-shadow-lg p-6"
                     />
                   </div>
-                  <div className="absolute -top-4 -right-2 bg-white rounded-2xl shadow-lg px-4 py-2 flex items-center gap-2 border border-tatan-secundario1/50 badge-float-1 origin-bottom-left">
-                    <Leaf className="w-7 h-7 text-green-600" strokeWidth={2} />
-                    <div>
-                      <p className="text-xs font-bold text-zinc-700">
-                        100% Algodón
-                      </p>
-                      <p className="text-[10px] text-zinc-500">Orgánico</p>
+                  {hero.cottonBadge.show && (
+                    <div className="absolute -top-4 -right-2 bg-white rounded-2xl shadow-lg px-4 py-2 flex items-center gap-2 border border-tatan-secundario1/50 badge-float-1 origin-bottom-left">
+                      {hero.cottonBadge.showIcon && (
+                        <Leaf
+                          className="w-7 h-7 text-green-600"
+                          strokeWidth={2}
+                        />
+                      )}
+                      <div>
+                        <p className="text-xs font-bold text-zinc-700">
+                          {hero.cottonBadge.title}
+                        </p>
+                        <p className="text-[10px] text-zinc-500">
+                          {hero.cottonBadge.subtitle}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="absolute -bottom-3 -left-3 bg-white rounded-2xl shadow-lg px-4 py-2 border border-tatan-secundario1/50 badge-float-2 origin-top-right">
-                    <p className="text-xs font-bold text-tatan-acento-verde inline-flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                      Envío gratis
-                    </p>
-                    <p className="text-[10px] text-zinc-500">
-                      Compras mayores a $25k
-                    </p>
-                  </div>
+                  )}
+                  {hero.shippingBadge.show && (
+                    <div className="absolute -bottom-3 -left-3 bg-white rounded-2xl shadow-lg px-4 py-2 border border-tatan-secundario1/50 badge-float-2 origin-top-right">
+                      <p className="text-xs font-bold text-tatan-acento-verde inline-flex items-center gap-1">
+                        {hero.shippingBadge.showIcon && (
+                          <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                        )}
+                        {hero.shippingBadge.title}
+                      </p>
+                      <p className="text-[10px] text-zinc-500">
+                        {hero.shippingBadge.subtitle}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -267,7 +319,7 @@ export default function Home() {
           </div>
 
           <div className="grid gap-6 justify-items-center sm:grid-cols-2 lg:grid-cols-4">
-            {featuredProducts.map((p, idx) => (
+            {featured.map((p, idx) => (
               <ProductCard
                 key={`product-card-${p.id}`}
                 id={p.id}
@@ -301,17 +353,30 @@ export default function Home() {
           </h2>
           <p className="text-zinc-500 mb-8">Encontrá lo que buscás rápido</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-            {categories.map(({ name, Icon, bg, count, color }) => (
-              <div
+            {categories.map(({ name, Icon, bg, color }) => (
+              <Link
                 key={name}
-                className={`category-bubble paper-card ${bg} rounded-3xl p-6 cursor-pointer hover:shadow-md`}
+                href={`/productos?c=${
+                  name === "Bodys"
+                    ? "body"
+                    : name === "Remeras"
+                      ? "remera"
+                      : name === "Pijamas"
+                        ? "pijama"
+                        : name === "Accesorios"
+                          ? "accesorio"
+                          : "todos"
+                }`}
+                className={`category-bubble paper-card ${bg} rounded-3xl p-6 cursor-pointer hover:shadow-md block`}
               >
                 <div className="mb-3" style={{ color }}>
                   <Icon className="w-12 h-12" strokeWidth={1.8} />
                 </div>
                 <h3 className="font-bold text-zinc-800 text-lg">{name}</h3>
-                <p className="text-sm text-zinc-500">{count} productos</p>
-              </div>
+                <p className="text-sm text-zinc-500">
+                  {byCategory[name] ?? 0} productos
+                </p>
+              </Link>
             ))}
           </div>
         </section>
@@ -319,88 +384,80 @@ export default function Home() {
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="paper-card rounded-3xl p-6 sm:p-10 mb-12 bg-gradient-to-r from-tatan-primario1/30 via-tatan-acento-amarillo/20 to-tatan-primario2/30">
             <div className="grid md:grid-cols-3 gap-8 text-center">
-              {[
-                {
-                  Icon: Truck,
-                  title: "Envío a todo el país",
-                  desc: "Llegamos a todas las provincias en 3-7 días hábiles",
-                  color: "#E58B60",
-                },
-                {
-                  Icon: CreditCard,
-                  title: "Hasta 12 cuotas",
-                  desc: "Pagá como quieras: Mercado Pago, transferencia o efectivo",
-                  color: "#7BA5C9",
-                },
-                {
-                  Icon: Heart,
-                  title: "Cambios sin costo",
-                  desc: "Si no te convence, lo cambiás gratis en los primeros 30 días",
-                  color: "#E58BA0",
-                },
-              ].map(({ Icon, title, desc, color }, i) => (
-                <div key={i} className="flex flex-col items-center gap-2">
-                  <div
-                    className="w-16 h-16 rounded-2xl bg-white/70 shadow-sm flex items-center justify-center mb-1"
-                    style={{ color }}
-                  >
-                    <Icon className="w-8 h-8" strokeWidth={1.8} />
+              {benefits.map((b, i) => {
+                const Icon = BENEFIT_ICONS[b.iconKey];
+                return (
+                  <div key={i} className="flex flex-col items-center gap-2">
+                    <div
+                      className="w-16 h-16 rounded-2xl bg-white/70 shadow-sm flex items-center justify-center mb-1"
+                      style={{ color: b.color }}
+                    >
+                      {b.showIcon && (
+                        <Icon className="w-8 h-8" strokeWidth={1.8} />
+                      )}
+                    </div>
+                    <h3 className="font-bold text-zinc-800 text-lg">
+                      {b.title}
+                    </h3>
+                    <p className="text-sm text-zinc-600 max-w-xs">
+                      {b.description}
+                    </p>
                   </div>
-                  <h3 className="font-bold text-zinc-800 text-lg">{title}</h3>
-                  <p className="text-sm text-zinc-600 max-w-xs">{desc}</p>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {all.length > 0 && (
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className="flex items-end justify-between mb-8 flex-wrap gap-3">
+              <div>
+                <div className="inline-flex items-center gap-2 mb-2">
+                  <span className="w-8 h-1 rounded-full bg-tatan-acento-verde" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-tatan-secundario2">
+                    Todo Tatan
+                  </span>
                 </div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-zinc-800">
+                  Nuestra colección completa
+                </h2>
+              </div>
+              <Link
+                href="/productos"
+                className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-bold border-2 border-tatan-primario4/70 text-tatan-primario4 hover:bg-tatan-primario4 hover:text-white transition-all shadow-sm"
+              >
+                Ver todos los productos
+                <ArrowRight className="w-4 h-4" strokeWidth={2.2} />
+              </Link>
+            </div>
+
+            <div className="grid gap-6 justify-items-center sm:grid-cols-2 lg:grid-cols-4">
+              {all.map((p) => (
+                <ProductCard
+                  key={`product-card-${p.id}`}
+                  id={p.id}
+                  title={p.name}
+                  imageSrc={p.imageSrc}
+                  originalPrice={p.originalPrice}
+                  discountedPrice={p.price}
+                  discountPercentage={
+                    p.originalPrice
+                      ? Math.round(
+                          ((p.originalPrice - p.price) / p.originalPrice) * 100,
+                        )
+                      : undefined
+                  }
+                  installments={6}
+                  installmentPrice={Math.round(p.price / 6)}
+                  taxFreePrice={Math.round(p.price * 0.79)}
+                  colorHex={p.colorHex}
+                  productUrl={`/product/${p.id}`}
+                />
               ))}
             </div>
-          </div>
-        </section>
-
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <div className="flex items-end justify-between mb-8 flex-wrap gap-3">
-            <div>
-              <div className="inline-flex items-center gap-2 mb-2">
-                <span className="w-8 h-1 rounded-full bg-tatan-acento-verde" />
-                <span className="text-xs font-bold uppercase tracking-wider text-tatan-secundario2">
-                  Todo Tatan
-                </span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-zinc-800">
-                Nuestra colección completa
-              </h2>
-            </div>
-            <Link
-              href="/productos"
-              className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-bold border-2 border-tatan-primario4/70 text-tatan-primario4 hover:bg-tatan-primario4 hover:text-white transition-all shadow-sm"
-            >
-              Ver todos los productos
-              <ArrowRight className="w-4 h-4" strokeWidth={2.2} />
-            </Link>
-          </div>
-
-          <div className="grid gap-6 justify-items-center sm:grid-cols-2 lg:grid-cols-4">
-            {allProducts.map((p) => (
-              <ProductCard
-                key={`product-card-${p.id}`}
-                id={p.id}
-                title={p.name}
-                imageSrc={p.imageSrc}
-                originalPrice={p.originalPrice}
-                discountedPrice={p.price}
-                discountPercentage={
-                  p.originalPrice
-                    ? Math.round(
-                        ((p.originalPrice - p.price) / p.originalPrice) * 100,
-                      )
-                    : undefined
-                }
-                installments={6}
-                installmentPrice={Math.round(p.price / 6)}
-                taxFreePrice={Math.round(p.price * 0.79)}
-                colorHex={p.colorHex}
-                productUrl={`/product/${p.id}`}
-              />
-            ))}
-          </div>
-        </section>
+          </section>
+        )}
 
         <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="paper-card rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden">

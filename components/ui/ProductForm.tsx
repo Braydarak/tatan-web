@@ -99,6 +99,7 @@ export type ProductFormProps = {
   onSubmit?: (data: ProductFormData) => void;
   onCancel?: () => void;
   className?: string;
+  submitting?: boolean;
 };
 
 function initialStockFromSizes(
@@ -121,6 +122,7 @@ export default function ProductForm({
   onSubmit,
   onCancel,
   className,
+  submitting = false,
 }: ProductFormProps) {
   const [name, setName] = React.useState(initialData?.name ?? "");
   const [tagline, setTagline] = React.useState(initialData?.tagline ?? "");
@@ -298,7 +300,7 @@ export default function ProductForm({
 
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!onSubmit) return;
+    if (submitting || !onSubmit) return;
 
     const data: ProductFormData = {
       id: initialData?.id || crypto.randomUUID(),
@@ -958,12 +960,18 @@ export default function ProductForm({
 
       <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-black/5 pt-6">
         {onCancel && (
-          <CustomButton type="outline" onClick={onCancel}>
+          <CustomButton type="outline" onClick={onCancel} disabled={submitting}>
             Cancelar
           </CustomButton>
         )}
-        <CustomButton htmlType="submit">
-          {initialData?.id ? "Guardar cambios" : "Crear producto"}
+        <CustomButton htmlType="submit" disabled={submitting}>
+          {submitting
+            ? initialData?.id
+              ? "Guardando…"
+              : "Creando…"
+            : initialData?.id
+              ? "Guardar cambios"
+              : "Crear producto"}
         </CustomButton>
       </div>
     </form>

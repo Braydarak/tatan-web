@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ProductCard from "@/components/ui/productCard/ProductCard";
+import type { Product as ApiProduct } from "@/lib/tatan-api";
 import {
   ArrowLeft,
   ShoppingCart,
@@ -29,256 +30,199 @@ type FullProduct = {
   price: number;
   originalPrice?: number;
   colorHex: string;
-  category: "Body" | "Remera";
+  category: string;
   description: string;
   features: string[];
   sizes: string[];
   colorVariants: { name: string; hex: string }[];
-  badge?: "Nuevo" | "Top";
+  badge?: "Nuevo" | "Top" | "Último";
   relatedIds: string[];
 };
 
-const productImages = {
-  bodyOsito:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20baby%20onesie%20body%20beige%20cotton%20with%20teddy%20bear%20print%20soft%20pastel%20colors%20flat%20lay%20kids%20clothing%20photography&image_size=square_hd",
-  bodyNubes:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=adorable%20baby%20onesie%20body%20white%20with%20clouds%20and%20stars%20pastel%20blue%20pink%20soft%20cotton%20flat%20lay%20baby%20clothing&image_size=square_hd",
-  bodyArcoiris:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20baby%20onesie%20rainbow%20print%20soft%20cream%20color%20cotton%20bodysuit%20flat%20lay%20aesthetic%20kids%20fashion&image_size=square_hd",
-  bodyAnimalitos:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=baby%20bodysuit%20onesie%20sage%20green%20with%20cute%20safari%20animals%20print%20soft%20cotton%20flat%20lay%20aesthetic%20baby%20clothing&image_size=square_hd",
-  remeraDino:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20kids%20t-shirt%20mustard%20yellow%20with%20cartoon%20dinosaur%20print%20soft%20cotton%20flat%20lay%20children%20clothing%20photography&image_size=square_hd",
-  remeraFlores:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=adorable%20little%20girl%20t-shirt%20soft%20pink%20with%20cute%20flowers%20print%20cotton%20flat%20lay%20aesthetic%20kids%20fashion%20pastel&image_size=square_hd",
-  remeraCohete:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20boys%20tshirt%20soft%20blue%20with%20rocket%20space%20print%20cotton%20flat%20lay%20kids%20clothing%20photography%20pastel%20colors&image_size=square_hd",
-  remeraCorazones:
-    "https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=kids%20tshirt%20cream%20white%20with%20cute%20little%20hearts%20print%20soft%20cotton%20flat%20lay%20children%20fashion%20aesthetic&image_size=square_hd",
-};
+const PHP_API_BASE = "https://tatankids.com.ar/api";
 
-const FULL_PRODUCTS: Record<string, FullProduct> = {
-  "b-001": {
-    id: "b-001",
-    name: "Body Osito Amor",
-    imageSrc: productImages.bodyOsito,
-    price: 12990,
-    originalPrice: 15990,
-    colorHex: "#F5E6D3",
-    category: "Body",
-    badge: "Nuevo",
-    description:
-      "Body de algodón orgánico con estampa de osito en tonos beige. Ideal para uso diario, super suave contra la piel delicada del bebé. Broches en la entrepierna para cambiarlo sin esfuerzo.",
-    features: [
-      "100% Algodón orgánico peinado",
-      "Broches de presión sin níquel",
-      "Costuras planas antirozaduras",
-      "Pre lavado - no encoge",
-    ],
-    sizes: ["RN", "1M", "3M", "6M", "9M", "12M", "18M"],
-    colorVariants: [
-      { name: "Beige Osito", hex: "#F5E6D3" },
-      { name: "Rosa Suave", hex: "#F8E0E8" },
-      { name: "Menta", hex: "#D8E8D8" },
-    ],
-    relatedIds: ["b-002", "b-004", "r-004"],
-  },
-  "b-002": {
-    id: "b-002",
-    name: "Body Nubes y Estrellas",
-    imageSrc: productImages.bodyNubes,
-    price: 11990,
-    colorHex: "#E8F0F8",
-    category: "Body",
-    badge: "Top",
-    description:
-      "Body clásico blanco con estampa de nubes y estrellitas en tonos pastel azul y rosa. Manga corta, escote redondo, ajuste perfecto para dormir o salir.",
-    features: [
-      "100% Algodón 30/1 extra suave",
-      "Sin etiquetas en el cuello",
-      "Secado rápido",
-      "Reversible en modelos sin estampa",
-    ],
-    sizes: ["RN", "1M", "3M", "6M", "9M", "12M"],
-    colorVariants: [
-      { name: "Nubes Celeste", hex: "#E8F0F8" },
-      { name: "Nubes Rosa", hex: "#F5EBF2" },
-    ],
-    relatedIds: ["b-001", "b-003", "r-002"],
-  },
-  "b-003": {
-    id: "b-003",
-    name: "Body Arcoiris Mágico",
-    imageSrc: productImages.bodyArcoiris,
-    price: 13490,
-    colorHex: "#F0E8F5",
-    category: "Body",
-    description:
-      "Body color crema con estampa de arcoiris multicolor. Pieza versátil que combina con todo. Regalo ideal para babyshower.",
-    features: [
-      "Algodón orgánico certificado GOTS",
-      "Estampado atóxico sin plomo",
-      "Mangas raglán con puños elásticos",
-      "Talle amplio para mayor comodidad",
-    ],
-    sizes: ["RN", "1M", "3M", "6M", "9M", "12M", "18M", "24M"],
-    colorVariants: [
-      { name: "Crema Arcoiris", hex: "#F0E8F5" },
-      { name: "Lila Claro", hex: "#E8E0F2" },
-    ],
-    relatedIds: ["b-002", "b-004", "r-004"],
-  },
-  "b-004": {
-    id: "b-004",
-    name: "Body Safari Animalitos",
-    imageSrc: productImages.bodyAnimalitos,
-    price: 14490,
-    colorHex: "#D8E8D8",
-    category: "Body",
-    badge: "Nuevo",
-    description:
-      "Body verde salvia con estampado de animalitos de la selva: leoncitos, elefantitos y jirafitas. Manga larga perfecta para días frescos.",
-    features: [
-      "Algodón jersey pesado",
-      "Manga larga con rib",
-      "Broches en espalda para bebés grandotes",
-      "Hipoalergénico",
-    ],
-    sizes: ["3M", "6M", "9M", "12M", "18M", "24M"],
-    colorVariants: [
-      { name: "Verde Safari", hex: "#D8E8D8" },
-      { name: "Mostaza", hex: "#F5E6B8" },
-    ],
-    relatedIds: ["r-001", "r-003", "b-001"],
-  },
-  "r-001": {
-    id: "r-001",
-    name: "Remera Dino Aventura",
-    imageSrc: productImages.remeraDino,
-    price: 9990,
-    originalPrice: 12990,
-    colorHex: "#F5E6B8",
-    category: "Remera",
-    description:
-      "Remera mostaza con estampa de dinosaurio aventurero. Unisex, combinable con pantalón jeans o jogging. Tejido fresco para el verano.",
-    features: [
-      "100% Algodón cardado",
-      "Cuello redondo con rib reforzado",
-      "Costura en hombros para mayor durabilidad",
-      "Lavable a máquina 30°",
-    ],
-    sizes: ["1-2", "2-4", "4-6", "6-8"],
-    colorVariants: [
-      { name: "Mostaza Dino", hex: "#F5E6B8" },
-      { name: "Verde Oliva", hex: "#D8E8C8" },
-    ],
-    relatedIds: ["r-003", "b-004", "r-002"],
-  },
-  "r-002": {
-    id: "r-002",
-    name: "Remera Flores Boho",
-    imageSrc: productImages.remeraFlores,
-    price: 10990,
-    colorHex: "#F8E0E8",
-    category: "Remera",
-    badge: "Nuevo",
-    description:
-      "Remera rosa palo con estampa floreada estilo bohemio. Detalle de volados en mangas. Ideal para princesitas que aman el campo.",
-    features: [
-      "Algodón peinado 40/1 premium",
-      "Volados en mangas con acabado enrollado",
-      "Sin etiqueta trasera",
-      "Talle entallado elegante",
-    ],
-    sizes: ["1-2", "2-4", "4-6", "6-8"],
-    colorVariants: [
-      { name: "Rosa Boho", hex: "#F8E0E8" },
-      { name: "Crema", hex: "#FBF4EA" },
-      { name: "Lila", hex: "#EBDCF0" },
-    ],
-    relatedIds: ["r-004", "b-003", "b-002"],
-  },
-  "r-003": {
-    id: "r-003",
-    name: "Remera Cohete Espacial",
-    imageSrc: productImages.remeraCohete,
-    price: 10490,
-    originalPrice: 13490,
-    colorHex: "#D8E8F5",
-    category: "Remera",
-    description:
-      "Remera azul celeste con estampa de cohete espacial y planetas. Súper canchera para ir al jardín o cumpleaños temáticos.",
-    features: [
-      "Algodón jersey suave",
-      "Estampado vinilo texturizado",
-      "Cuello con refuerzo tapeta",
-      "No se deforma con los lavados",
-    ],
-    sizes: ["2-4", "4-6", "6-8", "8-10"],
-    colorVariants: [
-      { name: "Celeste Cohete", hex: "#D8E8F5" },
-      { name: "Gris", hex: "#E6E6EA" },
-    ],
-    relatedIds: ["r-001", "b-004", "r-004"],
-  },
-  "r-004": {
-    id: "r-004",
-    name: "Remera Corazones Dulces",
-    imageSrc: productImages.remeraCorazones,
-    price: 9490,
-    colorHex: "#F5F0EB",
-    category: "Remera",
-    description:
-      "Remera blanca cruda con estampado de corazones en rosas y rojos. Básica que no puede faltar. Perfecta como inner o sola.",
-    features: [
-      "Algodón 100% orgánico",
-      "Blanco natural sin blanqueadores ópticos",
-      "Talle clásico con espacio para crecer",
-      "Apta para pieles atópicas",
-    ],
-    sizes: ["1-2", "2-4", "4-6", "6-8"],
-    colorVariants: [
-      { name: "Cruda Corazones", hex: "#F5F0EB" },
-      { name: "Rosa Bebé", hex: "#FAE4EC" },
-    ],
-    relatedIds: ["r-002", "b-001", "b-003"],
-  },
-};
-
-function getRelatedProducts(ids: string[]) {
-  return ids
-    .map((id) => FULL_PRODUCTS[id])
-    .filter(Boolean)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      imageSrc: p.imageSrc,
-      price: p.price,
-      originalPrice: p.originalPrice,
-      colorHex: p.colorHex,
-      badge: p.badge,
-    }));
+async function fetchProductByIdSSR(id: string): Promise<ApiProduct | null> {
+  try {
+    const res = await fetch(
+      `${PHP_API_BASE}/products.php?id=${encodeURIComponent(id)}`,
+      {
+        next: { revalidate: 60, tags: ["tatan-product-detail"] },
+        cache: "force-cache",
+      },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as { ok?: boolean; data?: ApiProduct };
+    return json?.ok && json.data ? json.data : null;
+  } catch {
+    return null;
+  }
 }
 
-export async function generateStaticParams() {
-  return Object.keys(FULL_PRODUCTS).map((id) => ({ id }));
+function capitalizeLabel(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function badgeFromApi(
+  api: Pick<ApiProduct, "id" | "soldTotal" | "rating" | "reviews">,
+): FullProduct["badge"] | undefined {
+  const idNum = Number(api.id.match(/^[a-z]+-(\d+)$/)?.[1] ?? 0);
+  if (api.soldTotal >= 50 || (api.rating >= 4.8 && api.reviews >= 40))
+    return "Top";
+  if (!idNum || idNum <= 2) return "Nuevo";
+  if (api.reviews > 0 && api.reviews <= 20 && api.rating >= 4.7)
+    return "Último";
+  return undefined;
+}
+
+const FALLBACK_DESCRIPTIONS: Record<string, string> = {
+  body: "Prenda de algodón extra suave para bebés, con broches de presión sin níquel y costuras antirozaduras para máxima comodidad en la piel delicada.",
+  remera:
+    "Remera de algodón cardado con cuello redondo reforzado. Ideal para usar sola o combinada. Lavable a máquina sin deformarse.",
+  pijama:
+    "Pijama de algodón o micropolar cálido y abrazable. Diseñado para dormir bien abrigaditos sin pasar calor.",
+  set: "Pack ahorro de prendas coordinadas. Calidad premium a mejor precio. Regalo ideal para babyshowers o cumpleaños.",
+  pantalon:
+    "Jogger de algodón peinado con puños elásticos y cintura ajustable. Super cómodo para jugar todo el día.",
+  buzo: "Buzo con capucha y forro polar suave. Cierre de calidad y bolsillos funcionales para las aventuras de los más chicos.",
+  accesorio:
+    "Accesorio práctico y lindo hecho con materiales hipoalergénicos. Complementa cualquier look del bebé o niño.",
+};
+
+const FALLBACK_FEATURES_POOL = [
+  "100% Algodón peinado premium",
+  "Sin etiquetas en el cuello",
+  "Costuras planas antirozaduras",
+  "Pre lavado - no encoge",
+  "Hipoalergénico - apto piel atópica",
+  "Lavable a máquina 30°",
+  "Broches de presión sin níquel",
+  "Secado rápido en sombra",
+];
+
+function pickDefaultFeatures(n: number) {
+  return FALLBACK_FEATURES_POOL.slice(0, Math.max(3, Math.min(6, n)));
+}
+
+const DEFAULT_COLORS_BY_CAT: Record<string, { name: string; hex: string }[]> = {
+  body: [
+    { name: "Beige Clásico", hex: "#F5E6D3" },
+    { name: "Rosa Suave", hex: "#F8E0E8" },
+    { name: "Menta", hex: "#D8E8D8" },
+  ],
+  remera: [
+    { name: "Estampa Original", hex: "#F5E6B8" },
+    { name: "Cruda", hex: "#F5F0EB" },
+  ],
+  pijama: [
+    { name: "Oveja Rosa", hex: "#F8E0E8" },
+    { name: "Verde Manta", hex: "#D8E8D8" },
+  ],
+  set: [{ name: "Neutros", hex: "#F0E8F5" }],
+  pantalon: [{ name: "Verde Menta", hex: "#D8E8D8" }],
+  buzo: [{ name: "Crema Polar", hex: "#F5F0EB" }],
+  accesorio: [{ name: "Pasteles", hex: "#F0E8F5" }],
+};
+
+function mapApiToFullProduct(api: ApiProduct): FullProduct {
+  const cat = api.category || "body";
+  const description = (api.description || "").trim()
+    ? (api.description as string)
+    : (FALLBACK_DESCRIPTIONS[cat] ?? FALLBACK_DESCRIPTIONS.body);
+  const features =
+    Array.isArray(api.features) && api.features.filter(Boolean).length
+      ? api.features.filter(Boolean)
+      : pickDefaultFeatures(api.features?.length || 4);
+  const colorVariants =
+    Array.isArray(api.colorVariants) && api.colorVariants.length
+      ? api.colorVariants
+      : (DEFAULT_COLORS_BY_CAT[cat] ?? DEFAULT_COLORS_BY_CAT.body);
+  return {
+    id: api.id,
+    name: api.name,
+    imageSrc:
+      api.imageSrc ||
+      `https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20${encodeURIComponent(cat)}%20kids%20clothing%20pastel%20flat%20lay&image_size=square_hd`,
+    price: Number(api.price) || 0,
+    originalPrice:
+      api.originalPrice != null
+        ? Number(api.originalPrice) || undefined
+        : undefined,
+    colorHex: api.colorHex || "#F5E6D3",
+    category: capitalizeLabel(cat),
+    description,
+    features,
+    sizes:
+      Array.isArray(api.sizes) && api.sizes.length
+        ? api.sizes
+        : ["3M", "6M", "9M", "12M"],
+    colorVariants,
+    badge: badgeFromApi(api),
+    relatedIds:
+      Array.isArray(api.relatedIds) && api.relatedIds.length
+        ? api.relatedIds
+        : [],
+  };
+}
+
+type RelatedCard = {
+  id: string;
+  name: string;
+  imageSrc: string;
+  price: number;
+  originalPrice?: number;
+  colorHex: string;
+  badge?: FullProduct["badge"];
+};
+
+function getRelatedProducts(ids: string[], map: Record<string, RelatedCard>) {
+  return ids.map((id) => map[id]).filter(Boolean) as RelatedCard[];
+}
+
+async function fetchRelatedMap(): Promise<Record<string, RelatedCard>> {
+  try {
+    const res = await fetch(`${PHP_API_BASE}/products.php`, {
+      next: { revalidate: 60, tags: ["tatan-products"] },
+      cache: "force-cache",
+    });
+    if (!res.ok) return {};
+    const json = (await res.json()) as { ok?: boolean; data?: ApiProduct[] };
+    if (!json?.ok || !Array.isArray(json.data)) return {};
+    const out: Record<string, RelatedCard> = {};
+    for (const api of json.data) {
+      const mapped = mapApiToFullProduct(api);
+      out[mapped.id] = {
+        id: mapped.id,
+        name: mapped.name,
+        imageSrc: mapped.imageSrc,
+        price: mapped.price,
+        originalPrice: mapped.originalPrice,
+        colorHex: mapped.colorHex,
+        badge: mapped.badge,
+      };
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { id } = await params;
-  const product = FULL_PRODUCTS[id];
 
-  if (!product) {
+  const fromApi = await fetchProductByIdSSR(id);
+  if (!fromApi) {
     notFound();
   }
+  const product: FullProduct = mapApiToFullProduct(fromApi);
+
+  const relatedMap = await fetchRelatedMap();
+  const related = getRelatedProducts(product.relatedIds, relatedMap);
 
   const discount = product.originalPrice
     ? Math.round(
         ((product.originalPrice - product.price) / product.originalPrice) * 100,
       )
     : 0;
-
-  const related = getRelatedProducts(product.relatedIds);
 
   return (
     <div className="min-h-dvh flex flex-col relative z-10">
