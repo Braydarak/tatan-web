@@ -14,11 +14,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import * as React from "react";
-import {
-  apiSiteContent,
-  apiSiteContentSave,
-  type SiteContentKey,
-} from "@/lib/tatan-api";
+import { apiSiteContent, apiSiteContentSave } from "@/lib/tatan-api";
 import { HOME_HERO_DEFAULT as DEFAULT_HERO } from "@/lib/site-content-defaults";
 
 function cx(...classes: Array<string | undefined | null | false>) {

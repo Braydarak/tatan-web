@@ -499,7 +499,7 @@ export default function ProductsCrm({
   const [remoteProducts, setRemoteProducts] = React.useState<ProductCrm[]>([]);
   const [loadStatus, setLoadStatus] = React.useState<
     "idle" | "loading" | "ok" | "error"
-  >("idle");
+  >("loading");
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [toast, setToast] = React.useState<{
@@ -551,7 +551,6 @@ export default function ProductsCrm({
   };
 
   const loadProducts = React.useCallback(async () => {
-    setLoadStatus("loading");
     try {
       const list = await apiProducts();
       setRemoteProducts(list.map(adapt));
@@ -566,6 +565,9 @@ export default function ProductsCrm({
   }, []);
 
   React.useEffect(() => {
+    // Carga inicial. `loadProducts` es async: sus setState ocurren después del
+    // await, no de forma síncrona, pero la regla lo detecta por la llamada directa.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadProducts();
   }, [loadProducts]);
 
@@ -588,9 +590,8 @@ export default function ProductsCrm({
       const payload = {
         id: mode === "update" && editingProduct ? editingProduct.id : undefined,
         ...data,
-        category: (data as any).category as string,
       };
-      const r = await apiProductSave(payload as any);
+      const r = await apiProductSave(payload);
       if (!r.ok) throw new Error(r.error || "No se pudo guardar el producto");
       notify(
         "ok",
@@ -737,7 +738,10 @@ export default function ProductsCrm({
             <CustomButton
               type="outline"
               className="text-xs py-1.5"
-              onClick={() => void loadProducts()}
+              onClick={() => {
+                setLoadStatus("loading");
+                void loadProducts();
+              }}
               disabled={loadStatus === "loading"}
             >
               Recargar

@@ -48,10 +48,8 @@ export default function Login() {
 
       if (!data.ok) {
         setErrors({
-          user: (data as any).userOk ? undefined : INVALID_USER_MESSAGE,
-          password: (data as any).passwordOk
-            ? undefined
-            : INVALID_PASSWORD_MESSAGE,
+          user: data.userOk ? undefined : INVALID_USER_MESSAGE,
+          password: data.passwordOk ? undefined : INVALID_PASSWORD_MESSAGE,
         });
         return;
       }

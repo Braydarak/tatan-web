@@ -53,6 +53,19 @@ export type ApiOptions = {
   raw?: boolean;
 };
 
+/** Error de la API con el status HTTP y el payload devuelto por el servidor. */
+export class ApiError extends Error {
+  status: number;
+  data: unknown;
+
+  constructor(message: string, status: number, data: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.data = data;
+  }
+}
+
 export async function apiFetch<T = unknown>(
   endpoint: string,
   opts: ApiOptions = {},
@@ -104,15 +117,22 @@ export async function apiFetch<T = unknown>(
   }
 
   if (!res.ok) {
-    const msg =
-      (data && typeof data === "object" && !Array.isArray(data)
-        ? String((data as any).message || (data as any).error || "")
-        : "") ||
-      `HTTP ${res.status}`;
-    const err = new Error(`[tatan-api ${res.status}] ${endpoint} · ${msg}`);
-    (err as any).status = res.status;
-    (err as any).data = data;
-    throw err;
+    const obj =
+      data && typeof data === "object" && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : null;
+    const serverMsg =
+      typeof obj?.message === "string"
+        ? obj.message
+        : typeof obj?.error === "string"
+          ? obj.error
+          : "";
+    const msg = serverMsg || `HTTP ${res.status}`;
+    throw new ApiError(
+      `[tatan-api ${res.status}] ${endpoint} · ${msg}`,
+      res.status,
+      data,
+    );
   }
 
   return data as T;
@@ -128,7 +148,14 @@ export type Product = {
   name: string;
   tagline: string | null;
   imageSrc: string;
-  category: "body" | "remera" | "pijama" | "set" | "pantalon" | "buzo" | "accesorio";
+  category:
+    | "body"
+    | "remera"
+    | "pijama"
+    | "set"
+    | "pantalon"
+    | "buzo"
+    | "accesorio";
   sizeGroup: "bebe" | "ninios";
   sizes: string[];
   stockBySize: Record<string, number>;
@@ -163,7 +190,10 @@ export type LoginResult =
   | { ok: true; admin: AdminUser }
   | { ok: false; userOk?: boolean; passwordOk?: boolean; error?: string };
 
-export async function apiLogin(user: string, password: string): Promise<LoginResult> {
+export async function apiLogin(
+  user: string,
+  password: string,
+): Promise<LoginResult> {
   try {
     const r = await apiFetch<{
       ok: boolean;
@@ -177,7 +207,10 @@ export async function apiLogin(user: string, password: string): Promise<LoginRes
     if (r.ok && r.admin) return { ok: true, admin: r.admin };
     return { ok: false, userOk: r.userOk, passwordOk: r.passwordOk };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "login failed" };
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "login failed",
+    };
   }
 }
 
@@ -185,7 +218,9 @@ export async function apiSession(): Promise<{
   authenticated: boolean;
   admin: AdminUser | null;
 }> {
-  return apiFetch<{ authenticated: boolean; admin: AdminUser | null }>("crm-session.php");
+  return apiFetch<{ authenticated: boolean; admin: AdminUser | null }>(
+    "crm-session.php",
+  );
 }
 
 export async function apiLogout(): Promise<boolean> {
@@ -198,7 +233,9 @@ export async function apiLogout(): Promise<boolean> {
 }
 
 export async function apiProducts(): Promise<Product[]> {
-  const r = await apiFetch<{ ok: boolean; count: number; data: Product[] }>("products.php");
+  const r = await apiFetch<{ ok: boolean; count: number; data: Product[] }>(
+    "products.php",
+  );
   return r.data ?? [];
 }
 
@@ -213,7 +250,13 @@ export async function apiProduct(id: string): Promise<Product | null> {
   }
 }
 
-export async function apiProductSave(payload: Partial<Product> & { name: string; imageSrc: string; category: string }): Promise<{
+export async function apiProductSave(
+  payload: Partial<Product> & {
+    name: string;
+    imageSrc: string;
+    category: string;
+  },
+): Promise<{
   ok: boolean;
   error?: string;
   data?: Product;
@@ -222,7 +265,16 @@ export async function apiProductSave(payload: Partial<Product> & { name: string;
   const method = payload.id ? "PUT" : "POST";
   const query = payload.id ? { id: payload.id } : undefined;
   try {
-    return await apiFetch<any>("products.php", { method, query, body: payload });
+    return await apiFetch<{
+      ok: boolean;
+      error?: string;
+      data?: Product;
+      id?: string;
+    }>("products.php", {
+      method,
+      query,
+      body: payload,
+    });
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "save failed" };
   }
@@ -230,7 +282,10 @@ export async function apiProductSave(payload: Partial<Product> & { name: string;
 
 export async function apiProductDelete(id: string): Promise<boolean> {
   try {
-    await apiFetch<any>("products.php", { method: "DELETE", query: { id } });
+    await apiFetch<{ ok: boolean }>("products.php", {
+      method: "DELETE",
+      query: { id },
+    });
     return true;
   } catch {
     return false;
@@ -239,7 +294,9 @@ export async function apiProductDelete(id: string): Promise<boolean> {
 
 export type SiteContentKey = "home_hero" | "envios";
 
-export async function apiSiteContent<T = unknown>(key: SiteContentKey): Promise<{
+export async function apiSiteContent<T = unknown>(
+  key: SiteContentKey,
+): Promise<{
   ok: boolean;
   key?: string;
   data?: T;
@@ -248,13 +305,26 @@ export async function apiSiteContent<T = unknown>(key: SiteContentKey): Promise<
   error?: string;
 }> {
   try {
-    return await apiFetch<any>("site-content.php", { query: { key } });
+    return await apiFetch<{
+      ok: boolean;
+      key?: string;
+      data?: T;
+      version?: number;
+      updatedAt?: string;
+      error?: string;
+    }>("site-content.php", { query: { key } });
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "site-content failed" };
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "site-content failed",
+    };
   }
 }
 
-export async function apiSiteContentSave<T = unknown>(key: SiteContentKey, data: T): Promise<{
+export async function apiSiteContentSave<T = unknown>(
+  key: SiteContentKey,
+  data: T,
+): Promise<{
   ok: boolean;
   data?: T;
   version?: number;
@@ -262,7 +332,13 @@ export async function apiSiteContentSave<T = unknown>(key: SiteContentKey, data:
   error?: string;
 }> {
   try {
-    return await apiFetch<any>("site-content.php", {
+    return await apiFetch<{
+      ok: boolean;
+      data?: T;
+      version?: number;
+      updatedAt?: string;
+      error?: string;
+    }>("site-content.php", {
       method: "PUT",
       query: { key },
       body: { data },
@@ -278,12 +354,29 @@ export async function apiContactSubmit(payload: {
   phone?: string;
   reason?: "general" | "pedido" | "cambios" | "mayorista" | "otro";
   message: string;
-}): Promise<{ ok: boolean; id?: number; receivedAt?: string; errors?: string[] }> {
+}): Promise<{
+  ok: boolean;
+  id?: number;
+  receivedAt?: string;
+  errors?: string[];
+}> {
   try {
-    return await apiFetch<any>("contact.php", { method: "POST", body: payload, credentials: "same-origin" });
+    return await apiFetch<{
+      ok: boolean;
+      id?: number;
+      receivedAt?: string;
+      errors?: string[];
+    }>("contact.php", {
+      method: "POST",
+      body: payload,
+      credentials: "same-origin",
+    });
   } catch (e) {
-    const d = (e as any).data;
-    if (d && Array.isArray(d.errors)) return { ok: false, errors: d.errors as string[] };
+    const d = e instanceof ApiError ? e.data : null;
+    if (d && typeof d === "object" && !Array.isArray(d)) {
+      const errors = (d as { errors?: unknown }).errors;
+      if (Array.isArray(errors)) return { ok: false, errors: errors as string[] };
+    }
     return { ok: false, errors: ["UNKNOWN"] };
   }
 }

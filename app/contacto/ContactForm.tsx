@@ -8,7 +8,9 @@ function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
 }
 
-const REASONS = [
+type ReasonKey = "general" | "pedido" | "cambios" | "mayorista" | "otro";
+
+const REASONS: { key: ReasonKey; label: string }[] = [
   { key: "general", label: "Consulta general" },
   { key: "pedido", label: "Seguimiento de pedido" },
   { key: "cambios", label: "Cambios y devoluciones" },
@@ -20,7 +22,7 @@ export default function ContactForm() {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
-  const [reason, setReason] = React.useState(REASONS[0].key);
+  const [reason, setReason] = React.useState<ReasonKey>(REASONS[0].key);
   const [message, setMessage] = React.useState("");
   const [state, setState] = React.useState<"idle" | "sending" | "ok" | "err">(
     "idle",
@@ -44,7 +46,7 @@ export default function ContactForm() {
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim() || undefined,
-        reason: reason as any,
+        reason,
         message: message.trim(),
       });
       if (!r.ok) {
@@ -142,7 +144,7 @@ export default function ContactForm() {
             id="reason"
             className={cx(inputBase, "appearance-none pr-10")}
             value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            onChange={(e) => setReason(e.target.value as ReasonKey)}
           >
             {REASONS.map((r) => (
               <option key={r.key} value={r.key}>
