@@ -5,30 +5,30 @@
  *
  *  La API PHP corre en tatankids.com.ar/api/*.php  (con `localhost`
  *  de MySQL, por lo que funciona sin acceso remoto).
- *  Desde Next.js local o producción, usamos HTTPS a ese dominio,
- *  con `credentials: 'include'` para que la cookie PHP httpOnly
- *  (TATANCRMSESSID) se envíe y persista la sesión del CRM.
  *
- *  Si la URL base no está definida o falla, se puede hacer fallback
- *  a los endpoints Next internos, pero en producción se usa siempre la PHP.
+ *  IMPORTANTE — desde el NAVEGADOR nunca llamamos al dominio de Ferozo:
+ *  usamos el proxy same-origin `/api/php/*` definido en next.config.ts.
+ *  Así no hay CORS y la cookie de sesión del CRM (TATANCRMSESSID) es
+ *  first-party (Safari/Brave no la bloquean).
+ *
+ *  Desde el SERVIDOR (SSR/RSC/build) el fetch va directo y absoluto a la
+ *  API PHP, que no está sujeto a CORS porque no lo aplica un navegador.
  */
 
 const DEFAULT_BASE_URL = "https://tatankids.com.ar/api";
+/** Ruta del proxy same-origin (ver `rewrites` en next.config.ts). */
+const PROXY_PATH = "/api/php";
 
 export function apiBaseUrl(): string {
+  // Navegador → proxy same-origin. Se ignora NEXT_PUBLIC_API_BASE_URL a
+  // propósito: apuntar directo a Ferozo reintroduciría CORS y cookies de terceros.
+  if (typeof window !== "undefined") return PROXY_PATH;
+  // Servidor → URL absoluta directa a la API PHP.
   const fromEnv =
     process.env.NEXT_PUBLIC_API_BASE_URL ??
     process.env.TATAN_API_BASE_URL ??
     "";
   if (fromEnv) return fromEnv.replace(/\/$/, "");
-  // Si estamos corriendo EN EL MISMO dominio (producción Node o static HTML),
-  // usamos ruta relativa para evitar CORS.
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    if (host === "tatankids.com.ar" || host === "www.tatankids.com.ar") {
-      return "/api";
-    }
-  }
   return DEFAULT_BASE_URL;
 }
 
