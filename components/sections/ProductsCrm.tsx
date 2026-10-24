@@ -4,7 +4,15 @@ import * as React from "react";
 import Image from "next/image";
 import CustomButton from "@/components/ui/CustomButton";
 import ProductForm, { ProductFormData } from "@/components/ui/ProductForm";
-import { ChevronDown, Mail, Smartphone, MapPin, Clock } from "lucide-react";
+import {
+  ChevronDown,
+  Mail,
+  Smartphone,
+  MapPin,
+  Clock,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import {
   apiProducts,
   apiProductSave,
@@ -139,7 +147,7 @@ function ProductDetailRow({ product }: { product: ProductCrm }) {
 
   return (
     <tr>
-      <td colSpan={8} className="px-0 sm:px-4 pb-6 border-b border-black/10">
+      <td colSpan={8} className="px-0 sm:px-3 pb-6 border-b border-black/10">
         <div className="rounded-3xl bg-gradient-to-br from-white via-tatan-primario1/30 to-tatan-acento-amarillo/20 border border-tatan-secundario1/50 px-3 sm:px-6 py-5 sm:py-6 shadow-[0_4px_18px_-8px_rgba(252,209,177,0.5)]">
           <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div className="flex items-center gap-3">
@@ -753,28 +761,30 @@ export default function ProductsCrm({
         </div>
 
         <div className="w-full overflow-x-auto">
-          <table className="min-w-[1100px] w-full border-collapse">
+          <table className="min-w-[900px] w-full border-collapse">
             <thead>
               <tr className="border-b border-black/10 text-left text-xs font-semibold text-zinc-500">
-                <th className="px-4 py-3 font-medium">Foto</th>
-                <th className="px-4 py-3 font-medium">Producto</th>
-                <th className="px-4 py-3 font-medium">Cat.</th>
-                <th className="px-4 py-3 font-medium">Talles</th>
-                <th className="px-4 py-3 font-medium">Stock</th>
-                <th className="px-4 py-3 font-medium">Precio</th>
-                <th className="px-4 py-3 font-medium">Rating</th>
-                <th className="px-4 py-3 font-medium text-right">Acciones</th>
+                <th className="px-3 py-3 font-medium">Foto</th>
+                <th className="px-3 py-3 font-medium">Producto</th>
+                <th className="px-3 py-3 font-medium">Cat.</th>
+                <th className="px-3 py-3 font-medium">Talles</th>
+                <th className="px-3 py-3 font-medium">Stock</th>
+                <th className="px-3 py-3 font-medium">Precio</th>
+                <th className="px-3 py-3 font-medium">Rating</th>
+                <th className="px-3 py-3 text-right font-medium whitespace-nowrap">
+                  Acciones
+                </th>
               </tr>
             </thead>
-            <tbody className="[&_tr:nth-child(4n-1)]:hover:bg-zinc-50/50">
+            <tbody>
               {products.map((p) => {
                 const totalStock = sum(Object.values(p.stockBySize));
                 const pct = discountPct(p);
                 const expanded = expandedId === p.id;
                 return (
                   <React.Fragment key={p.id}>
-                    <tr className="align-middle transition border-b border-black/5">
-                      <td className="px-4 py-4">
+                    <tr className="align-middle transition border-b border-black/5 hover:bg-zinc-50/40">
+                      <td className="px-3 py-4">
                         <div className="relative h-20 w-20 overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
                           <Image
                             src={p.imageSrc || "/tatanLogo.png"}
@@ -789,11 +799,11 @@ export default function ProductsCrm({
                           />
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-4">
                         <div className="flex items-start gap-2 min-w-0">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <div className="max-w-[260px] text-sm font-semibold text-zinc-900 truncate">
+                              <div className="max-w-[220px] text-sm font-semibold text-zinc-900 truncate">
                                 {p.name}
                               </div>
                               {pct > 0 ? (
@@ -813,14 +823,14 @@ export default function ProductsCrm({
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-4">
                         <span className="inline-flex h-7 items-center rounded-xl bg-tatan-primario1/50 border border-tatan-secundario1/60 px-2.5 text-[11px] font-bold text-zinc-800">
                           {CATEGORY_LABEL[p.category]}
                         </span>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-4">
                         <div className="flex flex-wrap gap-1">
-                          {p.sizes.slice(0, 5).map((s) => (
+                          {p.sizes.slice(0, 4).map((s) => (
                             <span
                               key={s}
                               className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-black/10 bg-white px-1.5 text-[10px] font-bold text-zinc-600"
@@ -828,9 +838,9 @@ export default function ProductsCrm({
                               {s}
                             </span>
                           ))}
-                          {p.sizes.length > 5 ? (
+                          {p.sizes.length > 4 ? (
                             <span className="text-[10px] text-zinc-400 self-center ml-0.5 font-medium">
-                              +{p.sizes.length - 5}
+                              +{p.sizes.length - 4}
                             </span>
                           ) : null}
                         </div>
@@ -838,7 +848,7 @@ export default function ProductsCrm({
                           {p.sizeGroup === "bebe" ? "Bebé" : "Niños"}
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-4">
                         <div className="text-sm font-semibold tabular-nums text-zinc-900">
                           {totalStock}
                         </div>
@@ -846,7 +856,7 @@ export default function ProductsCrm({
                           Vendidos {p.soldTotal}
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-4">
                         <div className="text-sm font-semibold tabular-nums text-zinc-900">
                           {formatMoneyArs(p.price)}
                         </div>
@@ -860,7 +870,7 @@ export default function ProductsCrm({
                           {formatMoneyArs(Math.round(p.price / p.installments))}
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-4">
                         <div className="flex items-center gap-1 text-sm font-bold tabular-nums text-zinc-800">
                           {p.rating.toFixed(1)}
                           <span className="text-amber-500 text-xs">★</span>
@@ -869,45 +879,53 @@ export default function ProductsCrm({
                           {p.reviews} reviews
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-right">
-                        <div className="flex flex-col items-end gap-2">
-                          <div className="flex gap-2">
-                            <CustomButton
-                              type="outline"
-                              className="w-20 text-xs py-1.5"
-                              onClick={() => setEditingProduct(p)}
-                            >
-                              Editar
-                            </CustomButton>
-                            <CustomButton
-                              type="outline"
-                              className="w-20 text-xs py-1.5 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
-                              onClick={() => void handleDelete(p)}
-                            >
-                              Borrar
-                            </CustomButton>
-                          </div>
-                          <CustomButton
-                            type="ghost"
+                      <td className="px-3 py-4">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            title="Editar"
+                            aria-label={`Editar ${p.name}`}
+                            onClick={() => setEditingProduct(p)}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#FCD1B1] bg-white text-zinc-800 shadow-sm transition hover:bg-[#FCD1B1]/25 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1] focus-visible:ring-offset-2"
+                          >
+                            <Pencil className="h-4 w-4" strokeWidth={2} />
+                          </button>
+                          <button
+                            type="button"
+                            title="Borrar"
+                            aria-label={`Borrar ${p.name}`}
+                            onClick={() => void handleDelete(p)}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-600 shadow-sm transition hover:bg-rose-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2"
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={2} />
+                          </button>
+                          <button
+                            type="button"
+                            title={
+                              expanded ? "Ocultar detalles" : "Más detalles"
+                            }
+                            aria-label={
+                              expanded
+                                ? `Ocultar detalles de ${p.name}`
+                                : `Ver más detalles de ${p.name}`
+                            }
                             aria-expanded={expanded}
                             aria-controls={`detail-${p.id}`}
-                            className="w-full text-xs py-1.5"
                             onClick={() =>
                               setExpandedId((prev) =>
                                 prev === p.id ? null : p.id,
                               )
                             }
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-600 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1] focus-visible:ring-offset-2"
                           >
-                            <span
+                            <ChevronDown
                               className={cx(
-                                "inline-flex items-center justify-center transition-transform duration-200",
+                                "h-4 w-4 transition-transform duration-200",
                                 expanded && "rotate-180",
                               )}
-                            >
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            </span>
-                            Más detalles
-                          </CustomButton>
+                              strokeWidth={2}
+                            />
+                          </button>
                         </div>
                       </td>
                     </tr>

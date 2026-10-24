@@ -14,7 +14,11 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import * as React from "react";
-import { apiSiteContent, apiSiteContentSave } from "@/lib/tatan-api";
+import {
+  apiSiteContent,
+  apiSiteContentSave,
+  apiRevalidateTag,
+} from "@/lib/tatan-api";
 import { HOME_HERO_DEFAULT as DEFAULT_HERO } from "@/lib/site-content-defaults";
 
 function cx(...classes: Array<string | undefined | null | false>) {
@@ -195,7 +199,10 @@ export default function HomeHeroEditor() {
         );
       }
 
-      // 2) Cache local (backup offline)
+      // 2) Purga el caché ISR del sitio para que el cambio se vea al instante.
+      await apiRevalidateTag("tatan-site-content");
+
+      // 3) Cache local (backup offline)
       try {
         window.localStorage.setItem("crm:home-hero", JSON.stringify(data));
       } catch {

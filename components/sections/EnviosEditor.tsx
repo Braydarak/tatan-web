@@ -19,7 +19,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
-import { apiSiteContent, apiSiteContentSave } from "@/lib/tatan-api";
+import {
+  apiSiteContent,
+  apiSiteContentSave,
+  apiRevalidateTag,
+} from "@/lib/tatan-api";
 import { ENVIOS_DEFAULT as DEFAULT_ENVios } from "@/lib/site-content-defaults";
 
 function cx(...classes: Array<string | undefined | null | false>) {
@@ -621,6 +625,8 @@ export default function EnviosEditor() {
           r.error || "No se pudo guardar en la DB (¿sesión expirada?)",
         );
       }
+      // Purga el caché ISR del sitio para que el cambio se vea al instante.
+      await apiRevalidateTag("tatan-site-content");
       // cache local offline
       try {
         window.localStorage.setItem("crm:envios", JSON.stringify(data));

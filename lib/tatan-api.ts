@@ -348,6 +348,28 @@ export async function apiSiteContentSave<T = unknown>(
   }
 }
 
+/** Tags de caché ISR del sitio que el CRM puede purgar on-demand. */
+export type RevalidateTag =
+  | "tatan-site-content"
+  | "tatan-products"
+  | "tatan-product-detail"
+  | "tatan-home-products";
+
+/**
+ * Pide a Next que purgue el caché ISR de un tag.
+ * Best-effort: si falla, queda el `revalidate` periódico como respaldo.
+ */
+export async function apiRevalidateTag(tag: RevalidateTag): Promise<void> {
+  try {
+    await fetch(`/api/revalidate?tag=${encodeURIComponent(tag)}`, {
+      method: "POST",
+      credentials: "same-origin",
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function apiContactSubmit(payload: {
   name: string;
   email: string;
@@ -375,7 +397,8 @@ export async function apiContactSubmit(payload: {
     const d = e instanceof ApiError ? e.data : null;
     if (d && typeof d === "object" && !Array.isArray(d)) {
       const errors = (d as { errors?: unknown }).errors;
-      if (Array.isArray(errors)) return { ok: false, errors: errors as string[] };
+      if (Array.isArray(errors))
+        return { ok: false, errors: errors as string[] };
     }
     return { ok: false, errors: ["UNKNOWN"] };
   }
