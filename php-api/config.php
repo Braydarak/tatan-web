@@ -43,7 +43,7 @@ if ($origin !== '' && (in_array($origin, $allowedOrigins, true) || $isVercelPrev
 // La respuesta depende del Origin: evita que cachés compartidas mezclen CORS.
 header('Vary: Origin');
 header('Access-Control-Allow-Credentials: true');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Tatan-Session');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH');
 
 // Preflight CORS
@@ -160,6 +160,14 @@ function tatan_session_start(): void
         'samesite' => ($crossSite && $secure) ? 'None' : 'Lax',
     ]);
     session_name('TATANCRMSESSID');
+
+    // El front en Vercel llama directo a esta API (sin proxy) y manda el id de
+    // sesión en un header, porque desde otro dominio la cookie sería de terceros
+    // (Safari la bloquea). Si viene el header, tiene prioridad sobre la cookie.
+    $headerSid = trim((string)($_SERVER['HTTP_X_TATAN_SESSION'] ?? ''));
+    if ($headerSid !== '' && preg_match('/^[a-zA-Z0-9,-]{22,128}$/', $headerSid)) {
+        session_id($headerSid);
+    }
     session_start();
 }
 
