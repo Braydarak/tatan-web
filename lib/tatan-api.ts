@@ -22,7 +22,16 @@ const PROXY_PATH = "/api/php";
 export function apiBaseUrl(): string {
   // Navegador → proxy same-origin. Se ignora NEXT_PUBLIC_API_BASE_URL a
   // propósito: apuntar directo a Ferozo reintroduciría CORS y cookies de terceros.
-  if (typeof window !== "undefined") return PROXY_PATH;
+  if (typeof window !== "undefined") {
+    // En un subdominio de tatankids.com.ar (develop., www., …) la API es
+    // del mismo sitio: se llama directo y la cookie de sesión es first-party.
+    // Así se evitan el firewall de Vercel y el anti-bot del hosting.
+    const host = window.location.hostname;
+    if (host === "tatankids.com.ar" || host.endsWith(".tatankids.com.ar")) {
+      return DEFAULT_BASE_URL;
+    }
+    return PROXY_PATH;
+  }
   // Servidor → URL absoluta directa a la API PHP.
   const fromEnv =
     process.env.NEXT_PUBLIC_API_BASE_URL ??

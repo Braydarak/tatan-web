@@ -31,8 +31,10 @@ $allowedOrigins = [
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 // Deployments de preview de Vercel (p. ej. https://tatan-web-git-xyz-user.vercel.app)
 $isVercelPreview = (bool) preg_match('#^https://[a-z0-9-]+\.vercel\.app$#i', $origin);
+// Subdominios propios (p. ej. https://develop.tatankids.com.ar)
+$isOwnSubdomain = (bool) preg_match('#^https://([a-z0-9-]+\.)+tatankids\.com\.ar$#i', $origin);
 
-if ($origin !== '' && (in_array($origin, $allowedOrigins, true) || $isVercelPreview)) {
+if ($origin !== '' && (in_array($origin, $allowedOrigins, true) || $isVercelPreview || $isOwnSubdomain)) {
     header("Access-Control-Allow-Origin: {$origin}");
 } elseif ($origin === '') {
     // Sin Origin (same-origin o server-side): no se requiere CORS.
