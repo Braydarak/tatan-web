@@ -66,6 +66,14 @@ export class ApiError extends Error {
   }
 }
 
+/** Reintentos ante la página "One moment, please…" del anti-bot del hosting. */
+const CHALLENGE_RETRIES = 4;
+
+function isHostingChallenge(res: Response, text: string): boolean {
+  const ct = res.headers.get("content-type") ?? "";
+  return ct.includes("text/html") && text.includes("One moment, please");
+}
+
 export async function apiFetch<T = unknown>(
   endpoint: string,
   opts: ApiOptions = {},
@@ -97,18 +105,43 @@ export async function apiFetch<T = unknown>(
   }
 
   let res: Response;
-  try {
-    res = await fetch(url, init);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Network error";
-    throw new Error(
-      `[tatan-api] No se pudo conectar a ${url}: ${msg}. Verificá que el dominio esté online y que apiBaseUrl sea correcta.`,
-    );
+  let text = "";
+  for (let attempt = 1; ; attempt++) {
+    try {
+      res = await fetch(url, init);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Network error";
+      throw new Error(
+        `[tatan-api] No se pudo conectar a ${url}: ${msg}. Verificá que el dominio esté online y que apiBaseUrl sea correcta.`,
+      );
+    }
+
+    if (opts.raw) return res as unknown as T;
+
+    // Firewall de Vercel: un fetch no puede resolver el desafío, reintentar no sirve.
+    if (res.headers.get("x-vercel-mitigated")) {
+      throw new ApiError(
+        `[tatan-api ${res.status}] ${endpoint} · Bloqueado por el firewall de Vercel (Security Checkpoint)`,
+        res.status,
+        null,
+      );
+    }
+
+    text = await res.text();
+
+    // Anti-bot del hosting: devuelve una página HTML antes de ejecutar el PHP,
+    // así que reintentar es seguro también para POST/PUT/DELETE.
+    if (!isHostingChallenge(res, text)) break;
+    if (attempt >= CHALLENGE_RETRIES) {
+      throw new ApiError(
+        `[tatan-api] ${endpoint} · El anti-bot del hosting bloqueó la petición`,
+        res.status,
+        null,
+      );
+    }
+    await new Promise((r) => setTimeout(r, 400 * attempt));
   }
 
-  if (opts.raw) return res as unknown as T;
-
-  const text = await res.text();
   let data: unknown;
   try {
     data = text.length ? JSON.parse(text) : null;
