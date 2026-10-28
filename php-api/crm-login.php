@@ -47,6 +47,8 @@ crm_login($admin);
 
 send_json([
     'ok'    => true,
+    // Id de sesión para mandar en el header X-Tatan-Session (ver config.php).
+    'token' => session_id(),
     'admin' => [
         'username' => $admin['username'],
         'name'     => $admin['name']  ?? null,

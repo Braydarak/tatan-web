@@ -6,30 +6,52 @@
  *  La API PHP corre en tatankids.com.ar/api/*.php  (con `localhost`
  *  de MySQL, por lo que funciona sin acceso remoto).
  *
- *  IMPORTANTE — desde el NAVEGADOR nunca llamamos al dominio de Ferozo:
- *  usamos el proxy same-origin `/api/php/*` definido en next.config.ts.
- *  Así no hay CORS y la cookie de sesión del CRM (TATANCRMSESSID) es
- *  first-party (Safari/Brave no la bloquean).
+ *  Desde el NAVEGADOR se llama directo a la API de Ferozo (CORS habilitado
+ *  en config.php). No se usa el proxy `/api/php/*` de next.config.ts porque
+ *  esos pedidos salen desde los servidores de Vercel y el anti-bot del
+ *  hosting (Imunify360) los bloquea. La sesión del CRM viaja en el header
+ *  `X-Tatan-Session` en lugar de la cookie, que desde otro dominio sería de
+ *  terceros (Safari/Brave la bloquean).
  *
  *  Desde el SERVIDOR (SSR/RSC/build) el fetch va directo y absoluto a la
  *  API PHP, que no está sujeto a CORS porque no lo aplica un navegador.
  */
 
 const DEFAULT_BASE_URL = "https://tatankids.com.ar/api";
-/** Ruta del proxy same-origin (ver `rewrites` en next.config.ts). */
-const PROXY_PATH = "/api/php";
 
 export function apiBaseUrl(): string {
-  // Navegador → proxy same-origin. Se ignora NEXT_PUBLIC_API_BASE_URL a
-  // propósito: apuntar directo a Ferozo reintroduciría CORS y cookies de terceros.
-  if (typeof window !== "undefined") return PROXY_PATH;
-  // Servidor → URL absoluta directa a la API PHP.
   const fromEnv =
     process.env.NEXT_PUBLIC_API_BASE_URL ??
     process.env.TATAN_API_BASE_URL ??
     "";
   if (fromEnv) return fromEnv.replace(/\/$/, "");
   return DEFAULT_BASE_URL;
+}
+
+/* ================================================================
+ *  Sesión CRM (id de sesión PHP guardado en el navegador)
+ * ============================================================== */
+
+const SESSION_STORAGE_KEY = "tatan:crm-session";
+export const SESSION_HEADER = "X-Tatan-Session";
+
+export function getSessionToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(SESSION_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setSessionToken(token: string | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (token) window.localStorage.setItem(SESSION_STORAGE_KEY, token);
+    else window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 function toQuery(params: Record<string, unknown>): string {
@@ -79,11 +101,14 @@ export async function apiFetch<T = unknown>(
     Accept: "application/json",
     ...(opts.headers ?? {}),
   };
+  const token = getSessionToken();
+  if (token) headers[SESSION_HEADER] = token;
 
   const init: RequestInit = {
     method,
     headers,
-    credentials: opts.credentials ?? "include",
+    // La sesión va en el header, no hacen falta cookies cross-site.
+    credentials: opts.credentials ?? "omit",
     redirect: "follow",
   };
 
@@ -197,6 +222,7 @@ export async function apiLogin(
   try {
     const r = await apiFetch<{
       ok: boolean;
+      token?: string;
       admin?: AdminUser;
       userOk?: boolean;
       passwordOk?: boolean;
@@ -204,7 +230,10 @@ export async function apiLogin(
       method: "POST",
       body: { user, password },
     });
-    if (r.ok && r.admin) return { ok: true, admin: r.admin };
+    if (r.ok && r.admin) {
+      setSessionToken(r.token ?? null);
+      return { ok: true, admin: r.admin };
+    }
     return { ok: false, userOk: r.userOk, passwordOk: r.passwordOk };
   } catch (e) {
     return {
@@ -218,9 +247,11 @@ export async function apiSession(): Promise<{
   authenticated: boolean;
   admin: AdminUser | null;
 }> {
-  return apiFetch<{ authenticated: boolean; admin: AdminUser | null }>(
+  const r = await apiFetch<{ authenticated: boolean; admin: AdminUser | null }>(
     "crm-session.php",
   );
+  if (!r.authenticated) setSessionToken(null);
+  return r;
 }
 
 export async function apiLogout(): Promise<boolean> {
@@ -229,6 +260,8 @@ export async function apiLogout(): Promise<boolean> {
     return true;
   } catch {
     return false;
+  } finally {
+    setSessionToken(null);
   }
 }
 
@@ -376,9 +409,11 @@ export type RevalidateTag =
  */
 export async function apiRevalidateTag(tag: RevalidateTag): Promise<void> {
   try {
+    const token = getSessionToken();
     await fetch(`/api/revalidate?tag=${encodeURIComponent(tag)}`, {
       method: "POST",
       credentials: "same-origin",
+      headers: token ? { [SESSION_HEADER]: token } : undefined,
     });
   } catch {
     /* ignore */

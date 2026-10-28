@@ -1,7 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { apiBaseUrl, type RevalidateTag } from "@/lib/tatan-api";
+import { apiBaseUrl, SESSION_HEADER, type RevalidateTag } from "@/lib/tatan-api";
 
 /**
  * Purga on-demand del caché ISR.
@@ -11,7 +11,8 @@ import { apiBaseUrl, type RevalidateTag } from "@/lib/tatan-api";
  * el `revalidate` del fetch. El CRM llama a este endpoint justo después de
  * guardar para que el cambio se vea al instante.
  *
- * Requiere sesión CRM válida: se reenvía la cookie al backend PHP.
+ * Requiere sesión CRM válida: se reenvía el header X-Tatan-Session (o la
+ * cookie, si vino) al backend PHP.
  */
 
 const ALLOWED_TAGS: readonly RevalidateTag[] = [
@@ -21,24 +22,38 @@ const ALLOWED_TAGS: readonly RevalidateTag[] = [
   "tatan-home-products",
 ];
 
-async function hasCrmSession(): Promise<boolean> {
+async function hasCrmSession(request: Request): Promise<boolean> {
+  const token = request.headers.get(SESSION_HEADER);
   const cookieHeader = (await cookies()).toString();
-  if (!cookieHeader) return false;
-  try {
-    const res = await fetch(`${apiBaseUrl()}/crm-session.php`, {
-      headers: { cookie: cookieHeader, Accept: "application/json" },
-      cache: "no-store",
-    });
-    if (!res.ok) return false;
-    const data = (await res.json()) as { authenticated?: boolean };
-    return data?.authenticated === true;
-  } catch {
-    return false;
+  if (!token && !cookieHeader) return false;
+
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (token) headers[SESSION_HEADER] = token;
+  if (cookieHeader) headers.cookie = cookieHeader;
+
+  // Este pedido sale desde Vercel y el anti-bot del hosting a veces responde
+  // con una página HTML en vez del JSON: se reintenta un par de veces.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`${apiBaseUrl()}/crm-session.php`, {
+        headers,
+        cache: "no-store",
+      });
+      const isJson = (res.headers.get("content-type") ?? "").includes("json");
+      if (res.ok && isJson) {
+        const data = (await res.json()) as { authenticated?: boolean };
+        return data?.authenticated === true;
+      }
+    } catch {
+      /* reintentar */
+    }
+    await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
   }
+  return false;
 }
 
 export async function POST(request: Request) {
-  if (!(await hasCrmSession())) {
+  if (!(await hasCrmSession(request))) {
     return NextResponse.json(
       { ok: false, error: "UNAUTHORIZED" },
       { status: 401 },
