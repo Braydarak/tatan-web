@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import SuccessModal from "@/components/ui/SuccessModal";
 import Image from "next/image";
 import CustomButton from "@/components/ui/CustomButton";
 import ProductForm, { ProductFormData } from "@/components/ui/ProductForm";
@@ -510,6 +511,7 @@ export default function ProductsCrm({
   >("loading");
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
+  const [savedMsg, setSavedMsg] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<{
     type: "ok" | "err";
     text: string;
@@ -595,15 +597,17 @@ export default function ProductsCrm({
   ) => {
     setSaving(true);
     try {
+      // El id va al final: decide POST (sin id → el servidor lo genera) vs PUT.
       const payload = {
-        id: mode === "update" && editingProduct ? editingProduct.id : undefined,
         ...data,
+        id: mode === "update" && editingProduct ? editingProduct.id : undefined,
       };
       const r = await apiProductSave(payload);
       if (!r.ok) throw new Error(r.error || "No se pudo guardar el producto");
-      notify(
-        "ok",
-        mode === "create" ? "Producto creado ✓" : "Producto guardado ✓",
+      setSavedMsg(
+        mode === "create"
+          ? `El producto "${data.name}" se creó correctamente.`
+          : `Los cambios de "${data.name}" se guardaron correctamente.`,
       );
       setEditingProduct(null);
       setIsCreating(false);
@@ -623,7 +627,7 @@ export default function ProductsCrm({
     try {
       const r = await apiProductDelete(p.id);
       if (!r) throw new Error("No se pudo borrar (¿sesión expirada?)");
-      notify("ok", "Producto borrado ✓");
+      setSavedMsg(`El producto "${p.name}" se borró correctamente.`);
       void loadProducts();
     } catch (e) {
       notify("err", e instanceof Error ? e.message : "Error al borrar");
@@ -685,6 +689,7 @@ export default function ProductsCrm({
   return (
     <section id="productos" className={cx("w-full scroll-mt-20", className)}>
       <div className="flex flex-col gap-4 relative">
+        <SuccessModal message={savedMsg} onClose={() => setSavedMsg(null)} />
         {/* Toast */}
         {toast ? (
           <div

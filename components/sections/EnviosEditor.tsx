@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
+import SuccessModal from "@/components/ui/SuccessModal";
 import {
   apiSiteContent,
   apiSiteContentSave,
@@ -382,6 +383,7 @@ function SectionShowHeader({
 export default function EnviosEditor() {
   const [data, setData] = React.useState<EnviosData>(() => initialEnviosData());
   const [savedCount, setSavedCount] = React.useState(0);
+  const [savedMsg, setSavedMsg] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<Toast>(null);
   const [saving, setSaving] = React.useState(false);
   const [loadStatus, setLoadStatus] = React.useState<
@@ -635,7 +637,7 @@ export default function EnviosEditor() {
       }
       setSavedCount((x) => x + 1);
       setLoadStatus("ok");
-      pushToast("ok", `¡Página de envíos guardada! (v${r.version ?? "?"})`);
+      setSavedMsg(`La página de envíos se guardó correctamente (versión ${r.version ?? "?"}).`);
     } catch (e) {
       // fallback: salvar solo en localStorage
       try {
@@ -667,6 +669,7 @@ export default function EnviosEditor() {
 
   return (
     <div className="relative w-full">
+      <SuccessModal message={savedMsg} onClose={() => setSavedMsg(null)} />
       <header className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="inline-flex items-center gap-2 mb-1 flex-wrap">

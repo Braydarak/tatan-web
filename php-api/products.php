@@ -143,62 +143,170 @@ function category_by_key(string $key): ?array {
     return $cache[$key] ?? null;
 }
 
+
+/**
+ * Genera el próximo ID secuencial para la categoría: b-001, b-002, …
+ * (primera letra de la categoría + número de 3 dígitos).
+ */
 function generate_id(string $categoryKey): string {
-    $prefix = $categoryKey[0] ?? 'p';
-    return sprintf('%s-%04d', $prefix, random_int(1000, 9999));
+    $prefix = $categoryKey !== '' ? $categoryKey[0] : 'p';
+    $stmt = pdo()->prepare("SELECT id FROM products WHERE id LIKE ?");
+    $stmt->execute([$prefix . '-%']);
+    $max = 0;
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $existing) {
+        if (preg_match('/^' . preg_quote($prefix, '/') . '-(\d+)$/', (string)$existing, $m)) {
+            $max = max($max, (int)$m[1]);
+        }
+    }
+    return sprintf('%s-%03d', $prefix, $max + 1);
+}
+
+function product_exists(string $id): bool {
+    $chk = pdo()->prepare("SELECT COUNT(*) FROM products WHERE id = ?");
+    $chk->execute([$id]);
+    return (int)$chk->fetchColumn() > 0;
+}
+
+/** ¿El slug ya lo usa otro producto? (excluyendo $exceptId en updates) */
+function slug_taken(string $slug, ?string $exceptId = null): bool {
+    $stmt = pdo()->prepare("SELECT COUNT(*) FROM products WHERE slug = ? AND id <> ?");
+    $stmt->execute([$slug, $exceptId ?? '']);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+/** Strings a la medida de la columna (evita "Data too long" en modo estricto). */
+function str_or_null(mixed $v, int $max): ?string {
+    if ($v === null || is_array($v)) return null;
+    $s = trim((string)$v);
+    if ($s === '') return null;
+    return mb_substr($s, 0, $max);
+}
+
+function valid_hex(mixed $v, string $default): string {
+    $s = is_string($v) ? trim($v) : '';
+    return preg_match('/^#[0-9a-f]{6}$/i', $s) ? $s : $default;
+}
+
+/**
+ * Valida el body de POST/PUT y devuelve [categoría, columnas de products].
+ * Corta con 400/409 si algo no es válido.
+ */
+function validate_product_body(array $body, ?string $exceptId = null): array {
+    $cat = category_by_key((string)($body['category'] ?? ''));
+    if (!$cat) send_json(['ok' => false, 'error' => 'INVALID_CATEGORY', 'message' => 'Categoría inválida'], 400);
+
+    $name     = trim((string)($body['name'] ?? ''));
+    $imageSrc = trim((string)($body['imageSrc'] ?? ''));
+    if ($name === '' || $imageSrc === '' || !isset($body['price']) || !is_numeric($body['price'])) {
+        send_json(['ok' => false, 'error' => 'MISSING_FIELDS', 'message' => 'Faltan nombre, imagen principal o precio'], 400);
+    }
+
+    // Las imágenes tienen que ser URLs (subidas con upload.php), no base64: image_src es VARCHAR(500).
+    $images = array_merge([$imageSrc], array_values((array)($body['gallery'] ?? [])));
+    foreach ($images as $src) {
+        $src = (string)$src;
+        if (str_starts_with($src, 'data:') || mb_strlen($src) > 500) {
+            send_json([
+                'ok'      => false,
+                'error'   => 'INVALID_IMAGE',
+                'message' => 'Las imágenes deben ser una URL (máx. 500 caracteres), no un archivo embebido',
+            ], 400);
+        }
+    }
+
+    $slug = str_or_null($body['slug'] ?? null, 150);
+    if ($slug !== null && slug_taken($slug, $exceptId)) {
+        send_json(['ok' => false, 'error' => 'DUPLICATE_SLUG', 'message' => "El slug \"{$slug}\" ya está en uso"], 409);
+    }
+
+    $optPrice = fn(string $k): ?float =>
+        isset($body[$k]) && is_numeric($body[$k]) && (float)$body[$k] > 0 ? (float)$body[$k] : null;
+
+    $row = [
+        'slug'              => $slug,
+        'name'              => mb_substr($name, 0, 200),
+        'tagline'           => str_or_null($body['tagline'] ?? null, 100),
+        'image_src'         => $imageSrc,
+        'category_id'       => (int)$cat['id'],
+        'size_group'        => ($body['sizeGroup'] ?? 'ninios') === 'bebe' ? 'bebe' : 'ninios',
+        'color_hex'         => valid_hex($body['colorHex'] ?? null, '#F5E6D3'),
+        'description'       => isset($body['description']) ? (string)$body['description'] : null,
+        'price'             => max(0, (float)$body['price']),
+        'original_price'    => $optPrice('originalPrice'),
+        'installments'      => min(255, max(1, (int)($body['installments'] ?? 1))),
+        'tax_free_price'    => $optPrice('taxFreePrice'),
+        'show_points_badge' => !empty($body['showPointsBadge']) ? 1 : 0,
+        'rating'            => min(5, max(0, round((float)($body['rating'] ?? 5), 1))),
+        'reviews_count'     => max(0, (int)($body['reviews'] ?? 0)),
+        'sold_total'        => max(0, (int)($body['soldTotal'] ?? 0)),
+        'active'            => !array_key_exists('active', $body) || !empty($body['active']) ? 1 : 0,
+    ];
+    return [$cat, $row];
 }
 
 function insert_child_rows(string $id, array $body): void {
     $pdo = pdo();
 
-    // sizes + stock
-    $sizes = $body['sizes'] ?? [];
+    // sizes + stock (sin duplicados: hay UNIQUE (product_id, size))
+    $sizes = array_values(array_unique(array_filter(
+        array_map(fn($s) => mb_substr(trim((string)$s), 0, 15), (array)($body['sizes'] ?? [])),
+        fn($s) => $s !== ''
+    )));
     $stock = (array)($body['stockBySize'] ?? []);
     if ($sizes) {
         $stmt = $pdo->prepare("INSERT INTO product_sizes_stock (product_id, size, stock) VALUES (?,?,?)");
         foreach ($sizes as $sz) {
-            $stmt->execute([$id, $sz, (int)($stock[$sz] ?? 0)]);
+            $stmt->execute([$id, $sz, max(0, (int)($stock[$sz] ?? 0))]);
         }
     }
 
     // galeria
-    $gallery = $body['gallery'] ?? [];
+    $gallery = array_values(array_filter(
+        array_map(fn($s) => trim((string)$s), (array)($body['gallery'] ?? [])),
+        fn($s) => $s !== ''
+    ));
     if ($gallery) {
         $stmt = $pdo->prepare("INSERT INTO product_gallery_images (product_id, image_src, sort_order) VALUES (?,?,?)");
-        foreach (array_values($gallery) as $i => $src) {
+        foreach ($gallery as $i => $src) {
             $stmt->execute([$id, $src, $i]);
         }
     }
 
     // color variants
-    $colors = $body['colorVariants'] ?? [];
+    $colors = array_values((array)($body['colorVariants'] ?? []));
     if ($colors) {
         $stmt = $pdo->prepare("INSERT INTO product_color_variants (product_id, name, hex, sort_order) VALUES (?,?,?,?)");
-        foreach (array_values($colors) as $i => $c) {
+        foreach ($colors as $i => $c) {
             $stmt->execute([
                 $id,
-                is_array($c) ? ($c['name'] ?? 'Color') : 'Color',
-                is_array($c) ? ($c['hex']  ?? '#ffffff') : '#ffffff',
-                $i,
+                is_array($c) ? (str_or_null($c['name'] ?? null, 50) ?? 'Color') : 'Color',
+                valid_hex(is_array($c) ? ($c['hex'] ?? null) : null, '#ffffff'),
+                min(255, $i),
             ]);
         }
     }
 
     // features
-    $features = $body['features'] ?? [];
+    $features = array_values(array_filter(
+        array_map(fn($f) => mb_substr(trim((string)$f), 0, 250), (array)($body['features'] ?? [])),
+        fn($f) => $f !== ''
+    ));
     if ($features) {
         $stmt = $pdo->prepare("INSERT INTO product_features (product_id, feature, sort_order) VALUES (?,?,?)");
-        foreach (array_values($features) as $i => $f) {
-            $stmt->execute([$id, $f, $i]);
+        foreach ($features as $i => $f) {
+            $stmt->execute([$id, $f, min(255, $i)]);
         }
     }
 
-    // relacionados (INSERT IGNORE para no fallar si un producto destino aún no existe - FK lo atrapará o lo saltará)
-    $related = $body['relatedIds'] ?? [];
+    // relacionados: solo los que existen (la FK lo exige) y distintos del propio producto
+    $related = array_values(array_unique(array_filter(
+        array_map(fn($r) => trim((string)$r), (array)($body['relatedIds'] ?? [])),
+        fn($r) => $r !== '' && $r !== $id && product_exists($r)
+    )));
     if ($related) {
-        $stmt = $pdo->prepare("INSERT IGNORE INTO product_related (product_id, related_product_id, sort_order) VALUES (?,?,?)");
-        foreach (array_values($related) as $i => $r) {
-            $stmt->execute([$id, $r, $i]);
+        $stmt = $pdo->prepare("INSERT INTO product_related (product_id, related_product_id, sort_order) VALUES (?,?,?)");
+        foreach ($related as $i => $r) {
+            $stmt->execute([$id, $r, min(255, $i)]);
         }
     }
 }
@@ -212,12 +320,19 @@ function delete_child_rows(string $id): void {
     $pdo->prepare("DELETE FROM product_related         WHERE product_id = ?")->execute([$id]);
 }
 
+function db_error(Throwable $e): never {
+    $pdo = pdo();
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    send_json(['ok' => false, 'error' => 'DB_ERROR', 'message' => $e->getMessage()], 500);
+}
+
 /* ============================================================
  *  Ruteo
  * ========================================================== */
 
 $method = method();
-$id     = input('id', null);
+// El id del recurso sale solo de la query string (?id=…), nunca del body.
+$id     = isset($_GET['id']) ? trim((string)$_GET['id']) : null;
 
 if ($method === 'GET') {
     if ($id !== null) {
@@ -237,121 +352,79 @@ if ($method === 'POST') {
     $body = read_json_body();
     if (!$body) send_json(['ok' => false, 'error' => 'INVALID_JSON'], 400);
 
-    $cat = category_by_key((string)($body['category'] ?? ''));
-    if (!$cat) send_json(['ok' => false, 'error' => 'INVALID_CATEGORY'], 400);
-    if (empty($body['name']) || empty($body['imageSrc']) || !isset($body['price'])) {
-        send_json(['ok' => false, 'error' => 'MISSING_FIELDS'], 400);
-    }
-    $id = (!empty($body['id']) && is_string($body['id'])) ? trim($body['id']) : generate_id((string)$body['category']);
+    [$cat, $row] = validate_product_body($body);
 
-    // existencia
-    $chk = pdo()->prepare("SELECT COUNT(*) AS c FROM products WHERE id = ?");
-    $chk->execute([$id]);
-    if ((int)$chk->fetchColumn() > 0) {
-        send_json(['ok' => false, 'error' => 'DUPLICATE_ID', 'id' => $id], 409);
+    // ID opcional elegido por el cliente: tiene que entrar en VARCHAR(30).
+    if (!empty($body['id'])) {
+        $id = trim((string)$body['id']);
+        if (!preg_match('/^[a-z0-9][a-z0-9_-]{0,29}$/i', $id)) {
+            send_json(['ok' => false, 'error' => 'INVALID_ID', 'message' => 'ID inválido (máx. 30 caracteres: letras, números, - o _)'], 400);
+        }
+        if (product_exists($id)) {
+            send_json(['ok' => false, 'error' => 'DUPLICATE_ID', 'message' => "Ya existe un producto con ID {$id}", 'id' => $id], 409);
+        }
+    } else {
+        $id = generate_id((string)$cat['key']);
     }
 
     $pdo = pdo();
-    $pdo->beginTransaction();
     try {
-        $ins = $pdo->prepare("INSERT INTO products
-            (id, slug, name, tagline, image_src, category_id, size_group, color_hex, description,
-             price, original_price, installments, tax_free_price, show_points_badge, rating, reviews_count, sold_total, active)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-        $ins->execute([
-            $id,
-            !empty($body['slug']) ? trim((string)$body['slug']) : null,
-            $body['name'],
-            $body['tagline'] ?? null,
-            $body['imageSrc'],
-            (int)$cat['id'],
-            ($body['sizeGroup'] ?? 'ninios') === 'bebe' ? 'bebe' : 'ninios',
-            $body['colorHex'] ?? '#ffffff',
-            $body['description'] ?? null,
-            (float)$body['price'],
-            array_key_exists('originalPrice', $body) && $body['originalPrice'] !== null ? (float)$body['originalPrice'] : null,
-            (int)($body['installments'] ?? 1),
-            array_key_exists('taxFreePrice', $body) && $body['taxFreePrice'] !== null ? (float)$body['taxFreePrice'] : null,
-            !empty($body['showPointsBadge']) ? 1 : 0,
-            (float)($body['rating'] ?? 5),
-            (int)($body['reviews'] ?? 0),
-            (int)($body['soldTotal'] ?? 0),
-            !array_key_exists('active', $body) || !empty($body['active']) ? 1 : 0,
-        ]);
+        $pdo->beginTransaction();
+        $cols = array_keys($row);
+        $ins = $pdo->prepare(sprintf(
+            "INSERT INTO products (id, %s) VALUES (?%s)",
+            implode(', ', $cols),
+            str_repeat(',?', count($cols))
+        ));
+        $ins->execute(array_merge([$id], array_values($row)));
 
         insert_child_rows($id, $body);
         $pdo->commit();
     } catch (Throwable $e) {
-        $pdo->rollBack();
-        send_json(['ok' => false, 'error' => 'DB_ERROR', 'msg' => $e->getMessage()], 500);
+        db_error($e);
     }
 
     $created = fetch_products("WHERE p.id = ?", [$id]);
-    send_json(['ok' => true, 'data' => $created[0] ?? null], 201);
+    send_json(['ok' => true, 'id' => $id, 'data' => $created[0] ?? null], 201);
 }
 
 if ($method === 'PUT') {
-    if ($id === null) send_json(['ok' => false, 'error' => 'MISSING_ID'], 400);
+    if ($id === null || $id === '') send_json(['ok' => false, 'error' => 'MISSING_ID'], 400);
     $body = read_json_body();
     if (!$body) send_json(['ok' => false, 'error' => 'INVALID_JSON'], 400);
 
-    $cat = category_by_key((string)($body['category'] ?? ''));
-    if (!$cat) send_json(['ok' => false, 'error' => 'INVALID_CATEGORY'], 400);
+    if (!product_exists($id)) send_json(['ok' => false, 'error' => 'NOT_FOUND', 'message' => "No existe el producto {$id}"], 404);
 
-    $chk = pdo()->prepare("SELECT COUNT(*) AS c FROM products WHERE id = ?");
-    $chk->execute([$id]);
-    if ((int)$chk->fetchColumn() === 0) send_json(['ok' => false, 'error' => 'NOT_FOUND'], 404);
+    [, $row] = validate_product_body($body, $id);
 
     $pdo = pdo();
-    $pdo->beginTransaction();
     try {
-        $upd = $pdo->prepare("UPDATE products SET
-            slug=?, name=?, tagline=?, image_src=?, category_id=?, size_group=?, color_hex=?,
-            description=?, price=?, original_price=?, installments=?, tax_free_price=?,
-            show_points_badge=?, rating=?, reviews_count=?, sold_total=?, active=?,
-            updated_at=NOW()
-          WHERE id=?");
-        $upd->execute([
-            !empty($body['slug']) ? trim((string)$body['slug']) : null,
-            $body['name'],
-            $body['tagline'] ?? null,
-            $body['imageSrc'],
-            (int)$cat['id'],
-            ($body['sizeGroup'] ?? 'ninios') === 'bebe' ? 'bebe' : 'ninios',
-            $body['colorHex'] ?? '#ffffff',
-            $body['description'] ?? null,
-            (float)$body['price'],
-            array_key_exists('originalPrice', $body) && $body['originalPrice'] !== null ? (float)$body['originalPrice'] : null,
-            (int)($body['installments'] ?? 1),
-            array_key_exists('taxFreePrice', $body) && $body['taxFreePrice'] !== null ? (float)$body['taxFreePrice'] : null,
-            !empty($body['showPointsBadge']) ? 1 : 0,
-            (float)($body['rating'] ?? 5),
-            (int)($body['reviews'] ?? 0),
-            (int)($body['soldTotal'] ?? 0),
-            !array_key_exists('active', $body) || !empty($body['active']) ? 1 : 0,
-            $id,
-        ]);
+        $pdo->beginTransaction();
+        $sets = implode(', ', array_map(fn($c) => "{$c}=?", array_keys($row)));
+        $upd = $pdo->prepare("UPDATE products SET {$sets}, updated_at=NOW() WHERE id=?");
+        $upd->execute(array_merge(array_values($row), [$id]));
 
         delete_child_rows($id);
         insert_child_rows($id, $body);
         $pdo->commit();
     } catch (Throwable $e) {
-        $pdo->rollBack();
-        send_json(['ok' => false, 'error' => 'DB_ERROR', 'msg' => $e->getMessage()], 500);
+        db_error($e);
     }
 
     $updated = fetch_products("WHERE p.id = ?", [$id]);
-    send_json(['ok' => true, 'data' => $updated[0] ?? null]);
+    send_json(['ok' => true, 'id' => $id, 'data' => $updated[0] ?? null]);
 }
 
 if ($method === 'DELETE') {
-    if ($id === null) send_json(['ok' => false, 'error' => 'MISSING_ID'], 400);
+    if ($id === null || $id === '') send_json(['ok' => false, 'error' => 'MISSING_ID'], 400);
+    if (!product_exists($id)) send_json(['ok' => false, 'error' => 'NOT_FOUND'], 404);
 
-    $chk = pdo()->prepare("SELECT COUNT(*) AS c FROM products WHERE id = ?");
-    $chk->execute([$id]);
-    if ((int)$chk->fetchColumn() === 0) send_json(['ok' => false, 'error' => 'NOT_FOUND'], 404);
-
-    pdo()->prepare("DELETE FROM products WHERE id = ?")->execute([$id]);
+    try {
+        pdo()->prepare("DELETE FROM products WHERE id = ?")->execute([$id]);
+    } catch (Throwable $e) {
+        // p. ej. FK de order_items (ON DELETE RESTRICT): el producto ya tiene pedidos.
+        db_error($e);
+    }
     send_json(['ok' => true, 'id' => $id]);
 }
 
