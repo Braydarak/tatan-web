@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import * as React from "react";
+import SuccessModal from "@/components/ui/SuccessModal";
 import {
   apiSiteContent,
   apiSiteContentSave,
@@ -94,6 +95,7 @@ export default function HomeHeroEditor() {
   const [data, setData] = React.useState<HomeHeroData>(DEFAULT_HERO);
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(0);
+  const [savedMsg, setSavedMsg] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<Toast>(null);
   const [loading, setLoading] = React.useState(true);
   const [remoteStatus, setRemoteStatus] = React.useState<
@@ -211,7 +213,7 @@ export default function HomeHeroEditor() {
 
       setSaved((n) => n + 1);
       setRemoteStatus("ok");
-      pushToast("ok", `¡Cambios del hero guardados! (v${r.version ?? "?"})`);
+      setSavedMsg(`Los cambios del hero se guardaron correctamente (versión ${r.version ?? "?"}).`);
     } catch (e) {
       // Fallback: salvar solo en localStorage
       try {
@@ -230,6 +232,7 @@ export default function HomeHeroEditor() {
 
   return (
     <div className="relative w-full">
+      <SuccessModal message={savedMsg} onClose={() => setSavedMsg(null)} />
       {toast ? (
         <div className="fixed right-4 top-4 z-[80] w-full max-w-sm">
           <div

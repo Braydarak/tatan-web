@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import * as React from "react";
+import SuccessModal from "@/components/ui/SuccessModal";
 import { AlertTriangle, PackageX, RotateCcw, Save, Search } from "lucide-react";
 import { apiProductSave, apiProducts, type Product } from "@/lib/tatan-api";
 import { LOW_STOCK, stockLevel, totalStockOf } from "./format";
@@ -20,6 +21,7 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
 
 export default function Inventario() {
   const [products, setProducts] = React.useState<Product[] | null>(null);
+  const [savedMsg, setSavedMsg] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
   const [filter, setFilter] = React.useState<Filter>("todos");
@@ -105,7 +107,7 @@ export default function Inventario() {
         relatedIds: p.relatedIds,
       });
       if (!r.ok) throw new Error(r.error || "No se pudo guardar el stock");
-      notify("ok", `Stock de "${p.name}" actualizado`);
+      setSavedMsg(`El stock de "${p.name}" se actualizó correctamente.`);
       setEdits((prev) => {
         const next = { ...prev };
         delete next[p.id];
@@ -185,6 +187,7 @@ export default function Inventario() {
 
   return (
     <div className="flex flex-col gap-5">
+      <SuccessModal message={savedMsg} onClose={() => setSavedMsg(null)} />
       {toast ? (
         <div
           role="status"

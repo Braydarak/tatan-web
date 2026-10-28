@@ -8,6 +8,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import { Minus, Plus, X, Upload } from "lucide-react";
+import { apiUploadImage } from "@/lib/tatan-api";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -188,6 +189,34 @@ export default function ProductForm({
   );
   const [relatedInput, setRelatedInput] = React.useState("");
 
+  // Subidas de imágenes en curso (se bloquea el submit hasta que terminen).
+  const [uploading, setUploading] = React.useState(0);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+
+  /** Sube los archivos a la API y devuelve sus URLs (las que fallen se descartan). */
+  const uploadFiles = async (files: File[]): Promise<string[]> => {
+    setUploadError(null);
+    setUploading((n) => n + files.length);
+    const results = await Promise.allSettled(
+      files.map((f) =>
+        apiUploadImage(f).finally(() => setUploading((n) => n - 1)),
+      ),
+    );
+    const failed = results.find(
+      (r): r is PromiseRejectedResult => r.status === "rejected",
+    );
+    if (failed) {
+      setUploadError(
+        failed.reason instanceof Error
+          ? failed.reason.message
+          : "No se pudo subir la imagen",
+      );
+    }
+    return results
+      .filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled")
+      .map((r) => r.value);
+  };
+
   const editorImageInputRef = React.useRef<HTMLInputElement | null>(null);
   const galleryInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -233,28 +262,18 @@ export default function ProductForm({
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setImageSrc(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    void uploadFiles([file]).then(([url]) => {
+      if (url) setImageSrc(url);
+    });
   };
 
   const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
-    Promise.all(
-      files.map(
-        (f) =>
-          new Promise<string>((resolve) => {
-            const r = new FileReader();
-            r.onload = (ev) => resolve(ev.target?.result as string);
-            r.readAsDataURL(f);
-          }),
-      ),
-    ).then((urls) => {
-      setGallery((prev) => [...prev, ...urls]);
+    void uploadFiles(files).then((urls) => {
+      if (urls.length) setGallery((prev) => [...prev, ...urls]);
     });
     e.target.value = "";
   };
@@ -300,10 +319,14 @@ export default function ProductForm({
 
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (submitting || !onSubmit) return;
+    if (submitting || uploading > 0 || !onSubmit) return;
+    if (!imageSrc.trim()) {
+      setUploadError("Falta la imagen principal");
+      return;
+    }
 
     const data: ProductFormData = {
-      id: initialData?.id || crypto.randomUUID(),
+      id: initialData?.id,
       slug: slug.trim() || undefined,
       name,
       tagline: tagline.trim() || undefined,
@@ -800,15 +823,11 @@ export default function ProductForm({
                 className="sr-only"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = (event) => {
-                    const src = event.target?.result as string | undefined;
-                    if (!src) return;
-                    editor?.chain().focus().setImage({ src }).run();
-                  };
-                  reader.readAsDataURL(file);
                   e.target.value = "";
+                  if (!file) return;
+                  void uploadFiles([file]).then(([src]) => {
+                    if (src) editor?.chain().focus().setImage({ src }).run();
+                  });
                 }}
               />
               <div className="ml-auto flex items-center gap-1">
@@ -959,12 +978,17 @@ export default function ProductForm({
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-black/5 pt-6">
+        {uploading > 0 ? (
+          <span className="mr-auto text-sm text-zinc-500">Subiendo imágenes…</span>
+        ) : uploadError ? (
+          <span className="mr-auto text-sm text-red-600">{uploadError}</span>
+        ) : null}
         {onCancel && (
           <CustomButton type="outline" onClick={onCancel} disabled={submitting}>
             Cancelar
           </CustomButton>
         )}
-        <CustomButton htmlType="submit" disabled={submitting}>
+        <CustomButton htmlType="submit" disabled={submitting || uploading > 0}>
           {submitting
             ? initialData?.id
               ? "Guardando…"

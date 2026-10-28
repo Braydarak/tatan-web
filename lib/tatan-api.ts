@@ -280,6 +280,21 @@ export async function apiProductSave(
   }
 }
 
+/**
+ * Sube una imagen a la API PHP (requiere sesión CRM) y devuelve su URL pública.
+ * Lanza Error con el mensaje del servidor si falla.
+ */
+export async function apiUploadImage(file: File): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const r = await apiFetch<{ ok: boolean; url?: string }>("upload.php", {
+    method: "POST",
+    body: form,
+  });
+  if (!r.ok || !r.url) throw new Error("No se pudo subir la imagen");
+  return r.url;
+}
+
 export async function apiProductDelete(id: string): Promise<boolean> {
   try {
     await apiFetch<{ ok: boolean }>("products.php", {
