@@ -1,6 +1,5 @@
 "use client";
 
-import CustomButton from "@/components/ui/CustomButton";
 import {
   Truck,
   Package,
@@ -351,29 +350,69 @@ function SectionShowHeader({
   show,
   onShowChange,
   desc,
+  open,
+  onToggle,
 }: {
   title: string;
   show: boolean;
   onShowChange: (v: boolean) => void;
   desc?: string;
+  open: boolean;
+  onToggle: () => void;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-black/5 bg-[#FFF8F0]/60 px-4 py-3">
-      <div className="min-w-0">
-        <h4 className="text-sm font-extrabold tracking-tight text-zinc-900">
-          {title}
-        </h4>
-        {desc ? (
-          <p className="mt-0.5 text-[11px] text-zinc-500 leading-snug">
-            {desc}
-          </p>
-        ) : null}
-      </div>
-      <ToggleField
-        label="Mostrar sección"
-        checked={show}
-        onCheckedChange={onShowChange}
-      />
+    <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <ChevronDown
+          className={cx(
+            "h-4 w-4 shrink-0 text-zinc-400 transition-transform",
+            open && "rotate-180",
+          )}
+        />
+        <span className="min-w-0">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-sm font-bold text-zinc-900">
+              {title}
+            </span>
+            {!show ? (
+              <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-500">
+                Oculta
+              </span>
+            ) : null}
+          </span>
+          {desc ? (
+            <span className="mt-0.5 block text-xs text-zinc-500">{desc}</span>
+          ) : null}
+        </span>
+      </button>
+      <label className="flex shrink-0 cursor-pointer items-center gap-2">
+        <span className="hidden text-xs font-medium text-zinc-500 sm:inline">
+          Mostrar
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={show}
+          aria-label={`Mostrar ${title} en la web`}
+          onClick={() => onShowChange(!show)}
+          className={cx(
+            "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-black/5 transition-colors",
+            show ? "bg-tatan-acento-verde" : "bg-zinc-200",
+          )}
+        >
+          <span
+            className={cx(
+              "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+              show ? "translate-x-5" : "translate-x-0.5",
+            )}
+          />
+        </button>
+      </label>
     </div>
   );
 }
@@ -382,13 +421,34 @@ function SectionShowHeader({
 
 export default function EnviosEditor() {
   const [data, setData] = React.useState<EnviosData>(() => initialEnviosData());
-  const [savedCount, setSavedCount] = React.useState(0);
-  const [savedMsg, setSavedMsg] = React.useState<string | null>(null);
-  const [toast, setToast] = React.useState<Toast>(null);
-  const [saving, setSaving] = React.useState(false);
   const [loadStatus, setLoadStatus] = React.useState<
     "idle" | "loading" | "ok" | "error"
   >("loading");
+  const [openSection, setOpenSection] = React.useState<string | null>("hero");
+  const [showPreview, setShowPreview] = React.useState(false);
+  const previewRef = React.useRef<HTMLElement | null>(null);
+  // Último contenido guardado (o cargado): para avisar si hay cambios sin guardar
+  const [savedJson, setSavedJson] = React.useState<string | null>(null);
+  const dirty =
+    loadStatus === "error" ||
+    (savedJson !== null && JSON.stringify(data) !== savedJson);
+
+  const toggleSection = (key: string) =>
+    setOpenSection((prev) => (prev === key ? null : key));
+
+  // La vista previa (desktop) se mueve a la sección que se está editando
+  React.useEffect(() => {
+    const box = previewRef.current;
+    if (!box || !openSection) return;
+    const target = box.querySelector<HTMLElement>(
+      `[data-preview="${openSection}"]`,
+    );
+    if (!target || box.scrollHeight <= box.clientHeight) return;
+    box.scrollTo({ top: target.offsetTop - 16, behavior: "smooth" });
+  }, [openSection]);
+  const [savedMsg, setSavedMsg] = React.useState<string | null>(null);
+  const [toast, setToast] = React.useState<Toast>(null);
+  const [saving, setSaving] = React.useState(false);
 
   // Cargar desde DB al montar
   React.useEffect(() => {
@@ -401,7 +461,9 @@ export default function EnviosEditor() {
         if (r.ok && r.data) {
           const parsed =
             typeof r.data === "string" ? JSON.parse(r.data) : r.data;
-          setData(mergeEnvios(DEFAULT_ENVios, parsed));
+          const merged = mergeEnvios(DEFAULT_ENVios, parsed);
+          setData(merged);
+          setSavedJson(JSON.stringify(merged));
           setLoadStatus("ok");
           try {
             window.localStorage.setItem(
@@ -635,14 +697,13 @@ export default function EnviosEditor() {
       } catch {
         /* ignore */
       }
-      setSavedCount((x) => x + 1);
+      setSavedJson(JSON.stringify(data));
       setLoadStatus("ok");
-      setSavedMsg(`La página de envíos se guardó correctamente (versión ${r.version ?? "?"}).`);
+      setSavedMsg("La página de envíos se guardó. Los cambios ya se ven en la web.");
     } catch (e) {
       // fallback: salvar solo en localStorage
       try {
         window.localStorage.setItem("crm:envios", JSON.stringify(data));
-        setSavedCount((x) => x + 1);
         pushToast(
           "error",
           `Error DB, guardado local: ${e instanceof Error ? e.message : "desconocido"}`,
@@ -656,6 +717,12 @@ export default function EnviosEditor() {
   };
 
   const onReset = () => {
+    if (
+      !window.confirm(
+        "¿Volver a los textos originales de la página? Se pierde lo que cambiaste (hasta que guardes, la web no cambia).",
+      )
+    )
+      return;
     setData(DEFAULT_ENVios);
     try {
       window.localStorage.removeItem("crm:envios");
@@ -670,69 +737,51 @@ export default function EnviosEditor() {
   return (
     <div className="relative w-full">
       <SuccessModal message={savedMsg} onClose={() => setSavedMsg(null)} />
-      <header className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <div className="inline-flex items-center gap-2 mb-1 flex-wrap">
-            <span className="w-6 h-1 rounded-full bg-tatan-acento-azul" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-tatan-secundario2">
-              Contenido del sitio
-            </span>
-            <span
-              className={cx(
-                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider",
-                loadStatus === "loading"
-                  ? "bg-sky-50 border-sky-200 text-sky-700"
-                  : loadStatus === "ok"
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                    : "bg-amber-50 border-amber-200 text-amber-800",
-              )}
-            >
-              {loadStatus === "loading"
-                ? "Leyendo DB…"
-                : loadStatus === "ok"
-                  ? "BD sincronizada"
-                  : "Datos locales"}
-            </span>
-          </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight leading-tight">
-            Editor de Página Envíos
+      <header className="sticky top-16 z-20 -mx-4 mb-4 flex flex-wrap items-center gap-3 border-b border-black/5 bg-[#F7F6F3]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-bold tracking-tight text-zinc-900">
+            Página de envíos
           </h2>
-          <p className="mt-1 text-sm text-zinc-500 max-w-2xl leading-relaxed">
-            Modificá textos, colores, mostrá u ocultá secciones enteras y agregá
-            o quitá items.
-            {savedCount > 0 ? (
-              <>
-                {" "}
-                Guardado <strong>{savedCount}</strong> vez
-                {savedCount === 1 ? "" : "es"} en esta sesión · persistence:{" "}
-                <code className="rounded bg-black/5 px-1 py-0.5 text-[11px]">
-                  DB + crm:envios (cache)
-                </code>
-              </>
-            ) : null}
+          <p className="text-xs text-zinc-500">
+            {loadStatus === "loading"
+              ? "Cargando…"
+              : loadStatus === "error"
+                ? "No se pudo leer la versión publicada: estás viendo una copia local."
+                : dirty
+                  ? "Tenés cambios sin guardar"
+                  : "Tocá una sección para editarla"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <CustomButton type="outline" onClick={onReset} className="text-xs">
-            Restaurar original
-          </CustomButton>
-          <CustomButton
-            type="filled"
-            onClick={onSave}
-            disabled={saving}
-            className="text-xs bg-gradient-to-br from-tatan-primario1 to-tatan-primario2 text-zinc-900 border-transparent shadow-sm"
-          >
-            {saving ? (
-              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/20 border-t-zinc-900 mr-1.5" />
-            ) : null}
-            Guardar cambios
-            {savedCount > 0 && !saving ? (
-              <span className="ml-1 text-[10px] opacity-80">
-                ({savedCount})
-              </span>
-            ) : null}
-          </CustomButton>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowPreview((v) => !v)}
+          className="inline-flex h-10 items-center rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 lg:hidden"
+        >
+          {showPreview ? "Ocultar vista previa" : "Vista previa"}
+        </button>
+        <button
+          type="button"
+          onClick={onReset}
+          className="hidden h-10 items-center rounded-xl px-3 text-sm font-semibold text-zinc-500 transition hover:bg-black/5 hover:text-zinc-800 sm:inline-flex"
+        >
+          Restaurar original
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className={cx(
+            "inline-flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-bold shadow-sm transition disabled:opacity-60",
+            dirty
+              ? "bg-tatan-primario1 text-zinc-900 hover:bg-tatan-primario4"
+              : "border border-black/10 bg-white text-zinc-700 hover:bg-zinc-50",
+          )}
+        >
+          {saving ? (
+            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/20 border-t-zinc-900" />
+          ) : null}
+          {saving ? "Guardando…" : dirty ? "Guardar cambios" : "Guardado"}
+        </button>
       </header>
 
       {toast ? (
@@ -752,19 +801,21 @@ export default function EnviosEditor() {
         {/* FORM */}
         <section
           aria-label="Formulario Envios"
-          className="order-2 space-y-5 rounded-2xl border border-black/5 bg-white/80 p-4 backdrop-blur lg:order-1 lg:col-span-2 lg:p-5"
+          className="order-2 space-y-3 lg:order-1 lg:col-span-2"
         >
           {/* HERO */}
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_3px_rgba(185,168,155,0.15)] [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:border-black/5 [&>*:not(:first-child)]:px-4 [&>*:not(:first-child)]:pb-5 [&>*:not(:first-child)]:pt-4 sm:[&>*:not(:first-child)]:px-5">
             <SectionShowHeader
-              title="1. Hero principal"
+              title="Portada"
               show={data.hero.show}
               onShowChange={(v) => patchHero({ show: v })}
-              desc="Título, descripción, CTAs y tarjetita resumen superior."
+              desc="Título, texto, botones y el resumen de arriba"
+              open={openSection === "hero"}
+              onToggle={() => toggleSection("hero")}
             />
-            {data.hero.show ? (
+            {openSection === "hero" ? (
               <div className="grid gap-3">
-                <Field label="Eyebrow (chiquito arriba)">
+                <Field label="Texto chico arriba del título">
                   <input
                     type="text"
                     value={data.hero.eyebrow}
@@ -831,7 +882,7 @@ export default function EnviosEditor() {
                   </Field>
                 </div>
                 <ToggleField
-                  label="Mostrar tarjeta resumen (columna der)"
+                  label="Mostrar el resumen de la derecha"
                   checked={data.hero.summaryCardShow}
                   onCheckedChange={(v) => patchHero({ summaryCardShow: v })}
                 />
@@ -848,7 +899,7 @@ export default function EnviosEditor() {
                           className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                         />
                       </Field>
-                      <Field label="Label tiempo">
+                      <Field label="Texto debajo del tiempo">
                         <input
                           type="text"
                           value={data.hero.summaryTimeLabel}
@@ -858,7 +909,7 @@ export default function EnviosEditor() {
                           className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-[11px] outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                         />
                       </Field>
-                      <Field label="Badge Gratis texto">
+                      <Field label="Etiqueta de envío gratis">
                         <input
                           type="text"
                           value={data.hero.summaryFreeBadgeText}
@@ -868,7 +919,7 @@ export default function EnviosEditor() {
                           className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-[10px] font-bold uppercase outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                         />
                       </Field>
-                      <Field label="Monto Gratis">
+                      <Field label="Monto para envío gratis">
                         <input
                           type="text"
                           value={data.hero.summaryFreeAmount}
@@ -878,7 +929,7 @@ export default function EnviosEditor() {
                           className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-extrabold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                         />
                       </Field>
-                      <Field label="Label Gratis">
+                      <Field label="Texto debajo del monto">
                         <input
                           type="text"
                           value={data.hero.summaryFreeLabel}
@@ -888,7 +939,7 @@ export default function EnviosEditor() {
                           className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-[11px] outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                         />
                       </Field>
-                      <Field label="Días cambios">
+                      <Field label="Días para cambios">
                         <input
                           type="text"
                           value={data.hero.summaryChangesDays}
@@ -908,7 +959,7 @@ export default function EnviosEditor() {
                           className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-extrabold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                         />
                       </Field>
-                      <Field label="Label cambios">
+                      <Field label="Texto debajo de cambios">
                         <input
                           type="text"
                           value={data.hero.summaryChangesLabel}
@@ -926,9 +977,9 @@ export default function EnviosEditor() {
           </div>
 
           {/* ZONAS */}
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_3px_rgba(185,168,155,0.15)] [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:border-black/5 [&>*:not(:first-child)]:px-4 [&>*:not(:first-child)]:pb-5 [&>*:not(:first-child)]:pt-4 sm:[&>*:not(:first-child)]:px-5">
             <SectionShowHeader
-              title="2. Zonas y tiempos"
+              title="Zonas y tiempos de entrega"
               show={data.sections.zones.show}
               onShowChange={(v) =>
                 patch("sections", {
@@ -936,12 +987,14 @@ export default function EnviosEditor() {
                   zones: { ...data.sections.zones, show: v },
                 })
               }
-              desc="Las 3 tarjetas: CABA/GBA, Interior, Sudamérica."
+              desc="Las zonas a las que envían y cuánto tarda cada una"
+              open={openSection === "zones"}
+              onToggle={() => toggleSection("zones")}
             />
-            {data.sections.zones.show ? (
+            {openSection === "zones" ? (
               <>
                 <div className="grid gap-3">
-                  <Field label="Eyebrow sección">
+                  <Field label="Texto chico arriba del título">
                     <input
                       type="text"
                       value={data.sections.zones.eyebrow}
@@ -957,7 +1010,7 @@ export default function EnviosEditor() {
                       className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-[11px] font-bold uppercase outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                     />
                   </Field>
-                  <Field label="Título sección">
+                  <Field label="Título de la sección">
                     <input
                       type="text"
                       value={data.sections.zones.title}
@@ -973,7 +1026,7 @@ export default function EnviosEditor() {
                       className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                     />
                   </Field>
-                  <Field label="Descripción sección">
+                  <Field label="Texto de la sección">
                     <textarea
                       rows={2}
                       value={data.sections.zones.description}
@@ -1016,7 +1069,7 @@ export default function EnviosEditor() {
                               patchZone(idx, { showIcon: v })
                             }
                           />
-                          <Field label="Color ícono (hex)">
+                          <Field label="Color del ícono">
                             <div className="flex items-center gap-2">
                               <input
                                 type="color"
@@ -1046,7 +1099,7 @@ export default function EnviosEditor() {
                               className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                             />
                           </Field>
-                          <Field label="Tiempo badge">
+                          <Field label="Tiempo de entrega">
                             <input
                               type="text"
                               value={z.time}
@@ -1109,9 +1162,9 @@ export default function EnviosEditor() {
           </div>
 
           {/* COSTOS */}
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_3px_rgba(185,168,155,0.15)] [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:border-black/5 [&>*:not(:first-child)]:px-4 [&>*:not(:first-child)]:pb-5 [&>*:not(:first-child)]:pt-4 sm:[&>*:not(:first-child)]:px-5">
             <SectionShowHeader
-              title="3. Costos y envío gratis"
+              title="Costos y envío gratis"
               show={data.sections.costos.show}
               onShowChange={(v) =>
                 patch("sections", {
@@ -1119,12 +1172,14 @@ export default function EnviosEditor() {
                   costos: { ...data.sections.costos, show: v },
                 })
               }
-              desc="3 pricing cards: Gratis, Estándar, Retiro."
+              desc="Las tarjetas de precios de envío"
+              open={openSection === "costos"}
+              onToggle={() => toggleSection("costos")}
             />
-            {data.sections.costos.show ? (
+            {openSection === "costos" ? (
               <>
                 <div className="grid gap-3">
-                  <Field label="Título sección">
+                  <Field label="Título de la sección">
                     <input
                       type="text"
                       value={data.sections.costos.title}
@@ -1140,7 +1195,7 @@ export default function EnviosEditor() {
                       className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                     />
                   </Field>
-                  <Field label="Descripción sección">
+                  <Field label="Texto de la sección">
                     <textarea
                       rows={2}
                       value={data.sections.costos.description}
@@ -1187,7 +1242,7 @@ export default function EnviosEditor() {
                           </div>
                           <div className="flex items-center gap-3">
                             <ToggleField
-                              label="Destacar"
+                              label="Destacada"
                               checked={c.highlight}
                               onCheckedChange={(v) =>
                                 patchCosto(idx, { highlight: v })
@@ -1203,7 +1258,7 @@ export default function EnviosEditor() {
                           </div>
                         </div>
                         <div className="grid gap-2.5 sm:grid-cols-2">
-                          <Field label="Subtítulo (arriba)">
+                          <Field label="Texto chico arriba">
                             <input
                               type="text"
                               value={c.subtitle}
@@ -1233,7 +1288,7 @@ export default function EnviosEditor() {
                               className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xl font-extrabold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                             />
                           </Field>
-                          <Field label="Badge texto">
+                          <Field label="Etiqueta">
                             <input
                               type="text"
                               value={c.badge}
@@ -1243,7 +1298,7 @@ export default function EnviosEditor() {
                               className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-[10px] font-bold uppercase outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                             />
                           </Field>
-                          <Field label="CTA texto">
+                          <Field label="Botón (texto)">
                             <input
                               type="text"
                               value={c.ctaText}
@@ -1253,7 +1308,7 @@ export default function EnviosEditor() {
                               className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                             />
                           </Field>
-                          <Field label="CTA link">
+                          <Field label="Botón (link)">
                             <input
                               type="text"
                               value={c.ctaHref}
@@ -1321,9 +1376,9 @@ export default function EnviosEditor() {
           </div>
 
           {/* PROCESO */}
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_3px_rgba(185,168,155,0.15)] [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:border-black/5 [&>*:not(:first-child)]:px-4 [&>*:not(:first-child)]:pb-5 [&>*:not(:first-child)]:pt-4 sm:[&>*:not(:first-child)]:px-5">
             <SectionShowHeader
-              title="4. Proceso en 4 pasos"
+              title="Cómo funciona"
               show={data.sections.proceso.show}
               onShowChange={(v) =>
                 patch("sections", {
@@ -1331,12 +1386,14 @@ export default function EnviosEditor() {
                   proceso: { ...data.sections.proceso, show: v },
                 })
               }
-              desc="Tarjetas gradiente 01-02-03-04."
+              desc="Los 4 pasos desde la compra hasta la entrega"
+              open={openSection === "proceso"}
+              onToggle={() => toggleSection("proceso")}
             />
-            {data.sections.proceso.show ? (
+            {openSection === "proceso" ? (
               <>
                 <div className="grid gap-3">
-                  <Field label="Título sección">
+                  <Field label="Título de la sección">
                     <input
                       type="text"
                       value={data.sections.proceso.title}
@@ -1352,7 +1409,7 @@ export default function EnviosEditor() {
                       className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-bold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                     />
                   </Field>
-                  <Field label="Descripción sección">
+                  <Field label="Texto de la sección">
                     <textarea
                       rows={2}
                       value={data.sections.proceso.description}
@@ -1444,9 +1501,9 @@ export default function EnviosEditor() {
           </div>
 
           {/* SEGUIMIENTO */}
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_3px_rgba(185,168,155,0.15)] [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:border-black/5 [&>*:not(:first-child)]:px-4 [&>*:not(:first-child)]:pb-5 [&>*:not(:first-child)]:pt-4 sm:[&>*:not(:first-child)]:px-5">
             <SectionShowHeader
-              title="5. Seguimiento y retiro"
+              title="Seguimiento y retiro"
               show={data.sections.seguimiento.show}
               onShowChange={(v) =>
                 patch("sections", {
@@ -1454,9 +1511,11 @@ export default function EnviosEditor() {
                   seguimiento: { ...data.sections.seguimiento, show: v },
                 })
               }
-              desc="2 cards paralelas: Seguimiento + Retiro."
+              desc="Cómo seguir el pedido y retirar en sucursal"
+              open={openSection === "seguimiento"}
+              onToggle={() => toggleSection("seguimiento")}
             />
-            {data.sections.seguimiento.show ? (
+            {openSection === "seguimiento" ? (
               <div className="space-y-3">
                 {(data.seguimiento as Array<EnviosSeguimientoCard>).map(
                   (c, i) => {
@@ -1499,7 +1558,7 @@ export default function EnviosEditor() {
                             />
                           </Field>
                           <div className="grid grid-cols-2 gap-2">
-                            <Field label="Color fondo ícono">
+                            <Field label="Color de fondo del ícono">
                               <div className="flex items-center gap-1.5">
                                 <input
                                   type="color"
@@ -1523,7 +1582,7 @@ export default function EnviosEditor() {
                                 />
                               </div>
                             </Field>
-                            <Field label="Color ícono">
+                            <Field label="Color del ícono">
                               <div className="flex items-center gap-1.5">
                                 <input
                                   type="color"
@@ -1549,7 +1608,7 @@ export default function EnviosEditor() {
                             </Field>
                           </div>
                         </div>
-                        <Field label="Descripción larga">
+                        <Field label="Descripción">
                           <textarea
                             rows={3}
                             value={c.description}
@@ -1596,7 +1655,7 @@ export default function EnviosEditor() {
                                   type="button"
                                   onClick={() => removeSegBullet(idx, bi)}
                                   className="text-zinc-400 hover:text-tatan-acento-rosa"
-                                  aria-label="Quitar bullet"
+                                  aria-label="Quitar punto"
                                 >
                                   <X className="w-3.5 h-3.5" strokeWidth={2} />
                                 </button>
@@ -1613,9 +1672,9 @@ export default function EnviosEditor() {
           </div>
 
           {/* CAMBIOS */}
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_3px_rgba(185,168,155,0.15)] [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:border-black/5 [&>*:not(:first-child)]:px-4 [&>*:not(:first-child)]:pb-5 [&>*:not(:first-child)]:pt-4 sm:[&>*:not(:first-child)]:px-5">
             <SectionShowHeader
-              title="6. Cambios y devoluciones"
+              title="Cambios y devoluciones"
               show={data.sections.cambios.show}
               onShowChange={(v) =>
                 patch("sections", {
@@ -1623,9 +1682,11 @@ export default function EnviosEditor() {
                   cambios: { ...data.sections.cambios, show: v },
                 })
               }
-              desc="Bloque grande gradiente rosa/beige + 6 puntos + CTA."
+              desc="Política de cambios y sus botones"
+              open={openSection === "cambios"}
+              onToggle={() => toggleSection("cambios")}
             />
-            {data.sections.cambios.show ? (
+            {openSection === "cambios" ? (
               <div className="rounded-2xl border border-black/5 bg-white/90 p-3 space-y-2.5">
                 <Field label="Título">
                   <input
@@ -1715,7 +1776,7 @@ export default function EnviosEditor() {
                       className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                     />
                   </Field>
-                  <Field label="Botón 1 (href)">
+                  <Field label="Botón 1 (link)">
                     <input
                       type="text"
                       value={data.cambios.cta1Href}
@@ -1747,7 +1808,7 @@ export default function EnviosEditor() {
                       className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                     />
                   </Field>
-                  <Field label="Botón 2 (href)">
+                  <Field label="Botón 2 (link)">
                     <input
                       type="text"
                       value={data.cambios.cta2Href}
@@ -1769,9 +1830,9 @@ export default function EnviosEditor() {
           </div>
 
           {/* FAQ */}
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_3px_rgba(185,168,155,0.15)] [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:border-black/5 [&>*:not(:first-child)]:px-4 [&>*:not(:first-child)]:pb-5 [&>*:not(:first-child)]:pt-4 sm:[&>*:not(:first-child)]:px-5">
             <SectionShowHeader
-              title="7. Preguntas frecuentes"
+              title="Preguntas frecuentes"
               show={data.sections.faq.show}
               onShowChange={(v) =>
                 patch("sections", {
@@ -1779,12 +1840,14 @@ export default function EnviosEditor() {
                   faq: { ...data.sections.faq, show: v },
                 })
               }
-              desc="Preguntas colapsables tipo acordeón."
+              desc="Preguntas y respuestas sobre envíos"
+              open={openSection === "faq"}
+              onToggle={() => toggleSection("faq")}
             />
-            {data.sections.faq.show ? (
+            {openSection === "faq" ? (
               <>
                 <div className="grid gap-3">
-                  <Field label="Título sección">
+                  <Field label="Título de la sección">
                     <input
                       type="text"
                       value={data.sections.faq.title}
@@ -1827,7 +1890,7 @@ export default function EnviosEditor() {
                             type="button"
                             onClick={() => removeFaq(i)}
                             className="text-zinc-400 hover:text-tatan-acento-rosa"
-                            aria-label="Eliminar FAQ"
+                            aria-label="Eliminar pregunta"
                           >
                             <X className="w-4 h-4" strokeWidth={2} />
                           </button>
@@ -1857,9 +1920,9 @@ export default function EnviosEditor() {
           </div>
 
           {/* CTA FINAL */}
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_3px_rgba(185,168,155,0.15)] [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:border-black/5 [&>*:not(:first-child)]:px-4 [&>*:not(:first-child)]:pb-5 [&>*:not(:first-child)]:pt-4 sm:[&>*:not(:first-child)]:px-5">
             <SectionShowHeader
-              title="8. CTA final contacto"
+              title="Contacto al final"
               show={data.sections.finalCta.show}
               onShowChange={(v) =>
                 patch("sections", {
@@ -1867,9 +1930,11 @@ export default function EnviosEditor() {
                   finalCta: { ...data.sections.finalCta, show: v },
                 })
               }
-              desc="Banner gradiente amarillo/rosa al final de la página."
+              desc="El bloque final con WhatsApp y contacto"
+              open={openSection === "finalCta"}
+              onToggle={() => toggleSection("finalCta")}
             />
-            {data.sections.finalCta.show ? (
+            {openSection === "finalCta" ? (
               <div className="rounded-2xl border border-black/5 bg-white/90 p-3 space-y-2.5">
                 <Field label="Título">
                   <input
@@ -1917,7 +1982,7 @@ export default function EnviosEditor() {
                       className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                     />
                   </Field>
-                  <Field label="Botón 1 (href)">
+                  <Field label="Botón 1 (link)">
                     <input
                       type="text"
                       value={data.finalCta.cta1Href}
@@ -1949,7 +2014,7 @@ export default function EnviosEditor() {
                       className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-bold outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
                     />
                   </Field>
-                  <Field label="Botón 2 (href)">
+                  <Field label="Botón 2 (link)">
                     <input
                       type="text"
                       value={data.finalCta.cta2Href}
@@ -1974,7 +2039,11 @@ export default function EnviosEditor() {
         {/* PREVIEW STICKY */}
         <section
           aria-label="Vista previa Envíos"
-          className="order-1 lg:sticky lg:top-6 self-start rounded-2xl border border-black/5 bg-[linear-gradient(180deg,#FFFDF7_0%,#FFFFFF_100%)] p-3 shadow-sm lg:order-2 lg:col-span-3 lg:p-5"
+          ref={previewRef}
+          className={cx(
+            "order-1 self-start rounded-2xl border border-black/5 bg-[linear-gradient(180deg,#FFFDF7_0%,#FFFFFF_100%)] p-3 shadow-sm lg:sticky lg:top-36 lg:order-2 lg:col-span-3 lg:block lg:max-h-[calc(100dvh-10rem)] lg:overflow-y-auto lg:p-5",
+            showPreview ? "block" : "hidden",
+          )}
         >
           <div className="mb-3 flex items-center justify-between px-1">
             <div>
@@ -1998,6 +2067,7 @@ export default function EnviosEditor() {
           <div className="w-full">
             {data.hero.show ? (
               <section
+                data-preview="hero"
                 id="hero"
                 className="relative overflow-hidden scroll-mt-28 rounded-2xl border border-black/5"
               >
@@ -2104,7 +2174,8 @@ export default function EnviosEditor() {
             ) : null}
 
             {data.sections.zones.show ? (
-              <section id="zonas" className="py-10 scroll-mt-28">
+              <section
+                data-preview="zones" id="zonas" className="py-10 scroll-mt-28">
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
                   <div>
                     {data.sections.zones.showEyebrow ? (
@@ -2206,7 +2277,8 @@ export default function EnviosEditor() {
             ) : null}
 
             {data.sections.costos.show ? (
-              <section id="costos" className="relative py-14 scroll-mt-28">
+              <section
+                data-preview="costos" id="costos" className="relative py-14 scroll-mt-28">
                 <div className="absolute inset-0 -z-10 rounded-2xl">
                   <div className="absolute inset-0 bg-gradient-to-b from-white via-[#FFFBF2]/60 to-white" />
                 </div>
@@ -2339,7 +2411,8 @@ export default function EnviosEditor() {
             ) : null}
 
             {data.sections.proceso.show ? (
-              <section id="proceso" className="py-14 scroll-mt-28">
+              <section
+                data-preview="proceso" id="proceso" className="py-14 scroll-mt-28">
                 <div className="text-center max-w-2xl mx-auto mb-8">
                   {data.sections.proceso.showEyebrow ? (
                     <div className="inline-flex items-center gap-2 mb-2">
@@ -2429,7 +2502,8 @@ export default function EnviosEditor() {
             ) : null}
 
             {data.sections.seguimiento.show ? (
-              <section id="seguimiento" className="py-10 scroll-mt-28">
+              <section
+                data-preview="seguimiento" id="seguimiento" className="py-10 scroll-mt-28">
                 <div className="grid gap-4 lg:grid-cols-2">
                   {(data.seguimiento as Array<EnviosSeguimientoCard>)
                     .filter((c) => c.show)
@@ -2491,7 +2565,8 @@ export default function EnviosEditor() {
             ) : null}
 
             {data.sections.cambios.show ? (
-              <section id="cambios" className="relative py-14 scroll-mt-28">
+              <section
+                data-preview="cambios" id="cambios" className="relative py-14 scroll-mt-28">
                 <div className="absolute inset-0 -z-10 rounded-2xl">
                   <div className="absolute inset-0 bg-gradient-to-b from-white via-[#FFF3EE]/60 to-white" />
                 </div>
@@ -2547,6 +2622,7 @@ export default function EnviosEditor() {
 
             {data.sections.faq.show ? (
               <section
+                data-preview="faq"
                 id="faq"
                 className="max-w-4xl mx-auto py-12 scroll-mt-28"
               >
@@ -2600,7 +2676,8 @@ export default function EnviosEditor() {
             ) : null}
 
             {data.sections.finalCta.show ? (
-              <section className="max-w-4xl mx-auto pb-8">
+              <section
+                data-preview="finalCta" className="max-w-4xl mx-auto pb-8">
                 <div className="paper-card rounded-[2rem] p-6 sm:p-8 border border-white/80 bg-gradient-to-br from-tatan-primario2/40 via-tatan-acento-amarillo/40 to-tatan-primario1/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
                   <div>
                     <h3 className="text-lg sm:text-xl font-extrabold text-zinc-800 leading-tight">

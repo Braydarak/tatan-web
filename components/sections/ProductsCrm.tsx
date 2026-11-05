@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import SuccessModal from "@/components/ui/SuccessModal";
+import { LOW_STOCK } from "@/components/crm/format";
 import Image from "next/image";
-import CustomButton from "@/components/ui/CustomButton";
 import ProductForm, { ProductFormData } from "@/components/ui/ProductForm";
 import {
   ChevronDown,
@@ -12,6 +12,9 @@ import {
   MapPin,
   Clock,
   Pencil,
+  Plus,
+  RotateCw,
+  Search,
   Trash2,
 } from "lucide-react";
 import {
@@ -74,6 +77,59 @@ const CATEGORY_LABEL: Record<CategoryKey, string> = {
   buzo: "Buzo",
   accesorio: "Accesorio",
 };
+
+const CATEGORY_KEYS = Object.keys(CATEGORY_LABEL) as CategoryKey[];
+
+function StockBadge({ stock }: { stock: number }) {
+  const tone =
+    stock === 0
+      ? "bg-rose-50 text-rose-700"
+      : stock <= LOW_STOCK
+        ? "bg-amber-50 text-amber-800"
+        : "bg-emerald-50 text-emerald-800";
+  return (
+    <span
+      className={cx(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
+        tone,
+      )}
+    >
+      {stock === 0 ? "Agotado" : `${stock} u.`}
+    </span>
+  );
+}
+
+function IconButton({
+  label,
+  onClick,
+  children,
+  danger,
+  expanded,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  danger?: boolean;
+  expanded?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-expanded={expanded}
+      onClick={onClick}
+      className={cx(
+        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition focus:outline-none focus-visible:ring-2 focus-visible:ring-tatan-primario4",
+        danger
+          ? "text-zinc-400 hover:bg-rose-50 hover:text-rose-600"
+          : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 const SIZE_GROUP_LABEL: Record<SizeGroup, string> = {
   bebe: "Bebé (RN → 24M)",
@@ -522,6 +578,10 @@ export default function ProductsCrm({
   );
   const [isCreating, setIsCreating] = React.useState(false);
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
+  const [query, setQuery] = React.useState("");
+  const [categoryFilter, setCategoryFilter] = React.useState<
+    CategoryKey | "all"
+  >("all");
 
   const toastTimer = React.useRef<number | null>(null);
   const notify = (type: "ok" | "err", text: string) => {
@@ -586,6 +646,15 @@ export default function ProductsCrm({
     initialPropProducts && initialPropProducts.length
       ? initialPropProducts
       : remoteProducts;
+
+  const normalized = query.trim().toLowerCase();
+  const visible = products.filter(
+    (p) =>
+      (categoryFilter === "all" || p.category === categoryFilter) &&
+      (!normalized ||
+        p.name.toLowerCase().includes(normalized) ||
+        p.id.toLowerCase().includes(normalized)),
+  );
 
   /* ------------------------------------------------------------------ */
   /*  CRUD actions                                                      */
@@ -705,242 +774,308 @@ export default function ProductsCrm({
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between gap-3 px-1 flex-wrap">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-bold tracking-tight text-zinc-900">
-                Productos
-              </h2>
-              <span
-                className={cx(
-                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider",
-                  loadStatus === "loading"
-                    ? "bg-sky-50 border-sky-200 text-sky-700"
-                    : loadStatus === "error"
-                      ? "bg-rose-50 border-rose-200 text-rose-700"
-                      : loadStatus === "ok"
-                        ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                        : "bg-zinc-50 border-zinc-200 text-zinc-600",
-                )}
-              >
-                {loadStatus === "loading"
-                  ? "Cargando de DB…"
-                  : loadStatus === "error"
-                    ? "Sin conexión (datos locales)"
-                    : loadStatus === "ok"
-                      ? "Conectado a tatankids.com.ar"
-                      : "Esperando…"}
-              </span>
-              <span className="text-[11px] font-mono text-zinc-400">
-                {products.length} productos
-              </span>
-            </div>
-            <p className="mt-0.5 text-sm text-zinc-500">
-              Mismos campos y valores que se renderizan en la web pública.
-              {loadError ? (
-                <>
-                  {" "}
-                  <span className="text-rose-600 font-semibold">
-                    Aviso: {loadError}
-                  </span>
-                </>
-              ) : null}
-            </p>
+        {/* Barra superior: buscar, filtrar y crear */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1 sm:max-w-sm">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por nombre o ID"
+              aria-label="Buscar productos"
+              className="block w-full rounded-xl border border-black/10 bg-white py-2.5 pl-10 pr-3 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-tatan-primario4 focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60"
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <CustomButton
-              type="outline"
-              className="text-xs py-1.5"
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <button
+              type="button"
               onClick={() => {
                 setLoadStatus("loading");
                 void loadProducts();
               }}
               disabled={loadStatus === "loading"}
+              title="Recargar"
+              aria-label="Recargar productos"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-600 shadow-sm transition hover:bg-zinc-50 disabled:opacity-50"
             >
-              Recargar
-            </CustomButton>
-            <CustomButton onClick={() => setIsCreating(true)} disabled={saving}>
-              Crear producto
-            </CustomButton>
+              <RotateCw
+                className={cx(
+                  "h-4 w-4",
+                  loadStatus === "loading" && "animate-spin",
+                )}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCreating(true)}
+              disabled={saving}
+              className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-tatan-primario1 px-4 text-sm font-bold text-zinc-900 shadow-sm transition hover:bg-tatan-primario4 active:scale-[0.98] disabled:opacity-60 sm:flex-none"
+            >
+              <Plus className="h-4 w-4" /> Nuevo producto
+            </button>
           </div>
         </div>
 
-        <div className="w-full overflow-x-auto">
-          <table className="min-w-[900px] w-full border-collapse">
-            <thead>
-              <tr className="border-b border-black/10 text-left text-xs font-semibold text-zinc-500">
-                <th className="px-3 py-3 font-medium">Foto</th>
-                <th className="px-3 py-3 font-medium">Producto</th>
-                <th className="px-3 py-3 font-medium">Cat.</th>
-                <th className="px-3 py-3 font-medium">Talles</th>
-                <th className="px-3 py-3 font-medium">Stock</th>
-                <th className="px-3 py-3 font-medium">Precio</th>
-                <th className="px-3 py-3 font-medium">Rating</th>
-                <th className="px-3 py-3 text-right font-medium whitespace-nowrap">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((p) => {
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {(["all", ...CATEGORY_KEYS] as const).map((key) => {
+            const count =
+              key === "all"
+                ? products.length
+                : products.filter((p) => p.category === key).length;
+            if (key !== "all" && count === 0) return null;
+            const active = categoryFilter === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setCategoryFilter(key)}
+                aria-pressed={active}
+                className={cx(
+                  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition",
+                  active
+                    ? "border-tatan-primario4 bg-tatan-primario1 text-zinc-900"
+                    : "border-black/10 bg-white text-zinc-600 hover:text-zinc-900",
+                )}
+              >
+                {key === "all" ? "Todos" : CATEGORY_LABEL[key]}
+                <span className="tabular-nums text-zinc-400">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {loadStatus === "error" ? (
+          <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            No se pudieron cargar los productos{loadError ? `: ${loadError}` : ""}.
+          </p>
+        ) : null}
+
+        {loadStatus === "loading" && products.length === 0 ? (
+          <div className="flex flex-col gap-2">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-20 animate-pulse rounded-2xl bg-white/70"
+              />
+            ))}
+          </div>
+        ) : visible.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 px-6 py-12 text-center">
+            <p className="font-semibold text-zinc-800">
+              {products.length ? "No hay productos con ese filtro" : "Todavía no hay productos"}
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              {products.length
+                ? "Probá con otra búsqueda o categoría."
+                : "Creá el primero con el botón “Nuevo producto”."}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Celular: tarjetas */}
+            <ul className="flex flex-col gap-2 md:hidden">
+              {visible.map((p) => {
                 const totalStock = sum(Object.values(p.stockBySize));
                 const pct = discountPct(p);
-                const expanded = expandedId === p.id;
                 return (
-                  <React.Fragment key={p.id}>
-                    <tr className="align-middle transition border-b border-black/5 hover:bg-zinc-50/40">
-                      <td className="px-3 py-4">
-                        <div className="relative h-20 w-20 overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
-                          <Image
-                            src={p.imageSrc || "/tatanLogo.png"}
-                            alt={p.name}
-                            fill
-                            sizes="80px"
-                            className="object-contain p-1"
-                          />
-                          <span
-                            className="absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full border-2 border-white shadow"
-                            style={{ background: p.colorHex }}
-                          />
+                  <li
+                    key={p.id}
+                    className="flex items-center gap-3 rounded-2xl border border-black/5 bg-white p-3 shadow-[0_1px_3px_rgba(185,168,155,0.15)]"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setEditingProduct(p)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      aria-label={`Editar ${p.name}`}
+                    >
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-black/5 bg-[#FEFDF8]">
+                        <Image
+                          src={p.imageSrc || "/tatanLogo.png"}
+                          alt=""
+                          fill
+                          sizes="64px"
+                          className="object-contain p-1"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-zinc-900">
+                          {p.name}
+                        </p>
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          {CATEGORY_LABEL[p.category]} · {p.sizes.length}{" "}
+                          {p.sizes.length === 1 ? "talle" : "talles"}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-bold tabular-nums text-zinc-900">
+                            {formatMoneyArs(p.price)}
+                          </span>
+                          {pct > 0 ? (
+                            <span className="rounded-full bg-tatan-acento-rosa/30 px-1.5 text-[10px] font-extrabold text-zinc-800">
+                              -{pct}%
+                            </span>
+                          ) : null}
+                          <StockBadge stock={totalStock} />
                         </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="flex items-start gap-2 min-w-0">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <div className="max-w-[220px] text-sm font-semibold text-zinc-900 truncate">
-                                {p.name}
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      title="Borrar"
+                      aria-label={`Borrar ${p.name}`}
+                      onClick={() => void handleDelete(p)}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600"
+                    >
+                      <Trash2 className="h-4 w-4" strokeWidth={2} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Escritorio: tabla */}
+            <div className="hidden overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_3px_rgba(185,168,155,0.15)] md:block">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-black/5 bg-zinc-50/60 text-left text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    <th className="px-5 py-3">Producto</th>
+                    <th className="px-3 py-3">Categoría</th>
+                    <th className="px-3 py-3">Talles</th>
+                    <th className="px-3 py-3">Stock</th>
+                    <th className="px-3 py-3">Precio</th>
+                    <th className="px-5 py-3 text-right">
+                      <span className="sr-only">Acciones</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((p) => {
+                    const totalStock = sum(Object.values(p.stockBySize));
+                    const pct = discountPct(p);
+                    const expanded = expandedId === p.id;
+                    return (
+                      <React.Fragment key={p.id}>
+                        <tr className="border-b border-black/5 align-middle transition last:border-b-0 hover:bg-zinc-50/50">
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-black/5 bg-[#FEFDF8]">
+                                <Image
+                                  src={p.imageSrc || "/tatanLogo.png"}
+                                  alt=""
+                                  fill
+                                  sizes="56px"
+                                  className="object-contain p-1"
+                                />
                               </div>
+                              <div className="min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingProduct(p)}
+                                  className="block max-w-[260px] truncate text-left text-sm font-semibold text-zinc-900 hover:underline"
+                                >
+                                  {p.name}
+                                </button>
+                                <p className="mt-0.5 font-mono text-[11px] text-zinc-400">
+                                  {p.id}
+                                  {p.tagline ? (
+                                    <span className="ml-2 font-sans text-zinc-500">
+                                      · {p.tagline}
+                                    </span>
+                                  ) : null}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className="inline-flex h-7 items-center rounded-full bg-tatan-primario1/50 px-2.5 text-xs font-semibold text-zinc-800">
+                              {CATEGORY_LABEL[p.category]}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              {p.sizes.slice(0, 4).map((size) => (
+                                <span
+                                  key={size}
+                                  className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-black/10 bg-white px-1.5 text-[10px] font-bold text-zinc-600"
+                                >
+                                  {size}
+                                </span>
+                              ))}
+                              {p.sizes.length > 4 ? (
+                                <span className="self-center text-[11px] font-medium text-zinc-400">
+                                  +{p.sizes.length - 4}
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3">
+                            <StockBadge stock={totalStock} />
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold tabular-nums text-zinc-900">
+                                {formatMoneyArs(p.price)}
+                              </span>
                               {pct > 0 ? (
-                                <span className="inline-flex items-center rounded-full bg-tatan-acento-rosa/20 text-tatan-secundario2 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider">
+                                <span className="rounded-full bg-tatan-acento-rosa/30 px-1.5 text-[10px] font-extrabold text-zinc-800">
                                   -{pct}%
                                 </span>
                               ) : null}
                             </div>
-                            {p.tagline ? (
-                              <div className="text-[11px] text-zinc-500 mt-0.5">
-                                {p.tagline}
-                              </div>
+                            {p.originalPrice ? (
+                              <p className="text-[11px] tabular-nums text-zinc-400 line-through">
+                                {formatMoneyArs(p.originalPrice)}
+                              </p>
                             ) : null}
-                            <div className="text-[11px] font-mono text-zinc-400 mt-0.5">
-                              ID {p.id}
+                          </td>
+                          <td className="px-5 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <IconButton
+                                label={`Editar ${p.name}`}
+                                onClick={() => setEditingProduct(p)}
+                              >
+                                <Pencil className="h-4 w-4" strokeWidth={2} />
+                              </IconButton>
+                              <IconButton
+                                label={`Borrar ${p.name}`}
+                                onClick={() => void handleDelete(p)}
+                                danger
+                              >
+                                <Trash2 className="h-4 w-4" strokeWidth={2} />
+                              </IconButton>
+                              <IconButton
+                                label={
+                                  expanded
+                                    ? `Ocultar detalles de ${p.name}`
+                                    : `Ver detalles de ${p.name}`
+                                }
+                                onClick={() =>
+                                  setExpandedId((prev) =>
+                                    prev === p.id ? null : p.id,
+                                  )
+                                }
+                                expanded={expanded}
+                              >
+                                <ChevronDown
+                                  className={cx(
+                                    "h-4 w-4 transition-transform duration-200",
+                                    expanded && "rotate-180",
+                                  )}
+                                  strokeWidth={2}
+                                />
+                              </IconButton>
                             </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <span className="inline-flex h-7 items-center rounded-xl bg-tatan-primario1/50 border border-tatan-secundario1/60 px-2.5 text-[11px] font-bold text-zinc-800">
-                          {CATEGORY_LABEL[p.category]}
-                        </span>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {p.sizes.slice(0, 4).map((s) => (
-                            <span
-                              key={s}
-                              className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-black/10 bg-white px-1.5 text-[10px] font-bold text-zinc-600"
-                            >
-                              {s}
-                            </span>
-                          ))}
-                          {p.sizes.length > 4 ? (
-                            <span className="text-[10px] text-zinc-400 self-center ml-0.5 font-medium">
-                              +{p.sizes.length - 4}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 mt-1">
-                          {p.sizeGroup === "bebe" ? "Bebé" : "Niños"}
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="text-sm font-semibold tabular-nums text-zinc-900">
-                          {totalStock}
-                        </div>
-                        <div className="text-[11px] text-zinc-500">
-                          Vendidos {p.soldTotal}
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="text-sm font-semibold tabular-nums text-zinc-900">
-                          {formatMoneyArs(p.price)}
-                        </div>
-                        {p.originalPrice ? (
-                          <div className="text-[11px] text-zinc-400 line-through">
-                            {formatMoneyArs(p.originalPrice)}
-                          </div>
-                        ) : null}
-                        <div className="text-[10px] text-zinc-400 font-medium">
-                          {p.installments} cuotas ·{" "}
-                          {formatMoneyArs(Math.round(p.price / p.installments))}
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="flex items-center gap-1 text-sm font-bold tabular-nums text-zinc-800">
-                          {p.rating.toFixed(1)}
-                          <span className="text-amber-500 text-xs">★</span>
-                        </div>
-                        <div className="text-[11px] text-zinc-500">
-                          {p.reviews} reviews
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            title="Editar"
-                            aria-label={`Editar ${p.name}`}
-                            onClick={() => setEditingProduct(p)}
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#FCD1B1] bg-white text-zinc-800 shadow-sm transition hover:bg-[#FCD1B1]/25 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1] focus-visible:ring-offset-2"
-                          >
-                            <Pencil className="h-4 w-4" strokeWidth={2} />
-                          </button>
-                          <button
-                            type="button"
-                            title="Borrar"
-                            aria-label={`Borrar ${p.name}`}
-                            onClick={() => void handleDelete(p)}
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-600 shadow-sm transition hover:bg-rose-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2"
-                          >
-                            <Trash2 className="h-4 w-4" strokeWidth={2} />
-                          </button>
-                          <button
-                            type="button"
-                            title={
-                              expanded ? "Ocultar detalles" : "Más detalles"
-                            }
-                            aria-label={
-                              expanded
-                                ? `Ocultar detalles de ${p.name}`
-                                : `Ver más detalles de ${p.name}`
-                            }
-                            aria-expanded={expanded}
-                            aria-controls={`detail-${p.id}`}
-                            onClick={() =>
-                              setExpandedId((prev) =>
-                                prev === p.id ? null : p.id,
-                              )
-                            }
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-black/10 bg-white text-zinc-600 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1] focus-visible:ring-offset-2"
-                          >
-                            <ChevronDown
-                              className={cx(
-                                "h-4 w-4 transition-transform duration-200",
-                                expanded && "rotate-180",
-                              )}
-                              strokeWidth={2}
-                            />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    {expanded ? <ProductDetailRow product={p} /> : null}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                          </td>
+                        </tr>
+                        {expanded ? <ProductDetailRow product={p} /> : null}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </section>
   );

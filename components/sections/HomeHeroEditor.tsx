@@ -1,6 +1,5 @@
 "use client";
 
-import CustomButton from "@/components/ui/CustomButton";
 import {
   Sparkles,
   Flower2,
@@ -11,6 +10,8 @@ import {
   Leaf,
   Truck,
   CreditCard,
+  ChevronDown,
+  Upload,
 } from "lucide-react";
 import Image from "next/image";
 import * as React from "react";
@@ -19,6 +20,7 @@ import {
   apiSiteContent,
   apiSiteContentSave,
   apiRevalidateTag,
+  apiUploadImage,
 } from "@/lib/tatan-api";
 import { HOME_HERO_DEFAULT as DEFAULT_HERO } from "@/lib/site-content-defaults";
 
@@ -93,8 +95,12 @@ function initialHeroData(): HomeHeroData {
 
 export default function HomeHeroEditor() {
   const [data, setData] = React.useState<HomeHeroData>(DEFAULT_HERO);
+  const [openSection, setOpenSection] = React.useState<string | null>("texto");
+  const [showPreview, setShowPreview] = React.useState(false);
+  const [savedJson, setSavedJson] = React.useState<string | null>(null);
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
-  const [saved, setSaved] = React.useState(0);
   const [savedMsg, setSavedMsg] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<Toast>(null);
   const [loading, setLoading] = React.useState(true);
@@ -113,14 +119,16 @@ export default function HomeHeroEditor() {
         if (r.ok && r.data) {
           const { benefits: parsedBenefits, ...rest } =
             r.data as Partial<HomeHeroData>;
-          setData({
+          const merged = {
             ...DEFAULT_HERO,
             ...rest,
             benefits: mergeBenefits(
               DEFAULT_HERO.benefits,
               parsedBenefits ?? null,
             ),
-          });
+          };
+          setData(merged);
+          setSavedJson(JSON.stringify(merged));
           setRemoteStatus("ok");
         } else {
           // fallback a localStorage en el browser
@@ -139,6 +147,31 @@ export default function HomeHeroEditor() {
       cancelled = true;
     };
   }, []);
+
+  const dirty =
+    remoteStatus === "error" ||
+    (savedJson !== null && JSON.stringify(data) !== savedJson);
+
+  const toggleSection = (key: string) =>
+    setOpenSection((prev) => (prev === key ? null : key));
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const url = await apiUploadImage(file);
+      setField("imageSrc", url);
+    } catch (err) {
+      setUploadError(
+        err instanceof Error ? err.message : "No se pudo subir la imagen",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const toastTimerRef = React.useRef<number | null>(null);
   React.useEffect(() => {
@@ -184,6 +217,12 @@ export default function HomeHeroEditor() {
   };
 
   const onReset = () => {
+    if (
+      !window.confirm(
+        "¿Volver a los textos originales de la portada? Se pierde lo que cambiaste (hasta que guardes, la web no cambia).",
+      )
+    )
+      return;
     setData(DEFAULT_HERO);
     pushToast("ok", "Valores originales restaurados");
   };
@@ -211,9 +250,9 @@ export default function HomeHeroEditor() {
         /* ignore */
       }
 
-      setSaved((n) => n + 1);
+      setSavedJson(JSON.stringify(data));
       setRemoteStatus("ok");
-      setSavedMsg(`Los cambios del hero se guardaron correctamente (versión ${r.version ?? "?"}).`);
+      setSavedMsg("La portada se guardó. Los cambios ya se ven en la web.");
     } catch (e) {
       // Fallback: salvar solo en localStorage
       try {
@@ -267,383 +306,319 @@ export default function HomeHeroEditor() {
       ) : null}
 
       <div className="flex flex-col gap-3">
-        <header className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-black/5 bg-[#FEFDF8]/80 p-4 backdrop-blur">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
-                Editar Hero del Home
-              </h2>
-              <span
-                className={cx(
-                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider",
-                  loading
-                    ? "bg-sky-50 border-sky-200 text-sky-700"
-                    : remoteStatus === "ok"
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                      : "bg-amber-50 border-amber-200 text-amber-800",
-                )}
-              >
-                {loading
-                  ? "Leyendo DB…"
-                  : remoteStatus === "ok"
-                    ? "BD sincronizada"
-                    : "Datos locales"}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-zinc-500">
-              Cambiá el texto, la imagen y los botones del primer bloque del
-              home. La vista previa se actualiza en tiempo real.
+        <header className="sticky top-16 z-20 -mx-4 flex flex-wrap items-center gap-3 border-b border-black/5 bg-[#F7F6F3]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-bold tracking-tight text-zinc-900">
+              Portada del inicio
+            </h2>
+            <p className="text-xs text-zinc-500">
+              {loading
+                ? "Cargando…"
+                : remoteStatus === "error"
+                  ? "No se pudo leer la versión publicada: estás viendo una copia local."
+                  : dirty
+                    ? "Tenés cambios sin guardar"
+                    : "Tocá una sección para editarla"}
             </p>
-            {saved > 0 ? (
-              <p className="mt-1.5 text-xs text-zinc-500">
-                Guardado {saved} vez{saved === 1 ? "" : "es"} en esta sesión ·
-                persistence:{" "}
-                <code className="rounded bg-black/5 px-1 py-0.5 text-[11px]">
-                  DB + crm:home-hero (cache)
-                </code>
-              </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPreview((v) => !v)}
+            className="inline-flex h-10 items-center rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 lg:hidden"
+          >
+            {showPreview ? "Ocultar vista previa" : "Vista previa"}
+          </button>
+          <button
+            type="button"
+            onClick={onReset}
+            className="hidden h-10 items-center rounded-xl px-3 text-sm font-semibold text-zinc-500 transition hover:bg-black/5 hover:text-zinc-800 sm:inline-flex"
+          >
+            Restaurar original
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className={cx(
+              "inline-flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-bold shadow-sm transition disabled:opacity-60",
+              dirty
+                ? "bg-tatan-primario1 text-zinc-900 hover:bg-tatan-primario4"
+                : "border border-black/10 bg-white text-zinc-700 hover:bg-zinc-50",
+            )}
+          >
+            {saving ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/20 border-t-zinc-900" />
             ) : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <CustomButton type="ghost" onClick={onReset}>
-              Restaurar original
-            </CustomButton>
-            <CustomButton type="filled" onClick={onSave} disabled={saving}>
-              {saving ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/20 border-t-zinc-900" />
-              ) : null}
-              {saving ? "Guardando…" : "Guardar cambios"}
-            </CustomButton>
-          </div>
+            {saving ? "Guardando…" : dirty ? "Guardar cambios" : "Guardado"}
+          </button>
         </header>
 
         <div className="grid gap-5 lg:grid-cols-5">
-          <section
-            aria-label="Formulario Hero"
-            className="order-2 space-y-4 rounded-2xl border border-black/5 bg-white/80 p-4 backdrop-blur lg:order-1 lg:col-span-2 lg:p-5"
-          >
-            <h3 className="text-sm font-semibold tracking-tight text-zinc-900">
-              Contenido
-            </h3>
-            <Field label="Texto chiquito (eyebrow)">
-              <input
-                type="text"
-                value={data.eyebrow}
-                onChange={(e) => setField("eyebrow", e.target.value)}
-                className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-zinc-800 outline-none transition focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                placeholder="Nueva colección Otoño"
-              />
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Título · línea 1">
+          <div className="order-2 space-y-3 lg:order-1 lg:col-span-2">
+            <EditorSection
+              title="Texto principal"
+              desc="El texto chico, el título y la descripción"
+              open={openSection === "texto"}
+              onToggle={() => toggleSection("texto")}
+            >
+              <Field label="Texto chico arriba del título">
+                <input
+                  type="text"
+                  value={data.eyebrow}
+                  onChange={(e) => setField("eyebrow", e.target.value)}
+                  className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60"
+                  placeholder="Nueva colección Otoño"
+                />
+              </Field>
+              <Field label="Título (primera línea)">
                 <input
                   type="text"
                   value={data.titleLine1}
                   onChange={(e) => setField("titleLine1", e.target.value)}
-                  className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
+                  className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60"
                   placeholder="Ropa suavecita para"
                 />
               </Field>
-              <Field label="Título · línea 2 (destacada)">
+              <Field label="Título (segunda línea, en color)">
                 <input
                   type="text"
                   value={data.titleLine2}
                   onChange={(e) => setField("titleLine2", e.target.value)}
-                  className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
+                  className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60"
                   placeholder="tus pequeños"
                 />
               </Field>
-            </div>
+              <Field label="Descripción">
+                <textarea
+                  rows={4}
+                  value={data.description}
+                  onChange={(e) => setField("description", e.target.value)}
+                  className={cx("w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60", "resize-y leading-relaxed")}
+                  placeholder="Descubrí nuestra selección de bodys, remeras y prendas de algodón premium…"
+                />
+              </Field>
+            </EditorSection>
 
-            <Field label="Texto descriptivo">
-              <textarea
-                rows={4}
-                value={data.description}
-                onChange={(e) => setField("description", e.target.value)}
-                className="w-full resize-y rounded-xl border border-black/10 bg-white px-3 py-2 text-sm leading-relaxed text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                placeholder="Descubrí nuestra selección de bodys, remeras y prendas de algodón premium…"
-              />
-            </Field>
-
-            <Field label="URL de la imagen destacada">
-              <input
-                type="url"
-                value={data.imageSrc}
-                onChange={(e) => setField("imageSrc", e.target.value)}
-                className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 font-mono text-xs text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                placeholder="https://…/image.jpg"
-              />
-              <div className="mt-2 flex items-start gap-2 rounded-xl border border-dashed border-black/10 bg-black/[0.02] p-2">
-                {data.imageSrc ? (
-                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-black/10">
+            <EditorSection
+              title="Imagen"
+              desc="La foto grande de la portada"
+              open={openSection === "imagen"}
+              onToggle={() => toggleSection("imagen")}
+            >
+              <div className="flex items-center gap-4">
+                <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-black/10 bg-[#FEFDF8]">
+                  {data.imageSrc ? (
                     <Image
                       src={data.imageSrc}
-                      alt="Thumbnail hero"
+                      alt="Imagen de la portada"
                       unoptimized
                       fill
-                      sizes="64px"
+                      sizes="96px"
                       className="object-cover"
                     />
-                  </div>
-                ) : null}
-                <p className="text-[11px] leading-snug text-zinc-500">
-                  Podés pegar cualquier URL. En el preview se usa{" "}
-                  <code className="rounded bg-white px-1">next/image</code> con{" "}
-                  <code className="rounded bg-white px-1">unoptimized</code> por
-                  la configuración del proyecto.
-                </p>
-              </div>
-            </Field>
-
-            <div className="border-t border-black/5 pt-4">
-              <h4 className="text-sm font-semibold tracking-tight text-zinc-900">
-                Botones (CTA)
-              </h4>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                Botón 1 = destacado (primario), Botón 2 = secundario con flor.
-              </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Texto · Botón 1">
-                <input
-                  type="text"
-                  value={data.cta1Text}
-                  onChange={(e) => setField("cta1Text", e.target.value)}
-                  className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                  placeholder="Ver colección"
-                />
-              </Field>
-              <Field label="Link · Botón 1">
-                <input
-                  type="text"
-                  value={data.cta1Href}
-                  onChange={(e) => setField("cta1Href", e.target.value)}
-                  className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 font-mono text-xs text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                  placeholder="/productos"
-                />
-              </Field>
-              <Field label="Texto · Botón 2">
-                <input
-                  type="text"
-                  value={data.cta2Text}
-                  onChange={(e) => setField("cta2Text", e.target.value)}
-                  className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                  placeholder="Ofertas"
-                />
-              </Field>
-              <Field label="Link · Botón 2">
-                <input
-                  type="text"
-                  value={data.cta2Href}
-                  onChange={(e) => setField("cta2Href", e.target.value)}
-                  className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 font-mono text-xs text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                  placeholder="/ofertas"
-                />
-              </Field>
-            </div>
-
-            <div className="mt-2 border-t border-black/5 pt-4">
-              <h4 className="text-sm font-semibold tracking-tight text-zinc-900">
-                Badges flotantes
-              </h4>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                Se muestran sobre la imagen del producto destacado (arriba-der y
-                abajo-izq).
-              </p>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-1 xl:grid-cols-2">
-              <div className="rounded-2xl border border-black/5 bg-[#F7FBFF]/50 p-3">
-                <ToggleField
-                  label="Badge Algodón (arriba)"
-                  checked={data.cottonBadge.show}
-                  onCheckedChange={(v) => setCottonBadge({ show: v })}
-                >
-                  <Leaf className="h-4 w-4 text-green-600" />
-                </ToggleField>
-                <div className="mt-3 grid gap-3 sm:grid-cols-1">
-                  <ToggleField
-                    label="Mostrar ícono hoja"
-                    checked={data.cottonBadge.showIcon}
-                    onCheckedChange={(v) => setCottonBadge({ showIcon: v })}
-                  />
-                  <Field label="Título">
+                  ) : (
+                    <span className="flex h-full items-center justify-center text-xs text-zinc-400">
+                      Sin imagen
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col items-start gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 focus-within:ring-2 focus-within:ring-tatan-primario4">
+                    <Upload className="h-4 w-4" />
+                    {uploading ? "Subiendo…" : "Cambiar imagen"}
                     <input
-                      type="text"
-                      value={data.cottonBadge.title}
-                      onChange={(e) =>
-                        setCottonBadge({ title: e.target.value })
-                      }
-                      className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                      placeholder="100% Algodón"
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      disabled={uploading}
+                      onChange={handleImageUpload}
                     />
-                  </Field>
-                  <Field label="Subtítulo (chico)">
-                    <input
-                      type="text"
-                      value={data.cottonBadge.subtitle}
-                      onChange={(e) =>
-                        setCottonBadge({ subtitle: e.target.value })
-                      }
-                      className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs text-zinc-700 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                      placeholder="Orgánico"
-                    />
-                  </Field>
+                  </label>
+                  {uploadError ? (
+                    <p className="text-xs font-medium text-rose-600">
+                      {uploadError}
+                    </p>
+                  ) : null}
                 </div>
               </div>
+              <Field label="O pegá el link de una imagen">
+                <input
+                  type="url"
+                  value={data.imageSrc}
+                  onChange={(e) => setField("imageSrc", e.target.value)}
+                  className={cx("w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60", "text-xs")}
+                  placeholder="https://…"
+                />
+              </Field>
+            </EditorSection>
 
-              <div className="rounded-2xl border border-black/5 bg-[#FFFBF4]/60 p-3">
-                <ToggleField
-                  label="Badge Envío (abajo)"
-                  checked={data.shippingBadge.show}
-                  onCheckedChange={(v) => setShippingBadge({ show: v })}
-                >
-                  <Check className="h-4 w-4 text-tatan-acento-verde" />
-                </ToggleField>
-                <div className="mt-3 grid gap-3 sm:grid-cols-1">
-                  <ToggleField
-                    label="Mostrar ícono check"
-                    checked={data.shippingBadge.showIcon}
-                    onCheckedChange={(v) => setShippingBadge({ showIcon: v })}
-                  />
-                  <Field label="Título">
-                    <input
-                      type="text"
-                      value={data.shippingBadge.title}
-                      onChange={(e) =>
-                        setShippingBadge({ title: e.target.value })
-                      }
-                      className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                      placeholder="Envío gratis"
-                    />
-                  </Field>
-                  <Field label="Subtítulo (chico)">
-                    <input
-                      type="text"
-                      value={data.shippingBadge.subtitle}
-                      onChange={(e) =>
-                        setShippingBadge({ subtitle: e.target.value })
-                      }
-                      className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs text-zinc-700 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                      placeholder="Compras mayores a $25k"
-                    />
-                  </Field>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-2 border-t border-black/5 pt-4">
-              <h4 className="text-sm font-semibold tracking-tight text-zinc-900">
-                Beneficios destacados
-              </h4>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                La fila de 3 tarjetas que aparece debajo del hero en el home
-                (Envío, Cuotas, Cambios).
-              </p>
-            </div>
-
-            <div className="grid gap-3 lg:grid-cols-1 xl:grid-cols-3">
-              {data.benefits.map((b, i) => (
-                <div
-                  key={i}
-                  className="rounded-2xl border border-black/5 bg-white/80 p-3"
-                >
-                  <div className="flex items-center justify-between gap-2 rounded-xl bg-[#FFF8F0]/80 px-3 py-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <div
-                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm"
-                        style={{ color: b.color }}
-                      >
-                        {b.iconKey === "Truck" ? (
-                          <Truck className="h-3.5 w-3.5" strokeWidth={1.8} />
-                        ) : b.iconKey === "CreditCard" ? (
-                          <CreditCard
-                            className="h-3.5 w-3.5"
-                            strokeWidth={1.8}
-                          />
-                        ) : (
-                          <Heart className="h-3.5 w-3.5" strokeWidth={1.8} />
-                        )}
-                      </div>
-                      <span className="truncate text-xs font-semibold tracking-tight text-zinc-800">
-                        Beneficio {i + 1}
-                      </span>
-                    </div>
-                    <label className="inline-flex items-center gap-1.5 rounded-full border border-black/5 bg-white px-2 py-1 text-[10px] font-semibold text-zinc-700">
-                      <span
-                        className="inline-block h-3 w-3 rounded-full border border-black/10"
-                        style={{ backgroundColor: b.color }}
-                        aria-hidden="true"
-                      />
-                      Color
-                    </label>
-                  </div>
-
-                  <div className="mt-3 space-y-3">
-                    <ToggleField
-                      label="Mostrar este beneficio"
-                      checked={b.show}
-                      onCheckedChange={(v) => setBenefit(i, { show: v })}
-                    />
-                    <ToggleField
-                      label="Mostrar ícono"
-                      checked={b.showIcon}
-                      onCheckedChange={(v) => setBenefit(i, { showIcon: v })}
-                    />
-                    <Field label="Título">
+            <EditorSection
+              title="Botones"
+              desc="Los dos botones debajo del texto"
+              open={openSection === "botones"}
+              onToggle={() => toggleSection("botones")}
+            >
+              {([
+                ["cta1Text", "cta1Href", "Botón principal", "Ver colección", "/productos"],
+                ["cta2Text", "cta2Href", "Botón secundario", "Ofertas", "/ofertas"],
+              ] as const).map(([textKey, hrefKey, label, textPh, hrefPh]) => (
+                <div key={textKey} className="rounded-xl border border-black/5 bg-zinc-50/60 p-3">
+                  <p className="mb-2 text-xs font-bold text-zinc-700">{label}</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Texto">
                       <input
                         type="text"
-                        value={b.title}
-                        onChange={(e) =>
-                          setBenefit(i, { title: e.target.value })
-                        }
-                        className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                        placeholder="Envío a todo el país"
+                        value={data[textKey]}
+                        onChange={(e) => setField(textKey, e.target.value)}
+                        className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60"
+                        placeholder={textPh}
                       />
                     </Field>
-                    <Field label="Descripción">
-                      <textarea
-                        rows={2}
-                        value={b.description}
-                        onChange={(e) =>
-                          setBenefit(i, { description: e.target.value })
-                        }
-                        className="w-full resize-y rounded-xl border border-black/10 bg-white px-3 py-2 text-xs leading-relaxed text-zinc-700 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                        placeholder="Llegamos a todas las provincias en 3-7 días hábiles"
+                    <Field label="Lleva a">
+                      <input
+                        type="text"
+                        value={data[hrefKey]}
+                        onChange={(e) => setField(hrefKey, e.target.value)}
+                        className={cx("w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60", "font-mono text-xs")}
+                        placeholder={hrefPh}
                       />
-                    </Field>
-                    <Field label="Color del ícono (hex)">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={b.color}
-                          onChange={(e) =>
-                            setBenefit(i, { color: e.target.value })
-                          }
-                          className="h-9 w-12 shrink-0 cursor-pointer rounded-lg border border-black/10 bg-white p-1"
-                        />
-                        <input
-                          type="text"
-                          value={b.color}
-                          onChange={(e) =>
-                            setBenefit(i, { color: e.target.value })
-                          }
-                          className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 font-mono text-xs text-zinc-700 outline-none focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/30"
-                          placeholder="#E58B60"
-                        />
-                      </div>
                     </Field>
                   </div>
                 </div>
               ))}
-            </div>
-          </section>
+            </EditorSection>
+
+            <EditorSection
+              title="Etiquetas sobre la imagen"
+              desc="Los dos cartelitos que flotan sobre la foto"
+              open={openSection === "etiquetas"}
+              onToggle={() => toggleSection("etiquetas")}
+            >
+              {([
+                ["cottonBadge", "Etiqueta de arriba", setCottonBadge, "100% Algodón", "Orgánico"],
+                ["shippingBadge", "Etiqueta de abajo", setShippingBadge, "Envío gratis", "Compras mayores a $25k"],
+              ] as const).map(([key, label, setBadge, titlePh, subPh]) => {
+                const badge = data[key];
+                return (
+                  <div key={key} className="rounded-xl border border-black/5 bg-zinc-50/60 p-3">
+                    <ToggleField
+                      label={label}
+                      checked={badge.show}
+                      onCheckedChange={(v) => setBadge({ show: v })}
+                    />
+                    {badge.show ? (
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <Field label="Texto">
+                          <input
+                            type="text"
+                            value={badge.title}
+                            onChange={(e) => setBadge({ title: e.target.value })}
+                            className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60"
+                            placeholder={titlePh}
+                          />
+                        </Field>
+                        <Field label="Texto chico">
+                          <input
+                            type="text"
+                            value={badge.subtitle}
+                            onChange={(e) => setBadge({ subtitle: e.target.value })}
+                            className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60"
+                            placeholder={subPh}
+                          />
+                        </Field>
+                        <label className="flex items-center gap-2 text-xs font-medium text-zinc-600 sm:col-span-2">
+                          <input
+                            type="checkbox"
+                            checked={badge.showIcon}
+                            onChange={(e) => setBadge({ showIcon: e.target.checked })}
+                            className="h-4 w-4 accent-[#8DBFA3]"
+                          />
+                          Mostrar ícono
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </EditorSection>
+
+            <EditorSection
+              title="Beneficios"
+              desc="Las 3 tarjetas debajo de la portada (envío, cuotas, cambios)"
+              open={openSection === "beneficios"}
+              onToggle={() => toggleSection("beneficios")}
+            >
+              {data.benefits.map((b, i) => (
+                <div key={i} className="rounded-xl border border-black/5 bg-zinc-50/60 p-3">
+                  <ToggleField
+                    label={b.title || `Beneficio ${i + 1}`}
+                    checked={b.show}
+                    onCheckedChange={(v) => setBenefit(i, { show: v })}
+                  >
+                    <span
+                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm"
+                      style={{ color: b.color }}
+                    >
+                      {b.iconKey === "Truck" ? (
+                        <Truck className="h-3.5 w-3.5" strokeWidth={1.8} />
+                      ) : b.iconKey === "CreditCard" ? (
+                        <CreditCard className="h-3.5 w-3.5" strokeWidth={1.8} />
+                      ) : (
+                        <Heart className="h-3.5 w-3.5" strokeWidth={1.8} />
+                      )}
+                    </span>
+                  </ToggleField>
+                  {b.show ? (
+                    <div className="mt-3 grid gap-3">
+                      <Field label="Título">
+                        <input
+                          type="text"
+                          value={b.title}
+                          onChange={(e) => setBenefit(i, { title: e.target.value })}
+                          className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60"
+                        />
+                      </Field>
+                      <Field label="Descripción">
+                        <textarea
+                          rows={2}
+                          value={b.description}
+                          onChange={(e) => setBenefit(i, { description: e.target.value })}
+                          className={cx("w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/60", "resize-y leading-relaxed")}
+                        />
+                      </Field>
+                      <div className="flex flex-wrap items-center gap-4">
+                        <label className="flex items-center gap-2 text-xs font-medium text-zinc-600">
+                          <input
+                            type="color"
+                            value={b.color}
+                            onChange={(e) => setBenefit(i, { color: e.target.value })}
+                            className="h-8 w-10 cursor-pointer rounded-lg border border-black/10 bg-white p-0.5"
+                          />
+                          Color del ícono
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-medium text-zinc-600">
+                          <input
+                            type="checkbox"
+                            checked={b.showIcon}
+                            onChange={(e) => setBenefit(i, { showIcon: e.target.checked })}
+                            className="h-4 w-4 accent-[#8DBFA3]"
+                          />
+                          Mostrar ícono
+                        </label>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </EditorSection>
+          </div>
 
           <section
             aria-label="Vista previa Hero"
-            className="order-1 lg:sticky lg:top-6 rounded-2xl border border-black/5 bg-[linear-gradient(180deg,#FFFDF7_0%,#FFFFFF_100%)] p-3 shadow-sm lg:order-2 lg:col-span-3 lg:p-5 self-start"
+            className={cx(
+              "order-1 self-start rounded-2xl border border-black/5 bg-[linear-gradient(180deg,#FFFDF7_0%,#FFFFFF_100%)] p-3 shadow-sm lg:sticky lg:top-36 lg:order-2 lg:col-span-3 lg:block lg:max-h-[calc(100dvh-10rem)] lg:overflow-y-auto lg:p-5",
+              showPreview ? "block" : "hidden",
+            )}
           >
             <div className="mb-3 flex items-center justify-between px-1">
               <div>
@@ -651,12 +626,10 @@ export default function HomeHeroEditor() {
                   Vista previa en vivo
                 </h3>
                 <p className="text-xs text-zinc-500">
-                  Misma maqueta que el home real · responsive ≈ md breakpoint
+                  Así se ve en la web mientras editás
                 </p>
               </div>
-              <span className="inline-flex items-center rounded-full border border-tatan-primario1/50 bg-tatan-primario1/20 px-2.5 py-1 text-[10px] font-semibold text-zinc-800">
-                LIVE PREVIEW
-              </span>
+
             </div>
 
             <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-white">
@@ -907,6 +880,47 @@ function ToggleField({
           )}
         />
       </button>
+    </div>
+  );
+}
+
+function EditorSection({
+  title,
+  desc,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  desc: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_3px_rgba(185,168,155,0.15)]">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left sm:px-5"
+      >
+        <ChevronDown
+          className={cx(
+            "h-4 w-4 shrink-0 text-zinc-400 transition-transform",
+            open && "rotate-180",
+          )}
+        />
+        <span className="min-w-0">
+          <span className="block text-sm font-bold text-zinc-900">{title}</span>
+          <span className="mt-0.5 block text-xs text-zinc-500">{desc}</span>
+        </span>
+      </button>
+      {open ? (
+        <div className="flex flex-col gap-4 border-t border-black/5 px-4 pb-5 pt-4 sm:px-5">
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }
