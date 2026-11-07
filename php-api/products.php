@@ -14,11 +14,31 @@ require __DIR__ . '/config.php';
  * ========================================================== */
 
 /**
+ * ¿Ya se corrió la migración del precio por mayor?
+ * (migrations/2026-11-07-mayorista-y-combinaciones.sql). Mientras no exista
+ * la columna, la API funciona igual que antes y simplemente no la usa.
+ */
+function has_wholesale_columns(): bool {
+    static $has = null;
+    if ($has === null) {
+        try {
+            $has = (bool)pdo()->query("SHOW COLUMNS FROM products LIKE 'wholesale_price'")->fetch();
+        } catch (Throwable $e) {
+            $has = false;
+        }
+    }
+    return $has;
+}
+
+/**
  * Carga un set de productos + joins (talles, galeria, colores, features, relacionados).
  * $whereSql con placeholders ?, $params array de valores.
  */
 function fetch_products(string $whereSql, array $params = []): array {
     $pdo = pdo();
+    $wholesaleSql = has_wholesale_columns()
+        ? "p.wholesale_price AS wholesalePrice, p.wholesale_min_qty AS wholesaleMinQty,"
+        : "NULL AS wholesalePrice, NULL AS wholesaleMinQty,";
     $sql = "SELECT
         p.id, p.slug, p.name, p.tagline,
         p.image_src AS imageSrc,
@@ -28,6 +48,7 @@ function fetch_products(string $whereSql, array $params = []): array {
         p.description,
         p.price,
         p.original_price AS originalPrice,
+        {$wholesaleSql}
         p.installments,
         p.tax_free_price AS taxFreePrice,
         p.show_points_badge AS showPointsBadge,
@@ -41,7 +62,7 @@ function fetch_products(string $whereSql, array $params = []): array {
       JOIN categories c ON c.id = p.category_id
       {$whereSql}
       ORDER BY
-        FIELD(c.`key`,'body','remera','pijama','set','pantalon','buzo','accesorio'),
+        c.sort_order, c.id,
         p.created_at DESC";
 
     $stmt = $pdo->prepare($sql);
@@ -115,6 +136,8 @@ function fetch_products(string $whereSql, array $params = []): array {
             'description'      => $p['description'],
             'price'            => (float)$p['price'],
             'originalPrice'    => $p['originalPrice'] === null ? null : (float)$p['originalPrice'],
+            'wholesalePrice'   => $p['wholesalePrice'] === null ? null : (float)$p['wholesalePrice'],
+            'wholesaleMinQty'  => $p['wholesaleMinQty'] === null ? null : (int)$p['wholesaleMinQty'],
             'installments'     => (int)$p['installments'],
             'taxFreePrice'     => $p['taxFreePrice'] === null ? null : (float)$p['taxFreePrice'],
             'showPointsBadge'  => (bool)$p['showPointsBadge'],
@@ -241,6 +264,16 @@ function validate_product_body(array $body, ?string $exceptId = null): array {
         'sold_total'        => max(0, (int)($body['soldTotal'] ?? 0)),
         'active'            => !array_key_exists('active', $body) || !empty($body['active']) ? 1 : 0,
     ];
+
+    // Precio por mayor: solo si la migración ya corrió y el pedido lo trae
+    // (así un cliente viejo que no manda el campo no lo borra).
+    if (has_wholesale_columns() && array_key_exists('wholesalePrice', $body)) {
+        $wp  = $optPrice('wholesalePrice');
+        $min = isset($body['wholesaleMinQty']) && is_numeric($body['wholesaleMinQty'])
+            ? (int)$body['wholesaleMinQty'] : 0;
+        $row['wholesale_price']   = $wp;
+        $row['wholesale_min_qty'] = $wp !== null ? min(65535, max(2, $min ?: 2)) : null;
+    }
     return [$cat, $row];
 }
 
