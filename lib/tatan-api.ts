@@ -173,14 +173,8 @@ export type Product = {
   name: string;
   tagline: string | null;
   imageSrc: string;
-  category:
-    | "body"
-    | "remera"
-    | "pijama"
-    | "set"
-    | "pantalon"
-    | "buzo"
-    | "accesorio";
+  /** key de la categoría (ver CRM → Categorías) */
+  category: string;
   sizeGroup: "bebe" | "ninios";
   sizes: string[];
   stockBySize: Record<string, number>;

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import * as React from "react";
+import { useCategories } from "@/lib/use-categories";
 import { Search } from "lucide-react";
 import { apiProducts, type Product } from "@/lib/tatan-api";
 import { formatMoneyArs, totalStockOf } from "./format";
@@ -10,17 +11,10 @@ function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-  body: "Body",
-  remera: "Remera",
-  pijama: "Pijama",
-  set: "Set",
-  pantalon: "Pantalón",
-  buzo: "Buzo",
-  accesorio: "Accesorio",
-};
+
 
 export default function Ventas() {
+  const { label: catLabel } = useCategories();
   const [products, setProducts] = React.useState<Product[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
@@ -174,7 +168,7 @@ export default function Ventas() {
                     </td>
                     <td className="px-3 py-3">
                       <span className="inline-flex items-center rounded-xl border border-tatan-secundario1/60 bg-tatan-primario1/50 px-2.5 py-1 text-[11px] font-bold text-zinc-800">
-                        {CATEGORY_LABEL[p.category] ?? p.category}
+                        {catLabel(p.category)}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-zinc-900">

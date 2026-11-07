@@ -14,6 +14,7 @@ import {
   Receipt,
   Truck,
   X,
+  Tags,
 } from "lucide-react";
 import type { AdminUser } from "@/lib/tatan-api";
 
@@ -41,6 +42,12 @@ const NAV_GROUPS: Array<{ title: string; items: CrmNavItem[] }> = [
         label: "Inventario",
         href: "/crm#inventario",
         Icon: Boxes,
+      },
+      {
+        id: "categorias",
+        label: "Categorías",
+        href: "/crm#categorias",
+        Icon: Tags,
       },
     ],
   },

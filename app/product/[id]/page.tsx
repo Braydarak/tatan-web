@@ -8,6 +8,7 @@ import {
   fetchCombosSSR,
 } from "@/lib/card-props";
 import { wholesaleOf } from "@/lib/wholesale";
+import { categoryLabel, fetchCategoriesSSR } from "@/lib/categories";
 import { pickRelated } from "@/lib/related";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import ProductBuyBox from "@/components/cart/ProductBuyBox";
@@ -149,11 +150,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
   }
   const product: FullProduct = mapApiToFullProduct(fromApi);
 
-  const [allProducts, content, combos] = await Promise.all([
+  const [allProducts, content, combos, categories] = await Promise.all([
     fetchAllProductsSSR(),
     fetchHomeContentSSR(),
     fetchCombosSSR([id], 4),
+    fetchCategoriesSSR(),
   ]);
+  // Nombre de la categoría tal como está en CRM → Categorías
+  product.category = categoryLabel(categories, product.categoryKey);
   const quickAdd = content.store?.quickAdd !== false;
   const wholesaleMode = content.store?.wholesaleMode ?? "auto";
   const wholesale = wholesaleMode !== "off" ? wholesaleOf(fromApi) : undefined;

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useCategories } from "@/lib/use-categories";
 import Image from "next/image";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -23,24 +24,7 @@ function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
 }
 
-type CategoryKey =
-  | "body"
-  | "remera"
-  | "pijama"
-  | "set"
-  | "pantalon"
-  | "buzo"
-  | "accesorio";
-
-const CATEGORIES: { key: CategoryKey; label: string }[] = [
-  { key: "body", label: "Body" },
-  { key: "remera", label: "Remera" },
-  { key: "pijama", label: "Pijama" },
-  { key: "set", label: "Set" },
-  { key: "pantalon", label: "Pantalón" },
-  { key: "buzo", label: "Buzo" },
-  { key: "accesorio", label: "Accesorio" },
-];
+type CategoryKey = string;
 
 const SIZE_GROUP_BEBE = [
   "RN",
@@ -352,6 +336,7 @@ export default function ProductForm({
   const [gallery, setGallery] = React.useState<string[]>(
     initialData?.gallery ?? [],
   );
+  const { categories, label: catLabel } = useCategories();
   const [category, setCategory] = React.useState<CategoryKey>(
     initialData?.category ?? "body",
   );
@@ -592,8 +577,7 @@ export default function ProductForm({
 
   const sizeChoices =
     sizeGroup === "bebe" ? SIZE_GROUP_BEBE : SIZE_GROUP_NINIOS;
-  const categoryLabel =
-    CATEGORIES.find((c) => c.key === category)?.label ?? "";
+  const categoryLabel = catLabel(category);
 
   const toolbarBtn = (active?: boolean) =>
     cx(
@@ -722,7 +706,9 @@ export default function ProductForm({
                     Categoría
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {CATEGORIES.map((c) => (
+                    {categories
+                      .filter((c) => c.active || c.key === category)
+                      .map((c) => (
                       <Chip
                         key={c.key}
                         active={category === c.key}

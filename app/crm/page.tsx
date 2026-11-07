@@ -6,6 +6,7 @@ import CrmShell from "@/components/crm/CrmShell";
 import Dashboard from "@/components/crm/Dashboard";
 import Ventas from "@/components/crm/Ventas";
 import Inventario from "@/components/crm/Inventario";
+import Categorias from "@/components/crm/Categorias";
 import ProductsCrm from "@/components/sections/ProductsCrm";
 import HomeHeroEditor from "@/components/sections/HomeHeroEditor";
 import EnviosEditor from "@/components/sections/EnviosEditor";
@@ -16,6 +17,7 @@ type CrmView =
   | "ventas"
   | "productos"
   | "inventario"
+  | "categorias"
   | "hero"
   | "envios";
 
@@ -35,6 +37,10 @@ const VIEW_META: Record<CrmView, { title: string; subtitle: string }> = {
   inventario: {
     title: "Inventario",
     subtitle: "Stock por talle y ajustes rápidos",
+  },
+  categorias: {
+    title: "Categorías",
+    subtitle: "Crear, renombrar, ocultar y ordenar las categorías",
   },
   hero: {
     title: "Contenido · Inicio y tienda",
@@ -152,6 +158,8 @@ export default function CrmPage() {
         <Ventas />
       ) : view === "inventario" ? (
         <Inventario />
+      ) : view === "categorias" ? (
+        <Categorias />
       ) : view === "productos" ? (
         <ProductsCrm />
       ) : view === "hero" ? (

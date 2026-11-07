@@ -33,7 +33,8 @@ import {
   HOME_HERO_DEFAULT as DEFAULT_HERO,
   HOME_PROMO_DEFAULT,
 } from "@/lib/site-content-defaults";
-import { withHomeDefaults } from "@/lib/home-content";
+import { mergeHomeCategories, withHomeDefaults } from "@/lib/home-content";
+import { useCategories } from "@/lib/use-categories";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -74,7 +75,8 @@ export type HomePromo = {
 
 /** Tarjeta de categoría del inicio. */
 export type HomeCategoryItem = {
-  key: "body" | "remera" | "pijama" | "set" | "pantalon" | "buzo" | "accesorio";
+  /** key de la categoría (CRM → Categorías) */
+  key: string;
   name: string;
   show: boolean;
   /** Foto opcional; vacía = ícono */
@@ -247,20 +249,29 @@ export default function HomeHeroEditor() {
           : patch;
       return { ...prev, sections: { ...cur, [k]: v } as HomeSections };
     });
+  // Tarjetas del inicio cruzadas con las categorías reales (incluye las nuevas)
+  const { categories: dbCategories } = useCategories(true);
+  const homeCategories = mergeHomeCategories(sec.categories.items, dbCategories);
   const setCategory = (key: string, patch: Partial<HomeCategoryItem>) =>
     setData((prev) => {
       const cur = prev.sections!;
+      const exists = cur.categories.items.some((c) => c.key === key);
+      const base = homeCategories.find((c) => c.key === key);
+      const items = exists
+        ? cur.categories.items.map((c) => (c.key === key ? { ...c, ...patch } : c))
+        : [
+            ...cur.categories.items,
+            {
+              key,
+              name: base?.name ?? key,
+              show: base?.show ?? false,
+              imageSrc: base?.imageSrc ?? "",
+              ...patch,
+            },
+          ];
       return {
         ...prev,
-        sections: {
-          ...cur,
-          categories: {
-            ...cur.categories,
-            items: cur.categories.items.map((c) =>
-              c.key === key ? { ...c, ...patch } : c,
-            ),
-          },
-        },
+        sections: { ...cur, categories: { ...cur.categories, items } },
       };
     });
   const setPage = (patch: Partial<ProductsPageContent>) =>
@@ -1176,7 +1187,7 @@ export default function HomeHeroEditor() {
 
             <EditorSection
               title="Categorías"
-              desc={sec.categories.show ? `${sec.categories.items.filter((c) => c.show).length} visibles` : "Oculta"}
+              desc={sec.categories.show ? `${homeCategories.filter((c) => c.show && !c.hidden).length} visibles` : "Oculta"}
               open={openSection === "categorias"}
               onToggle={() => toggleSection("categorias")}
             >
@@ -1207,7 +1218,7 @@ export default function HomeHeroEditor() {
                     <span className="block text-xs font-semibold text-zinc-700">
                       Tarjetas
                     </span>
-                    {sec.categories.items.map((c) => (
+                    {homeCategories.map((c) => (
                       <div
                         key={c.key}
                         className={cx(
@@ -1250,6 +1261,7 @@ export default function HomeHeroEditor() {
                             value={c.name}
                             onChange={(e) => setCategory(c.key, { name: e.target.value })}
                             aria-label="Nombre de la categoría"
+                            title={c.hidden ? "Esta categoría está oculta en CRM → Categorías" : undefined}
                             className="min-w-0 flex-1 rounded-lg border border-black/10 bg-white px-2.5 py-2 text-sm text-zinc-900 outline-none focus:border-tatan-primario4"
                           />
                           <button
@@ -1284,6 +1296,8 @@ export default function HomeHeroEditor() {
                     ))}
                     <p className="text-xs text-zinc-500">
                       Tocá el cuadrado para subir una foto; sin foto se usa un ícono.
+                      Las categorías se crean y se ocultan en CRM → Categorías
+                      (las ocultas no aparecen en el inicio aunque estén prendidas acá).
                     </p>
                   </div>
                   <ToggleField
