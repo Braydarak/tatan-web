@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
 import { fetchHomeContentSSR } from "@/lib/home-content";
+import { fetchCategoriesSSR, type Category } from "@/lib/categories";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import FilterPanel from "@/components/ui/FilterPanel";
 import {
@@ -83,20 +84,26 @@ async function getOffersForPage(): Promise<OfferProduct[]> {
     .filter((o): o is OfferProduct => o !== null);
 }
 
-type FilterKey = "todos" | "body" | "remera" | "pijama" | "set";
+/** key de una categoría (vienen de la API) o "todos" */
+type FilterKey = string;
 type SortKey = "recomendado" | "menor" | "mayor" | "descuento";
 
-const FILTERS: {
-  key: FilterKey;
-  label: string;
-  Icon: "gift" | "baby" | "shirt" | "moon";
-}[] = [
-  { key: "todos", label: "Todos", Icon: "gift" },
-  { key: "body", label: "Bodys", Icon: "baby" },
-  { key: "remera", label: "Remeras", Icon: "shirt" },
-  { key: "pijama", label: "Pijamas", Icon: "moon" },
-  { key: "set", label: "Sets", Icon: "gift" },
-];
+type FilterIcon = "gift" | "baby" | "shirt" | "moon";
+const FILTER_ICON: Record<string, FilterIcon> = {
+  body: "baby",
+  remera: "shirt",
+  pijama: "moon",
+};
+
+/** "Todas" + las categorías visibles de la API. */
+function buildFilters(categories: Category[]) {
+  return [
+    { key: "todos", label: "Todos", Icon: "gift" as FilterIcon },
+    ...categories
+      .filter((c) => c.active)
+      .map((c) => ({ key: c.key, label: c.label, Icon: FILTER_ICON[c.key] ?? ("gift" as FilterIcon) })),
+  ];
+}
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: "recomendado", label: "Recomendados" },
@@ -140,18 +147,23 @@ export default async function OfertasPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const sp = await searchParams;
+  const [allOffers, content, categories] = await Promise.all([
+    getOffersForPage(),
+    fetchHomeContentSSR(),
+    fetchCategoriesSSR(),
+  ]);
+  const FILTERS = buildFilters(categories);
   const rawFilter = typeof sp?.c === "string" ? (sp.c as string) : "todos";
   const rawSort = typeof sp?.s === "string" ? (sp.s as string) : "recomendado";
 
-  const filterKey = FILTERS.some((x) => x.key === rawFilter)
-    ? (rawFilter as FilterKey)
+  const filterKey: FilterKey = FILTERS.some((x) => x.key === rawFilter)
+    ? rawFilter
     : "todos";
   const sortKey = SORTS.some((x) => x.key === rawSort)
     ? (rawSort as SortKey)
     : "recomendado";
 
-  const allOffers = await getOffersForPage();
-  const quickAdd = (await fetchHomeContentSSR()).store?.quickAdd !== false;
+  const quickAdd = content.store?.quickAdd !== false;
   const items = filterAndSort(allOffers, filterKey, sortKey);
 
   if (!items.length && filterKey !== "todos") {
@@ -168,7 +180,12 @@ export default async function OfertasPage({
       qsKey: "c",
       activeTint: "primary",
       style: "row",
-      options: FILTERS.map((f) => ({
+      options: FILTERS.filter(
+        (f) =>
+          f.key === "todos" ||
+          f.key === filterKey ||
+          allOffers.some((o) => o.category === f.key),
+      ).map((f) => ({
         key: f.key,
         label: f.label,
         icon: f.Icon,

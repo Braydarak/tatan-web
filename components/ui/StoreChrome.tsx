@@ -29,11 +29,13 @@ export default function StoreChrome({
   header,
   store,
   offers,
+  footerCategories,
 }: {
   children: React.ReactNode;
   header?: HeaderContent;
   store?: StoreSettings;
   offers?: OffersInfo;
+  footerCategories?: { key: string; label: string }[];
 }) {
   const pathname = usePathname();
   const bare = isBare(pathname);
@@ -42,7 +44,10 @@ export default function StoreChrome({
     <StoreSettingsProvider value={store}>
       {bare ? null : <Header announcements={header} offers={offers} />}
       {children}
-      {bare ? null : <Footer hasOffers={(offers?.count ?? 0) > 0} />}
+      {bare ? null : <Footer
+          hasOffers={(offers?.count ?? 0) > 0}
+          categories={footerCategories}
+        />}
     </StoreSettingsProvider>
   );
 }

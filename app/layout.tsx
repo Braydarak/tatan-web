@@ -6,6 +6,7 @@ import ScrollToTop from "@/components/ui/ScrollToTop";
 import StoreChrome from "@/components/ui/StoreChrome";
 import { fetchHomeContentSSR } from "@/lib/home-content";
 import { fetchAllProductsSSR, offersInfo } from "@/lib/card-props";
+import { fetchCategoriesSSR } from "@/lib/categories";
 
 // Fuentes incluidas en el repo (variables, set "latin": cubre todo el
 // español). Así el build no depende de descargar de Google Fonts.
@@ -35,10 +36,16 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // Mensajes de la franja del header (se editan en CRM → Inicio y tienda)
-  const [{ header, store }, products] = await Promise.all([
+  const [{ header, store }, products, categories] = await Promise.all([
     fetchHomeContentSSR(),
     fetchAllProductsSSR(),
+    fetchCategoriesSSR(),
   ]);
+  // Pie de página: las categorías visibles que tienen productos (máx. 4)
+  const footerCategories = categories
+    .filter((c) => c.active && products.some((p) => p.category === c.key))
+    .slice(0, 4)
+    .map((c) => ({ key: c.key, label: c.label }));
   // Sin ofertas cargadas no se muestra el link a /ofertas
   const offers = offersInfo(products);
   const hasBanner =
@@ -54,7 +61,12 @@ export default async function RootLayout({
         <Suspense fallback={null}>
           <ScrollToTop />
         </Suspense>
-        <StoreChrome header={header} store={store} offers={offers}>
+        <StoreChrome
+          header={header}
+          store={store}
+          offers={offers}
+          footerCategories={footerCategories}
+        >
           {children}
         </StoreChrome>
       </body>
