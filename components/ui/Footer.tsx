@@ -10,7 +10,7 @@ import {
   Music2,
 } from "lucide-react";
 
-export default function Footer() {
+export default function Footer({ hasOffers = true }: { hasOffers?: boolean }) {
   return (
     <footer className="border-t border-tatan-secundario1/50 mt-8 relative z-10 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -67,14 +67,16 @@ export default function Footer() {
                   Pijamas
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/ofertas"
-                  className="hover:text-zinc-700 transition-colors"
-                >
-                  Ofertas
-                </Link>
-              </li>
+              {hasOffers && (
+                <li>
+                  <Link
+                    href="/ofertas"
+                    className="hover:text-zinc-700 transition-colors"
+                  >
+                    Ofertas
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 

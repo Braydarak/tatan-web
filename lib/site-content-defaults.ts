@@ -2,10 +2,92 @@
 // respaldo de emergencia si la API no responde. La fuente de verdad es la API
 // (`site-content.php`); estos valores sólo evitan pantallas vacías ante errores.
 
-import type { HomeHeroData } from "@/components/sections/HomeHeroEditor";
+import type {
+  HomeHeroData,
+  HomePromo,
+  HomeSections,
+  ProductsPageContent,
+  StoreSettings,
+  HeaderContent,
+} from "@/components/sections/HomeHeroEditor";
 import type { EnviosData } from "@/components/sections/EnviosEditor";
 
+export const HOME_PROMO_DEFAULT: HomePromo = {
+  enabled: false,
+  productId: "",
+  label: "¡Oferta especial!",
+  title: "",
+  text: "",
+  ctaText: "Comprar ahora",
+  endsAt: "",
+};
+
+export const HOME_SECTIONS_DEFAULT: HomeSections = {
+  decorations: true,
+  socialProof: { show: true, text: "+2.000 mamás felices" },
+  marquee: { show: true, items: [] },
+  categories: {
+    show: true,
+    title: "Comprar por categoría",
+    subtitle: "Encontrá lo que buscás rápido",
+    ageShortcuts: true,
+    items: [
+      { key: "body", name: "Bodys", show: true, imageSrc: "" },
+      { key: "remera", name: "Remeras", show: true, imageSrc: "" },
+      { key: "pijama", name: "Pijamas", show: true, imageSrc: "" },
+      { key: "accesorio", name: "Accesorios", show: true, imageSrc: "" },
+      { key: "set", name: "Sets", show: false, imageSrc: "" },
+      { key: "pantalon", name: "Pantalones", show: false, imageSrc: "" },
+      { key: "buzo", name: "Buzos", show: false, imageSrc: "" },
+    ],
+  },
+  products: {
+    show: true,
+    title: "Nuestros productos",
+    subtitle: "Elegí talle y color y sumalo al carrito desde acá",
+  },
+  newsletter: {
+    show: true,
+    title: "Sumate al club Tatan",
+    text: "Recibí 15% OFF en tu primera compra y enterate antes que nadie de las novedades y promociones.",
+    buttonText: "Suscribirme",
+  },
+};
+
+export const PRODUCTS_PAGE_DEFAULT: ProductsPageContent = {
+  title: "Toda la colección",
+  subtitle: "Ropa suave y cómoda para bebés y niños. Elegí talle y color y sumalo al carrito.",
+  banner: {
+    show: true,
+    label: "¿Buscás algo en oferta?",
+    title: "Mirá las ofertas de la semana",
+    text: "Hasta 40% OFF en prendas seleccionadas. Envío gratis y cambios sin cargo.",
+    buttonText: "Ir a Ofertas",
+    buttonHref: "/ofertas",
+  },
+};
+
+export const HEADER_DEFAULT: HeaderContent = {
+  show: true,
+  intervalSec: 3.5,
+  messages: [
+    { text: "Envíos a todo el país", mpLogo: false },
+    { text: "Pagos suministrados por Mercado Pago", mpLogo: true },
+    { text: "Retiro en punto de entrega (CABA/GBA)", mpLogo: false },
+  ],
+};
+
+export const STORE_SETTINGS_DEFAULT: StoreSettings = {
+  quickAdd: true,
+  wholesaleMode: "auto",
+};
+
 export const HOME_HERO_DEFAULT: HomeHeroData = {
+  promo: HOME_PROMO_DEFAULT,
+  sections: HOME_SECTIONS_DEFAULT,
+  productsPage: PRODUCTS_PAGE_DEFAULT,
+  store: STORE_SETTINGS_DEFAULT,
+  header: HEADER_DEFAULT,
   eyebrow: "Nueva colección Otoño",
   titleLine1: "Ropa suavecita para",
   titleLine2: "tus pequeños",

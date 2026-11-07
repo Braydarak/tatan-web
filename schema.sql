@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS `products` (
   `description`        MEDIUMTEXT     COMMENT 'HTML (TipTap)',
   `price`              DECIMAL(12,2)  NOT NULL DEFAULT 0,
   `original_price`     DECIMAL(12,2)  DEFAULT NULL COMMENT 'NULL = sin oferta',
+  `wholesale_price`    DECIMAL(12,2)  DEFAULT NULL COMMENT 'Precio unitario por mayor (NULL = sin precio mayorista)',
+  `wholesale_min_qty`  SMALLINT UNSIGNED DEFAULT NULL COMMENT 'Unidades mínimas para el precio por mayor',
   `installments`       TINYINT UNSIGNED NOT NULL DEFAULT 6,
   `tax_free_price`     DECIMAL(12,2)  DEFAULT NULL,
   `show_points_badge`  TINYINT(1)     NOT NULL DEFAULT 0,
@@ -305,6 +307,26 @@ CREATE TABLE IF NOT EXISTS `order_items` (
   CONSTRAINT `fk_items_product`
     FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
     ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------
+-- 14b. Analítica: productos comprados juntos (solo pedidos pagados)
+--      Se recalcula con POST /api/combos.php?action=rebuild
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `product_pair_stats` (
+  `product_id`        VARCHAR(30)  NOT NULL,
+  `paired_product_id` VARCHAR(30)  NOT NULL,
+  `times_together`    INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Pedidos pagados donde aparecen los dos',
+  `last_order_at`     DATETIME     DEFAULT NULL,
+  `updated_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`product_id`, `paired_product_id`),
+  KEY `idx_pairs_rank` (`product_id`, `times_together`),
+  CONSTRAINT `fk_pairs_product`
+    FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_pairs_paired`
+    FOREIGN KEY (`paired_product_id`) REFERENCES `products` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------

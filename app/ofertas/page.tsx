@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
+import { fetchHomeContentSSR } from "@/lib/home-content";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import FilterPanel from "@/components/ui/FilterPanel";
 import {
@@ -31,6 +33,9 @@ type OfferProduct = {
   colorHex: string;
   badge?: "Hot" | "Últimas unidades";
   tag: string;
+  installments?: number;
+  buy: BuyOptions;
+  images: string[];
 };
 
 async function fetchOffersSSR(): Promise<ApiProduct[]> {
@@ -65,6 +70,9 @@ function mapApiToOffer(api: ApiProduct): OfferProduct | null {
     colorHex: api.colorHex || "#F5E6D3",
     badge: pct >= 30 ? "Hot" : pct >= 20 ? "Últimas unidades" : undefined,
     tag: api.tagline || "Oferta",
+    installments: Number(api.installments) || undefined,
+    buy: buyOptionsFromApi(api),
+    images: Array.isArray(api.gallery) ? api.gallery.filter(Boolean) : [],
   };
 }
 
@@ -143,6 +151,7 @@ export default async function OfertasPage({
     : "recomendado";
 
   const allOffers = await getOffersForPage();
+  const quickAdd = (await fetchHomeContentSSR()).store?.quickAdd !== false;
   const items = filterAndSort(allOffers, filterKey, sortKey);
 
   if (!items.length && filterKey !== "todos") {
@@ -236,7 +245,7 @@ export default async function OfertasPage({
                 </p>
               </div>
             ) : (
-              <div className="grid gap-6 justify-items-center sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-3 sm:gap-6 justify-items-center grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {items.map((p, idx) => (
                   <div
                     key={`of-${p.id}`}
@@ -249,8 +258,15 @@ export default async function OfertasPage({
                       originalPrice={p.originalPrice}
                       discountedPrice={p.offerPrice}
                       discountPercentage={discountPct(p)}
-                      installments={6}
-                      installmentPrice={Math.round(p.offerPrice / 6)}
+                      installments={p.installments}
+                      installmentPrice={
+                        p.installments
+                          ? Math.round(p.offerPrice / p.installments)
+                          : undefined
+                      }
+                      buy={quickAdd ? p.buy : undefined}
+                    wholesale={p.buy.wholesale}
+                      images={p.images}
                       taxFreePrice={Math.round(p.offerPrice * 0.79)}
                       colorHex={p.colorHex}
                       productUrl={`/product/${p.id}`}

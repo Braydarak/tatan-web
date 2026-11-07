@@ -30,6 +30,9 @@ function saveStock(p: Product, stockBySize: Record<string, number>) {
     description: p.description,
     price: p.price,
     originalPrice: p.originalPrice,
+    // Se reenvían tal cual para no borrar el precio por mayor al ajustar stock
+    wholesalePrice: p.wholesalePrice ?? null,
+    wholesaleMinQty: p.wholesaleMinQty ?? null,
     installments: p.installments,
     taxFreePrice: p.taxFreePrice,
     showPointsBadge: p.showPointsBadge,
