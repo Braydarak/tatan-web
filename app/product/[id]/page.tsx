@@ -90,15 +90,6 @@ function badgeFromApi(
   return undefined;
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-  body: "Body",
-  remera: "Remera",
-  pijama: "Pijama",
-  set: "Set",
-  pantalon: "Pantalón",
-  buzo: "Buzo",
-  accesorio: "Accesorio",
-};
 
 function mapApiToFullProduct(api: ApiProduct): FullProduct {
   // Todo sale del producto cargado en el CRM: si falta algo, esa parte no
@@ -126,7 +117,8 @@ function mapApiToFullProduct(api: ApiProduct): FullProduct {
         ? Number(api.originalPrice) || undefined
         : undefined,
     colorHex: api.colorHex || "#F5E6D3",
-    category: CATEGORY_LABEL[cat] ?? capitalizeLabel(cat),
+    // El nombre real se completa con la categoría de la API (ver más abajo)
+    category: capitalizeLabel(cat),
     categoryKey: cat,
     tagline: (api.tagline ?? "").trim(),
     sku: (api.slug ?? "").trim() || undefined,

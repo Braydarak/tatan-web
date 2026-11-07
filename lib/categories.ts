@@ -30,19 +30,43 @@ export function categoryLabel(categories: Category[], key: string): string {
 
 const PHP_API_BASE = "https://tatankids.com.ar/api";
 
-/** Categorías visibles (servidor, con caché de 60 s). */
+/**
+ * Categorías visibles, desde la API (categories.php), con caché de 60 s.
+ * Si la API no responde, se arman con las categorías que usan los productos
+ * (también de la API): nunca se inventan categorías fijas.
+ */
 export async function fetchCategoriesSSR(): Promise<Category[]> {
   try {
     const res = await fetch(`${PHP_API_BASE}/categories.php`, {
       next: { revalidate: 60, tags: ["tatan-categories"] },
-      cache: "force-cache",
     });
-    if (!res.ok) return DEFAULT_CATEGORIES;
-    const json = (await res.json()) as { ok?: boolean; data?: Category[] };
-    return json?.ok && Array.isArray(json.data) && json.data.length
-      ? json.data
-      : DEFAULT_CATEGORIES;
+    if (res.ok) {
+      const json = (await res.json()) as { ok?: boolean; data?: Category[] };
+      if (json?.ok && Array.isArray(json.data)) return json.data;
+    }
   } catch {
-    return DEFAULT_CATEGORIES;
+    /* sigue abajo */
+  }
+  return categoriesFromProducts();
+}
+
+async function categoriesFromProducts(): Promise<Category[]> {
+  try {
+    const res = await fetch(`${PHP_API_BASE}/products.php`, {
+      next: { revalidate: 60, tags: ["tatan-products"] },
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { data?: { category?: string }[] };
+    const keys = Array.from(
+      new Set((json.data ?? []).map((p) => p.category).filter((k): k is string => !!k)),
+    );
+    return keys.map((key, i) => ({
+      key,
+      label: categoryLabel([], key),
+      sortOrder: i + 1,
+      active: true,
+    }));
+  } catch {
+    return [];
   }
 }

@@ -10,7 +10,14 @@ import {
   Music2,
 } from "lucide-react";
 
-export default function Footer({ hasOffers = true }: { hasOffers?: boolean }) {
+export default function Footer({
+  hasOffers = true,
+  categories,
+}: {
+  hasOffers?: boolean;
+  /** Categorías de la API que tienen productos */
+  categories?: { key: string; label: string }[];
+}) {
   return (
     <footer className="border-t border-tatan-secundario1/50 mt-8 relative z-10 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -43,28 +50,22 @@ export default function Footer({ hasOffers = true }: { hasOffers?: boolean }) {
           <div className="hidden sm:block">
             <h4 className="font-bold text-zinc-800 mb-3">Comprar</h4>
             <ul className="space-y-2 text-sm text-zinc-500">
+              {(categories ?? []).map((c) => (
+                <li key={c.key}>
+                  <Link
+                    href={`/productos?c=${encodeURIComponent(c.key)}`}
+                    className="hover:text-zinc-700 transition-colors"
+                  >
+                    {c.label}
+                  </Link>
+                </li>
+              ))}
               <li>
                 <Link
-                  href="/productos?c=body"
+                  href="/productos"
                   className="hover:text-zinc-700 transition-colors"
                 >
-                  Bodys
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/productos?c=remera"
-                  className="hover:text-zinc-700 transition-colors"
-                >
-                  Remeras
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/productos?c=pijama"
-                  className="hover:text-zinc-700 transition-colors"
-                >
-                  Pijamas
+                  Todos los productos
                 </Link>
               </li>
               {hasOffers && (
