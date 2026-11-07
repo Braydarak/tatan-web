@@ -37,13 +37,16 @@
 html {
   width: 100%;
   max-width: 100vw;
+  /* clip (no hidden) para que funcione position: sticky */
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+  overflow-x: clip;
   background:
     var(--paper-texture),
     linear-gradient(180deg, #fbf7f0 0%, #f8f3e8 50%, #f5efe2 100%);
@@ -160,4 +163,514 @@ h3 {
 
 .badge-float-2 svg:first-of-type {
   animation: pulse-scale 1.8s ease-in-out infinite;
+}
+
+/* ───────── Home: animaciones ───────── */
+
+/* Entrada del hero (solo CSS, no depende de JS) */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) rotate(-2deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.02) rotate(0.5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.anim-rise {
+  animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0s);
+}
+
+.anim-pop {
+  animation: pop-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0s);
+}
+
+/* Subrayado que se dibuja */
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.squiggle-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 1.1s ease-out 0.6s forwards;
+}
+
+/* Dibujitos que flotan */
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(var(--dx, 6px), var(--dy, -10px)) rotate(var(--r, 6deg));
+  }
+}
+
+@keyframes drift-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(var(--dx, 18px));
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.7) rotate(20deg);
+    opacity: 0.6;
+  }
+}
+
+.doodle {
+  position: absolute;
+  pointer-events: none;
+  animation: drift var(--t, 6s) ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+
+.doodle-cloud {
+  position: absolute;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 10px rgba(185, 168, 155, 0.15));
+  animation: drift-x var(--t, 14s) ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+
+.doodle-twinkle {
+  position: absolute;
+  pointer-events: none;
+  animation: twinkle var(--t, 2.8s) ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+
+/* Adornos apagados desde el CRM */
+.no-decor .doodle,
+.no-decor .doodle-cloud,
+.no-decor .doodle-twinkle {
+  display: none;
+}
+
+/* Imagen del hero: se mece como una cunita */
+@keyframes cradle {
+  0%,
+  100% {
+    transform: rotate(-1.2deg) translateY(0);
+  }
+  50% {
+    transform: rotate(1.2deg) translateY(-6px);
+  }
+}
+
+.hero-cradle {
+  animation: cradle 7s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+
+/* Fotos de la portada: zoom lento mientras se ven */
+@keyframes kenburns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.07);
+  }
+}
+
+.hero-kenburns {
+  animation: kenburns 5.5s ease-out both;
+}
+
+/* Anillo punteado tipo costura que gira despacito */
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.stitch-ring {
+  animation: spin-slow 60s linear infinite;
+}
+
+/* Cinta de mensajes */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee 38s linear infinite;
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* Aparición al hacer scroll (la clase reveal-ready la pone RevealOnScroll).
+   Escondido = corrido hacia el lado por donde salió (data-side), así al
+   subir la animación se ve al revés. */
+.reveal-ready [data-reveal] {
+  transition:
+    opacity 0.45s ease,
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-ready [data-reveal]:not(.is-visible) {
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+.reveal-ready [data-reveal][data-side="above"]:not(.is-visible) {
+  transform: translateY(-28px);
+}
+
+.reveal-ready [data-reveal="pop"]:not(.is-visible) {
+  transform: translateY(18px) scale(0.92);
+}
+
+.reveal-ready [data-reveal="pop"][data-side="above"]:not(.is-visible) {
+  transform: translateY(-18px) scale(0.92);
+}
+
+/* Al aparecer usa la demora escalonada; al esconderse, ninguna */
+.reveal-ready [data-reveal].is-visible {
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--d, 0s);
+}
+
+/* Barrita de los títulos que crece */
+.reveal-ready [data-reveal] .title-bar {
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.25s;
+}
+
+.reveal-ready [data-reveal].is-visible .title-bar {
+  transform: scaleX(1);
+}
+
+/* ───────── Tarjeta de producto ───────── */
+
+/* Flechas de la galería: aparecen al pasar el mouse */
+.product-card .gallery-arrow {
+  opacity: 0;
+}
+
+.product-card:hover .gallery-arrow,
+.product-card .gallery-arrow:focus-visible {
+  opacity: 1;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes heart-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.35);
+  }
+  60% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.heart-pop {
+  animation: heart-pop 0.45s ease-out;
+}
+
+/* Categorías: el ícono se mueve al pasar el mouse */
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1.08);
+  }
+  25% {
+    transform: rotate(-9deg) scale(1.08);
+  }
+  75% {
+    transform: rotate(9deg) scale(1.08);
+  }
+}
+
+.category-card .category-icon {
+  transition: transform 0.3s ease;
+}
+
+.category-card:hover .category-icon {
+  animation: wiggle 0.6s ease-in-out;
+  transform: scale(1.08);
+}
+
+.category-card .category-arrow {
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.category-card:hover .category-arrow {
+  transform: translateX(3px);
+}
+
+/* Beneficios: el ícono rebota al pasar el mouse */
+@keyframes hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-8px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+}
+
+.benefit:hover .benefit-icon {
+  animation: hop 0.6s ease-out;
+}
+
+/* Sobre del newsletter */
+@keyframes envelope {
+  0%,
+  80%,
+  100% {
+    transform: rotate(0) translateY(0);
+  }
+  85% {
+    transform: rotate(-8deg) translateY(-3px);
+  }
+  90% {
+    transform: rotate(6deg) translateY(-3px);
+  }
+  95% {
+    transform: rotate(-3deg);
+  }
+}
+
+.envelope-wiggle {
+  animation: envelope 4s ease-in-out infinite;
+}
+
+/* Sticker de descuento de la promo: se mece */
+@keyframes sticker-wobble {
+  0%,
+  100% {
+    transform: rotate(-8deg) scale(1);
+  }
+  50% {
+    transform: rotate(6deg) scale(1.06);
+  }
+}
+
+.promo-sticker {
+  animation: sticker-wobble 3.2s ease-in-out infinite;
+}
+
+/* ───────── Página de producto ───────── */
+
+@keyframes gallery-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.gallery-fade {
+  animation: gallery-fade 0.35s ease-out;
+}
+
+/* Desplegables de la página de producto: sin la flechita nativa */
+.product-acc > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Descripción con formato (viene del editor del CRM) */
+.product-description > * + * {
+  margin-top: 0.75em;
+}
+
+.product-description strong,
+.product-description b {
+  color: #3f3f46;
+  font-weight: 700;
+}
+
+.product-description ul,
+.product-description ol {
+  padding-left: 1.25em;
+}
+
+.product-description ul {
+  list-style: disc;
+}
+
+.product-description ol {
+  list-style: decimal;
+}
+
+.product-description li + li {
+  margin-top: 0.25em;
+}
+
+.product-description h2,
+.product-description h3,
+.product-description h4 {
+  font-weight: 700;
+  color: #27272a;
+  font-size: 1rem;
+}
+
+.product-description a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.product-description img {
+  border-radius: 1rem;
+  max-width: 100%;
+  height: auto;
+}
+
+.product-description blockquote {
+  border-left: 3px solid #f6c6a1;
+  padding-left: 0.85em;
+  font-style: italic;
+}
+
+/* ───────── Carrito ───────── */
+
+/* El numerito del carrito salta al sumar algo */
+@keyframes cart-bump {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.5);
+  }
+  60% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.cart-bump {
+  animation: cart-bump 0.5s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.cart-toast {
+  animation: toast-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Los talles tiemblan si falta elegir uno */
+@keyframes quick-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+.quick-shake {
+  animation: quick-shake 0.4s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise,
+  .anim-pop,
+  .doodle,
+  .doodle-cloud,
+  .doodle-twinkle,
+  .hero-cradle,
+  .stitch-ring,
+  .marquee-track,
+  .envelope-wiggle,
+  .promo-sticker,
+  .hero-kenburns,
+  .badge-float-1,
+  .badge-float-2,
+  .badge-float-1 > svg:first-of-type,
+  .badge-float-2 svg:first-of-type {
+    animation: none !important;
+  }
+  .squiggle-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .category-card:hover .category-icon,
+  .benefit:hover .benefit-icon,
+  .heart-pop,
+  .cart-bump,
+  .cart-toast,
+  .gallery-fade,
+  .quick-shake {
+    animation: none;
+  }
 }

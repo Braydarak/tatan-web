@@ -1,12 +1,33 @@
 "use client";
 
-import Image from "next/image";
+import SmartImage from "@/components/ui/SmartImage";
 import Link from "next/link";
 import * as React from "react";
 import MessageBanner from "@/components/ui/MessageBanner";
 import CustomInput from "@/components/ui/CustomInput";
 import MercadoPagoSvg from "@/assets/svg/mercadoPago";
-import { Gift, LayoutGrid, Baby, Truck, Mail } from "lucide-react";
+import type { HeaderContent } from "@/components/sections/HomeHeroEditor";
+import type { OffersInfo } from "@/lib/card-props";
+import { useStoreSettings } from "@/components/StoreSettingsContext";
+import WholesaleLine from "@/components/cart/WholesaleLine";
+import { cartTotals, effectiveUnitPrice } from "@/lib/wholesale";
+import {
+  Gift,
+  LayoutGrid,
+  Baby,
+  Truck,
+  Mail,
+  Minus,
+  Plus,
+  Trash2,
+  Check,
+} from "lucide-react";
+import {
+  formatArs,
+  removeFromCart,
+  setQuantity,
+  useCart,
+} from "@/lib/cart";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -101,12 +122,67 @@ function IconCart(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-export default function Header() {
+export default function Header({
+  announcements,
+  offers,
+}: {
+  announcements?: HeaderContent;
+  offers?: OffersInfo;
+}) {
+  // Sin ofertas cargadas, no se muestra "Ofertas" en el menú
+  const hasOffers = (offers?.count ?? 0) > 0;
+  const navItems = hasOffers
+    ? NAV_ITEMS
+    : NAV_ITEMS.filter((n) => n.href !== "/ofertas");
+  // Mensajes de la franja de arriba (editables en el CRM)
+  const bannerMessages =
+    announcements && announcements.show
+      ? announcements.messages.filter((m) => m.text.trim().length > 0)
+      : [];
+  const hasBanner = bannerMessages.length > 0;
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [cartOpen, setCartOpen] = React.useState(false);
   const mobilePanelId = React.useId();
   const cartPanelId = React.useId();
   const openStateRef = React.useRef({ menuOpen: false, cartOpen: false });
+  const cart = useCart();
+  const { wholesaleMode } = useStoreSettings();
+  const totals = cartTotals(cart.items, wholesaleMode);
+  const [toast, setToast] = React.useState<{
+    id: number;
+    text: string;
+  } | null>(null);
+  const [bump, setBump] = React.useState(0);
+
+  // Abrir el carrito desde cualquier parte y avisar cuando se agrega algo
+  React.useEffect(() => {
+    let hide: ReturnType<typeof setTimeout> | undefined;
+    const onOpen = () => {
+      setMenuOpen(false);
+      setCartOpen(true);
+    };
+    const onAdded = (e: Event) => {
+      const d = (e as CustomEvent<{
+        name: string;
+        size: string;
+        colorName?: string;
+      }>).detail;
+      const extra = [d?.size && `Talle ${d.size}`, d?.colorName]
+        .filter(Boolean)
+        .join(" · ");
+      setToast({ id: Date.now(), text: `${d?.name ?? "Producto"}${extra ? ` (${extra})` : ""}` });
+      setBump((b) => b + 1);
+      if (hide) clearTimeout(hide);
+      hide = setTimeout(() => setToast(null), 3200);
+    };
+    window.addEventListener("tatan:open-cart", onOpen);
+    window.addEventListener("tatan:cart-added", onAdded);
+    return () => {
+      if (hide) clearTimeout(hide);
+      window.removeEventListener("tatan:open-cart", onOpen);
+      window.removeEventListener("tatan:cart-added", onAdded);
+    };
+  }, []);
 
   React.useEffect(() => {
     openStateRef.current.menuOpen = menuOpen;
@@ -135,8 +211,13 @@ export default function Header() {
   const outerRef = React.useRef<HTMLDivElement>(null);
   const bannerRef = React.useRef<HTMLDivElement>(null);
   const headerRef = React.useRef<HTMLDivElement>(null);
-  const [headerTotalHeight, setHeaderTotalHeight] = React.useState(0);
-  const [bannerHeight, setBannerHeight] = React.useState(0);
+  // Arrancan con la altura real (banner h-8 = 32px + fila de 68px + borde)
+  // para que el espacio exista desde el primer render y la página no salte
+  // cuando el JS mide el header.
+  const [headerTotalHeight, setHeaderTotalHeight] = React.useState(
+    hasBanner ? 101 : 69,
+  );
+  const [bannerHeight, setBannerHeight] = React.useState(hasBanner ? 32 : 0);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -203,27 +284,31 @@ export default function Header() {
         ref={outerRef}
         className="fixed top-0 inset-x-0 z-50 w-full border-b border-black/5 bg-[#FEFDF8]/95 backdrop-blur-md shadow-[0_1px_0_rgba(0,0,0,0.02)]"
       >
-        <div ref={bannerRef}>
-          <MessageBanner
-            from="alternate"
-            intervalMs={3500}
-            messages={[
-              "Envíos a todo el país",
-              <span
-                key="mp"
-                className="inline-flex items-center justify-center gap-2"
-              >
-                Pagos suministrados por Mercado Pago
-                <MercadoPagoSvg
-                  className="h-20 w-20"
-                  color="black"
-                  title={undefined}
-                />
-              </span>,
-              "Retiro en punto de entrega (CABA/GBA)",
-            ]}
-          />
-        </div>
+        {hasBanner ? (
+          <div ref={bannerRef}>
+            <MessageBanner
+              from="alternate"
+              intervalMs={Math.round((announcements?.intervalSec ?? 3.5) * 1000)}
+              messages={bannerMessages.map((m, i) =>
+                m.mpLogo ? (
+                  <span
+                    key={`mp-${i}`}
+                    className="inline-flex items-center justify-center gap-2"
+                  >
+                    {m.text}
+                    <MercadoPagoSvg
+                      className="h-20 w-20"
+                      color="black"
+                      title={undefined}
+                    />
+                  </span>
+                ) : (
+                  m.text
+                ),
+              )}
+            />
+          </div>
+        ) : null}
 
         <div
           ref={headerRef}
@@ -256,7 +341,7 @@ export default function Header() {
               className="relative lg:mx-0 mx-auto"
               style={{ width: "auto", height: "44px", aspectRatio: "2 / 1" }}
             >
-              <Image
+              <SmartImage
                 fill
                 src="/tatanLogo.png"
                 alt="Tatan logo"
@@ -271,7 +356,7 @@ export default function Header() {
             className="hidden flex-1 items-center justify-center gap-1 lg:flex"
             aria-label="Secciones"
           >
-            {NAV_ITEMS.map(({ label, href, Icon }) => (
+            {navItems.map(({ label, href, Icon }) => (
               <Link
                 key={href}
                 href={href}
@@ -287,16 +372,22 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center gap-2 ml-auto shrink-0">
-            <div className="relative hidden w-96 lg:block">
+            <form
+              action="/productos"
+              role="search"
+              className="relative hidden w-96 lg:block"
+            >
               <CustomInput
                 type="search"
+                name="q"
+                aria-label="Buscar productos"
                 placeholder="Buscar body, pijama, gorrito..."
                 inputClassName={cx(
                   "h-11 rounded-2xl border border-tatan-secundario1/60 bg-white text-sm text-zinc-900 shadow-sm",
                   "pr-3 py-0",
                 )}
               />
-            </div>
+            </form>
 
             <button
               type="button"
@@ -305,13 +396,26 @@ export default function Header() {
                 setCartOpen((v) => !v);
               }}
               className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-tatan-primario3/70 to-tatan-primario4/80 text-zinc-900 shadow-md transition hover:shadow-lg hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FCD1B1] shrink-0"
-              aria-label={cartOpen ? "Cerrar carrito" : "Abrir carrito"}
+              aria-label={
+                cartOpen
+                  ? "Cerrar carrito"
+                  : `Abrir carrito (${cart.count} ${cart.count === 1 ? "producto" : "productos"})`
+              }
               aria-expanded={cartOpen}
               aria-controls={cartPanelId}
             >
               <IconCart className="h-6 w-6 text-white" />
-              <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1.5 text-[11px] font-extrabold text-tatan-primario4 border border-tatan-secundario1/50 shadow-sm">
-                0
+              <span
+                key={bump}
+                className={cx(
+                  "absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold border shadow-sm",
+                  cart.count > 0
+                    ? "bg-tatan-acento-rosa text-zinc-800 border-white"
+                    : "bg-white text-tatan-primario4 border-tatan-secundario1/50",
+                  bump > 0 && "cart-bump",
+                )}
+              >
+                {cart.count}
               </span>
             </button>
           </div>
@@ -356,14 +460,14 @@ export default function Header() {
 
             <div className="flex-1 px-5 py-6">
               <nav className="flex flex-col" aria-label="Secciones">
-                {NAV_ITEMS.map(({ label, href, Icon }, i) => (
+                {navItems.map(({ label, href, Icon }, i) => (
                   <Link
                     key={href}
                     href={href}
                     onClick={() => setMenuOpen(false)}
                     className={cx(
                       "flex items-center gap-4 py-4 font-bold text-zinc-800",
-                      i < NAV_ITEMS.length - 1
+                      i < navItems.length - 1
                         ? "border-b border-zinc-100"
                         : "",
                       "hover:text-tatan-primario4 transition-colors",
@@ -388,7 +492,13 @@ export default function Header() {
                 ))}
               </nav>
 
-              <div className="mt-8 grid grid-cols-2 gap-3">
+              <div
+                className={cx(
+                  "mt-8 grid gap-3",
+                  hasOffers ? "grid-cols-2" : "grid-cols-1",
+                )}
+              >
+                {hasOffers && (
                 <Link
                   href="/ofertas"
                   onClick={() => setMenuOpen(false)}
@@ -403,9 +513,12 @@ export default function Header() {
                     Ofertas
                   </p>
                   <p className="text-[11px] font-bold text-zinc-700 mt-0.5">
-                    Hasta 40% OFF
+                    {offers && offers.maxPct > 0
+                      ? `Hasta ${offers.maxPct}% OFF`
+                      : "Precios especiales"}
                   </p>
                 </Link>
+                )}
                 <Link
                   href="/productos"
                   onClick={() => setMenuOpen(false)}
@@ -449,7 +562,7 @@ export default function Header() {
                   <path d="M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
                   <path d="M18 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
                 </svg>
-                Ir al carrito (0)
+                Ir al carrito ({cart.count})
               </button>
               <p className="text-[11px] font-semibold text-zinc-400 text-center mt-4">
                 © Tatan · Ropa para los más chicos
@@ -504,7 +617,7 @@ export default function Header() {
                     Tu carrito
                   </p>
                   <p className="text-xs font-semibold text-zinc-500">
-                    0 productos
+                    {cart.count} {cart.count === 1 ? "producto" : "productos"}
                   </p>
                 </div>
               </div>
@@ -518,67 +631,181 @@ export default function Header() {
               </button>
             </div>
 
-            <div className="flex-1 px-5 py-6 flex flex-col items-center justify-center text-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-tatan-primario1/70 flex items-center justify-center">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-9 h-9 text-tatan-primario4"
+            {cart.items.length === 0 ? (
+              <div className="flex-1 px-5 py-6 flex flex-col items-center justify-center text-center gap-4">
+                <div className="w-20 h-20 rounded-full bg-tatan-primario1/70 flex items-center justify-center">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-9 h-9 text-tatan-primario4"
+                  >
+                    <path d="M6 6h15l-1.5 9H7.5L6 6Z" />
+                    <path d="M6 6 5 3H2" />
+                    <path d="M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
+                    <path d="M18 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
+                  </svg>
+                </div>
+                <div className="max-w-xs">
+                  <p className="text-lg font-extrabold text-zinc-800 leading-tight">
+                    Todavía no agregaste nada
+                  </p>
+                  <p className="text-sm font-semibold text-zinc-500 mt-2 leading-relaxed">
+                    Explorá la colección y sumá las prendas que te gusten al
+                    carrito.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCartOpen(false)}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white border border-tatan-secundario1/50 px-5 py-2.5 text-sm font-bold text-zinc-800 shadow-sm transition hover:bg-tatan-primario1/60"
                 >
-                  <path d="M6 6h15l-1.5 9H7.5L6 6Z" />
-                  <path d="M6 6 5 3H2" />
-                  <path d="M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
-                  <path d="M18 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
-                </svg>
+                  Seguir comprando
+                </button>
               </div>
-              <div className="max-w-xs">
-                <p className="text-lg font-extrabold text-zinc-800 leading-tight">
-                  Todavía no agregaste nada
-                </p>
-                <p className="text-sm font-semibold text-zinc-500 mt-2 leading-relaxed">
-                  Explorá la colección y sumá las prendas que te gusten al
-                  carrito.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCartOpen(false)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-white border border-tatan-secundario1/50 px-5 py-2.5 text-sm font-bold text-zinc-800 shadow-sm transition hover:bg-tatan-primario1/60"
-              >
-                Seguir comprando
-              </button>
-            </div>
+            ) : (
+              <ul className="flex-1 divide-y divide-zinc-100 px-5">
+                {cart.items.map((item) => (
+                  <li key={item.key} className="flex gap-3 py-4">
+                    <Link
+                      href={`/product/${item.productId}`}
+                      onClick={() => setCartOpen(false)}
+                      className="relative h-20 w-16 shrink-0 overflow-hidden rounded-xl border border-tatan-secundario1/50"
+                      style={{ backgroundColor: item.colorHex ?? "#fff" }}
+                    >
+                      <SmartImage
+                        src={item.imageSrc}
+                        alt={item.name}
+                        fill
+                        sizes="64px"
+                        className="object-contain p-1 mix-blend-multiply"
+                      />
+                    </Link>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-bold text-zinc-800 leading-snug line-clamp-2">
+                          {item.name}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.key)}
+                          aria-label={`Quitar ${item.name}`}
+                          className="-mr-1 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:bg-rose-50 hover:text-rose-500 transition"
+                        >
+                          <Trash2 className="w-4 h-4" strokeWidth={2} />
+                        </button>
+                      </div>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-zinc-500">
+                        <span>Talle {item.size}</span>
+                        {item.colorName && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span
+                              className="w-2.5 h-2.5 rounded-full border border-zinc-300"
+                              style={{ backgroundColor: item.colorHex }}
+                            />
+                            <span>{item.colorName}</span>
+                          </>
+                        )}
+                      </p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <div className="inline-flex items-center rounded-xl border border-tatan-secundario1/60 bg-white">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setQuantity(item.key, item.quantity - 1)
+                            }
+                            aria-label="Restar uno"
+                            className="inline-flex h-8 w-8 items-center justify-center text-zinc-600 hover:text-zinc-900"
+                          >
+                            <Minus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          </button>
+                          <span className="min-w-6 text-center text-sm font-bold tabular-nums text-zinc-800">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setQuantity(item.key, item.quantity + 1)
+                            }
+                            disabled={item.quantity >= item.maxStock}
+                            aria-label="Sumar uno"
+                            className="inline-flex h-8 w-8 items-center justify-center text-zinc-600 hover:text-zinc-900 disabled:text-zinc-300"
+                          >
+                            <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          </button>
+                        </div>
+                        <p className="text-sm font-extrabold tabular-nums text-zinc-800">
+                          {formatArs(
+                            effectiveUnitPrice(item, cart.items, wholesaleMode)
+                              .price * item.quantity,
+                          )}
+                        </p>
+                      </div>
+                      <WholesaleLine
+                        item={item}
+                        items={cart.items}
+                        mode={wholesaleMode}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div className="px-5 pb-6 pt-4 border-t border-zinc-100 mt-auto space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold text-zinc-600">Subtotal</p>
-                  <p className="text-sm font-extrabold text-zinc-800">$ 0</p>
+                  <p className="text-sm font-extrabold tabular-nums text-zinc-800">
+                    {formatArs(totals.subtotal + totals.saved)}
+                  </p>
                 </div>
+                {totals.saved > 0 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-emerald-700">
+                      Ahorro por mayor
+                    </p>
+                    <p className="text-sm font-extrabold tabular-nums text-emerald-700">
+                      -{formatArs(totals.saved)}
+                    </p>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold text-zinc-600">Envío</p>
-                  <p className="text-sm font-extrabold text-tatan-acento-verde">
-                    Gratis
+                  <p className="text-sm font-bold text-zinc-500">
+                    Se calcula al finalizar
                   </p>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-zinc-100">
                   <p className="text-base font-extrabold text-zinc-800">
                     Total
                   </p>
-                  <p className="text-xl font-black text-tatan-primario4">$ 0</p>
+                  <p className="text-xl font-black tabular-nums text-zinc-800">
+                    {formatArs(totals.subtotal)}
+                  </p>
                 </div>
               </div>
-              <button
-                type="button"
-                disabled
-                className="w-full btn-primary font-bold rounded-2xl py-3 text-sm inline-flex items-center justify-center gap-2 shadow-md opacity-60 cursor-not-allowed"
-              >
-                Finalizar compra
-              </button>
+              {cart.count > 0 ? (
+                <Link
+                  href="/cart"
+                  onClick={() => setCartOpen(false)}
+                  className="w-full btn-primary font-bold rounded-2xl py-3 text-sm inline-flex items-center justify-center gap-2 shadow-md"
+                >
+                  Finalizar compra
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full btn-primary font-bold rounded-2xl py-3 text-sm inline-flex items-center justify-center gap-2 shadow-md opacity-60 cursor-not-allowed"
+                >
+                  Finalizar compra
+                </button>
+              )}
               <Link
                 href="/cart"
                 onClick={() => setCartOpen(false)}
@@ -590,6 +817,42 @@ export default function Header() {
           </div>
         </div>
       </header>
+
+      {/* Aviso al agregar al carrito */}
+      <div
+        className="fixed inset-x-0 bottom-4 z-[80] flex justify-center px-4 pointer-events-none"
+        aria-live="polite"
+      >
+        {toast && (
+          <div
+            key={toast.id}
+            className="cart-toast pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl border border-tatan-secundario1/60 bg-white/95 px-4 py-3 shadow-xl backdrop-blur"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tatan-acento-verde text-white">
+              <Check className="w-5 h-5" strokeWidth={3} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-extrabold text-zinc-800">
+                Agregado al carrito
+              </p>
+              <p className="truncate text-xs font-semibold text-zinc-500">
+                {toast.text}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setToast(null);
+                setMenuOpen(false);
+                setCartOpen(true);
+              }}
+              className="shrink-0 rounded-xl bg-tatan-primario1/70 px-3 py-2 text-xs font-extrabold text-zinc-800 hover:bg-tatan-primario4 transition"
+            >
+              Ver carrito
+            </button>
+          </div>
+        )}
+      </div>
     </>
   );
 }

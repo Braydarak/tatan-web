@@ -1,228 +1,261 @@
-import CustomButton from "@/components/ui/CustomButton";
-import Header from "@/components/ui/Header";
-import Image from "next/image";
+"use client";
+
+import SmartImage from "@/components/ui/SmartImage";
 import Link from "next/link";
+import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import CustomButton from "@/components/ui/CustomButton";
+import ProductCard from "@/components/ui/productCard/ProductCard";
+import { apiToCardProps } from "@/lib/card-props";
+import { pickRelated } from "@/lib/related";
+import { useEffect, useState } from "react";
+import { useStoreSettings } from "@/components/StoreSettingsContext";
+import WholesaleLine from "@/components/cart/WholesaleLine";
+import { cartTotals, effectiveUnitPrice } from "@/lib/wholesale";
+import { apiCombos, type Product as ApiProduct } from "@/lib/tatan-api";
+import {
+  clearCart,
+  formatArs,
+  removeFromCart,
+  setQuantity,
+  useCart,
+} from "@/lib/cart";
 
-type CartItem = {
-  id: string;
-  name: string;
-  imageSrc: string;
-  variant?: string;
-  size?: string;
-  unitPrice: number;
-  quantity: number;
-};
-
-type RecommendedProduct = {
-  id: string;
-  name: string;
-  imageSrc: string;
-  price: number;
-  badge?: string;
-};
-
-function formatMoneyArs(value: number) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-const DEFAULT_ITEMS: CartItem[] = [
-  {
-    id: "p-001",
-    name: "Body algodón manga corta",
-    imageSrc: "/tatanLogo.png",
-    variant: "Natural",
-    size: "0-3",
-    unitPrice: 14990,
-    quantity: 2,
-  },
-  {
-    id: "p-002",
-    name: "Pijama enterito",
-    imageSrc: "/tatanLogo.png",
-    variant: "Estampado",
-    size: "3-6",
-    unitPrice: 21990,
-    quantity: 1,
-  },
-];
-
-const DEFAULT_RECOMMENDED: RecommendedProduct[] = [
-  {
-    id: "r-001",
-    name: "Gorrito tejido",
-    imageSrc: "/tatanLogo.png",
-    price: 8990,
-    badge: "Nuevo",
-  },
-  {
-    id: "r-002",
-    name: "Babero impermeable",
-    imageSrc: "/tatanLogo.png",
-    price: 6990,
-    badge: "Top ventas",
-  },
-  {
-    id: "r-003",
-    name: "Pack medias x3",
-    imageSrc: "/tatanLogo.png",
-    price: 7990,
-  },
-  {
-    id: "r-004",
-    name: "Manta suave",
-    imageSrc: "/tatanLogo.png",
-    price: 18990,
-  },
-];
-
-export default function Cart() {
-  const items = DEFAULT_ITEMS;
-  const recommended = DEFAULT_RECOMMENDED;
-
-  const subtotal = items.reduce(
-    (acc, item) => acc + item.unitPrice * item.quantity,
-    0,
-  );
-  const shipping = 0;
-  const total = subtotal + shipping;
+export default function Cart({
+  catalog = [],
+  quickAdd = true,
+}: {
+  catalog?: ApiProduct[];
+  quickAdd?: boolean;
+}) {
+  const { items, count } = useCart();
+  const { wholesaleMode } = useStoreSettings();
+  const { subtotal, saved } = cartTotals(items, wholesaleMode);
+  // Recomendados según lo que hay en el carrito (relacionados del CRM,
+  // misma categoría, resto). Sin carrito: lo que hay en la tienda.
+  const cartIds = Array.from(new Set(items.map((i) => i.productId)));
+  const idsKey = cartIds.slice().sort().join(",");
+  // "La gente también eligió combinar con": sale de pedidos pagados
+  const [combos, setCombos] = useState<{ key: string; ids: string[] }>({
+    key: "",
+    ids: [],
+  });
+  useEffect(() => {
+    if (!idsKey) return;
+    let alive = true;
+    apiCombos(idsKey.split(","), 4).then((ids) => {
+      if (alive) setCombos({ key: idsKey, ids });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [idsKey]);
+  const ranked = combos.key === idsKey ? combos.ids : [];
+  const suggestions = pickRelated(catalog, cartIds, 4, ranked);
+  const boughtTogether =
+    items.length > 0 && suggestions.some((p) => ranked.includes(p.id));
 
   return (
-    <div className="flex min-h-dvh flex-col bg-linear-to-b from-[#FFF7F0] via-white to-[#F7FBFF]">
-      <Header />
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
-            Carrito
-          </h1>
-          <p className="text-sm text-zinc-500">
-            Revisá tus productos antes de pagar.
-          </p>
-        </div>
+    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8 relative z-10">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold text-zinc-800 sm:text-3xl">
+          Tu carrito
+        </h1>
+        <p className="text-sm text-zinc-500">
+          Revisá tus productos antes de pagar.
+        </p>
+      </div>
 
+      {items.length === 0 ? (
+        <div className="mt-8 paper-card rounded-3xl px-6 py-14 flex flex-col items-center text-center gap-4">
+          <div className="w-20 h-20 rounded-full bg-tatan-primario1/70 flex items-center justify-center">
+            <ShoppingBag
+              className="w-9 h-9 text-tatan-secundario2"
+              strokeWidth={1.8}
+            />
+          </div>
+          <div>
+            <p className="text-lg font-extrabold text-zinc-800">
+              Todavía no agregaste nada
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Elegí talle y color desde cualquier producto y sumalo acá.
+            </p>
+          </div>
+          <Link
+            href="/productos"
+            className="btn-primary rounded-2xl px-6 py-3 text-sm font-bold"
+          >
+            Ver productos
+          </Link>
+        </div>
+      ) : (
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
           <section
-            className="rounded-2xl border border-black/5 bg-[#FEFDF8]/80 p-5 shadow-sm backdrop-blur"
+            className="paper-card rounded-3xl p-5 sm:p-6"
             aria-label="Productos del carrito"
           >
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold tracking-tight text-zinc-900">
-                Productos ({items.length})
+              <h2 className="text-lg font-bold text-zinc-800">
+                {count} {count === 1 ? "producto" : "productos"}
               </h2>
               <Link
-                href="/"
-                className="text-sm font-semibold text-zinc-900 underline decoration-tatan-primario1 underline-offset-4 hover:opacity-80"
+                href="/productos"
+                className="text-sm font-semibold text-zinc-700 underline decoration-tatan-primario4 underline-offset-4 hover:opacity-80"
               >
                 Seguir comprando
               </Link>
             </div>
 
-            <div className="mt-4 divide-y divide-black/5">
+            <ul className="mt-4 divide-y divide-tatan-secundario1/40">
               {items.map((item) => (
-                <div
-                  key={item.id}
+                <li
+                  key={item.key}
                   className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
-                      <Image
+                    <Link
+                      href={`/product/${item.productId}`}
+                      className="relative h-24 w-20 shrink-0 overflow-hidden rounded-2xl border border-tatan-secundario1/50"
+                      style={{ backgroundColor: item.colorHex ?? "#fff" }}
+                    >
+                      <SmartImage
                         src={item.imageSrc}
                         alt={item.name}
                         fill
                         sizes="80px"
-                        className="object-contain p-1"
-                        priority={false}
+                        className="object-contain p-1 mix-blend-multiply"
                       />
-                    </div>
+                    </Link>
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-zinc-900">
+                      <Link
+                        href={`/product/${item.productId}`}
+                        className="text-sm font-bold text-zinc-800 hover:underline"
+                      >
                         {item.name}
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-zinc-500">
-                        {item.variant ? (
-                          <span className="inline-flex items-center rounded-full border border-black/10 bg-white px-2 py-1">
-                            {item.variant}
+                      </Link>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs font-semibold text-zinc-600">
+                        <span className="inline-flex items-center rounded-full border border-tatan-secundario1/60 bg-white px-2.5 py-1">
+                          Talle {item.size}
+                        </span>
+                        {item.colorName && (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-tatan-secundario1/60 bg-white px-2.5 py-1">
+                            <span
+                              className="w-3 h-3 rounded-full border border-zinc-300"
+                              style={{ backgroundColor: item.colorHex }}
+                            />
+                            {item.colorName}
                           </span>
-                        ) : null}
-                        {item.size ? (
-                          <span className="inline-flex items-center rounded-full border border-black/10 bg-white px-2 py-1">
-                            Talle {item.size}
-                          </span>
-                        ) : null}
+                        )}
                       </div>
-                      <div className="mt-2 text-sm font-semibold tabular-nums text-zinc-900">
-                        {formatMoneyArs(item.unitPrice)}
-                        <span className="ml-1 text-xs font-semibold text-zinc-500">
+                      <div className="mt-2 text-sm font-semibold tabular-nums text-zinc-700">
+                        {(() => {
+                          const eff = effectiveUnitPrice(item, items, wholesaleMode);
+                          return eff.wholesale ? (
+                            <>
+                              {formatArs(eff.price)}
+                              <span className="ml-1.5 text-xs text-zinc-400 line-through">
+                                {formatArs(item.unitPrice)}
+                              </span>
+                            </>
+                          ) : (
+                            formatArs(item.unitPrice)
+                          );
+                        })()}
+                        <span className="ml-1 text-xs text-zinc-500">
                           / unidad
                         </span>
                       </div>
+                      <WholesaleLine
+                        item={item}
+                        items={items}
+                        mode={wholesaleMode}
+                      />
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-3 sm:justify-end">
-                    <div className="inline-flex items-center rounded-xl border border-black/10 bg-white p-1 shadow-sm">
+                    <div className="inline-flex items-center rounded-xl border border-tatan-secundario1/60 bg-white p-1 shadow-sm">
                       <button
                         type="button"
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-900 transition hover:bg-zinc-50 active:scale-[0.98]"
-                        aria-label="Disminuir cantidad"
+                        onClick={() => setQuantity(item.key, item.quantity - 1)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-700 transition hover:bg-tatan-primario1/40"
+                        aria-label="Restar uno"
                       >
-                        −
+                        <Minus className="w-4 h-4" strokeWidth={2.5} />
                       </button>
-                      <div className="min-w-10 px-2 text-center text-sm font-semibold tabular-nums text-zinc-900">
+                      <div className="min-w-10 px-2 text-center text-sm font-bold tabular-nums text-zinc-800">
                         {item.quantity}
                       </div>
                       <button
                         type="button"
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-900 transition hover:bg-zinc-50 active:scale-[0.98]"
-                        aria-label="Aumentar cantidad"
+                        onClick={() => setQuantity(item.key, item.quantity + 1)}
+                        disabled={item.quantity >= item.maxStock}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-700 transition hover:bg-tatan-primario1/40 disabled:text-zinc-300 disabled:hover:bg-transparent"
+                        aria-label="Sumar uno"
                       >
-                        +
+                        <Plus className="w-4 h-4" strokeWidth={2.5} />
                       </button>
                     </div>
 
                     <div className="text-right">
-                      <div className="text-sm font-bold tabular-nums text-zinc-900">
-                        {formatMoneyArs(item.unitPrice * item.quantity)}
+                      <div className="text-sm font-extrabold tabular-nums text-zinc-800">
+                        {formatArs(
+                          effectiveUnitPrice(item, items, wholesaleMode).price *
+                            item.quantity,
+                        )}
                       </div>
                       <button
                         type="button"
-                        className="mt-1 text-xs font-semibold text-zinc-500 underline underline-offset-4 hover:text-zinc-900"
+                        onClick={() => removeFromCart(item.key)}
+                        className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-rose-500"
                       >
+                        <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
                         Quitar
                       </button>
                     </div>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("¿Vaciar el carrito?")) clearCart();
+              }}
+              className="mt-2 text-xs font-semibold text-zinc-400 hover:text-zinc-600"
+            >
+              Vaciar carrito
+            </button>
           </section>
 
-          <aside className="h-fit rounded-2xl border border-black/5 bg-[#FEFDF8]/80 p-5 shadow-sm backdrop-blur lg:sticky lg:top-24">
-            <h2 className="text-lg font-bold tracking-tight text-zinc-900">
-              Resumen
-            </h2>
+          <aside className="h-fit paper-card rounded-3xl p-5 sm:p-6 lg:sticky lg:top-28">
+            <h2 className="text-lg font-bold text-zinc-800">Resumen</h2>
 
             <div className="mt-4 grid gap-3 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-zinc-600">Subtotal</span>
-                <span className="font-semibold tabular-nums text-zinc-900">
-                  {formatMoneyArs(subtotal)}
+                <span className="font-semibold tabular-nums text-zinc-800">
+                  {formatArs(subtotal + saved)}
                 </span>
               </div>
+              {saved > 0 && (
+                <div className="flex items-center justify-between gap-3 text-emerald-700">
+                  <span className="font-semibold">Ahorro por mayor</span>
+                  <span className="font-bold tabular-nums">
+                    -{formatArs(saved)}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-3">
                 <span className="text-zinc-600">Envío</span>
-                <span className="font-semibold tabular-nums text-zinc-900">
-                  {shipping === 0 ? "A calcular" : formatMoneyArs(shipping)}
-                </span>
+                <span className="font-semibold text-zinc-500">A calcular</span>
               </div>
-              <div className="h-px w-full bg-black/10" />
+              <div className="h-px w-full bg-tatan-secundario1/50" />
               <div className="flex items-center justify-between gap-3">
-                <span className="text-zinc-900">Total</span>
-                <span className="text-lg font-bold tabular-nums text-zinc-900">
-                  {formatMoneyArs(total)}
+                <span className="font-bold text-zinc-800">Total</span>
+                <span className="text-xl font-black tabular-nums text-zinc-800">
+                  {formatArs(subtotal)}
                 </span>
               </div>
             </div>
@@ -242,64 +275,47 @@ export default function Cart() {
             </div>
           </aside>
         </div>
+      )}
 
-        <section className="mt-10" aria-label="Recomendados">
-          <div className="flex items-end justify-between gap-3">
+      {suggestions.length > 0 && (
+        <section className="mt-12" aria-labelledby="cart-suggestions">
+          <div className="mb-6 flex items-end justify-between gap-3">
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-zinc-900">
-                También recomendamos
+              <div className="inline-flex items-center gap-2 mb-2">
+                <span className="w-8 h-1 rounded-full bg-tatan-acento-rosa" />
+                <span className="text-xs font-bold uppercase tracking-wider text-tatan-secundario2">
+                  {boughtTogether
+                    ? "Se compra junto"
+                    : items.length > 0
+                      ? "Completá tu compra"
+                      : "Para empezar"}
+                </span>
+              </div>
+              <h2
+                id="cart-suggestions"
+                className="text-2xl sm:text-3xl font-bold text-zinc-800"
+              >
+                {boughtTogether
+                  ? "La gente también eligió combinar con"
+                  : items.length > 0
+                    ? "Productos relacionados"
+                    : "Productos que te pueden gustar"}
               </h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                Sumá algo más antes de finalizar la compra.
-              </p>
             </div>
             <Link
-              href="/"
-              className="hidden text-sm font-semibold text-zinc-900 underline decoration-tatan-primario1 underline-offset-4 hover:opacity-80 sm:inline"
+              href="/productos"
+              className="shrink-0 text-sm font-bold text-zinc-600 underline decoration-tatan-primario4 underline-offset-4 hover:text-zinc-900"
             >
-              Ver todos
+              Ver todo
             </Link>
           </div>
-
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {recommended.map((p) => (
-              <div
-                key={p.id}
-                className="rounded-2xl border border-black/5 bg-[#FEFDF8]/80 p-4 shadow-sm backdrop-blur"
-              >
-                <div className="relative overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
-                  <div className="relative h-40 w-full">
-                    <Image
-                      src={p.imageSrc}
-                      alt={p.name}
-                      fill
-                      sizes="(min-width: 1024px) 260px, (min-width: 640px) 50vw, 100vw"
-                      className="object-contain p-2"
-                    />
-                  </div>
-                  {p.badge ? (
-                    <span className="absolute left-2 top-2 inline-flex items-center rounded-full border border-tatan-primario1 bg-tatan-primario1 px-2 py-1 text-[11px] font-bold text-zinc-900 shadow-sm">
-                      {p.badge}
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="mt-3 flex flex-col gap-2">
-                  <div className="text-sm font-semibold text-zinc-900">
-                    {p.name}
-                  </div>
-                  <div className="text-sm font-bold tabular-nums text-zinc-900">
-                    {formatMoneyArs(p.price)}
-                  </div>
-                  <CustomButton className="w-full" type="ghost">
-                    Agregar al carrito
-                  </CustomButton>
-                </div>
-              </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 justify-items-center lg:grid-cols-4">
+            {suggestions.map((p) => (
+              <ProductCard key={`sug-${p.id}`} {...apiToCardProps(p, { quickAdd })} />
             ))}
           </div>
         </section>
-      </main>
-    </div>
+      )}
+    </main>
   );
 }

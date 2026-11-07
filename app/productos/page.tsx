@@ -1,7 +1,19 @@
 import Link from "next/link";
+import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
 import ProductCard from "@/components/ui/productCard/ProductCard";
-import FilterPanel from "@/components/ui/FilterPanel";
-import { Sparkles, Gift, ArrowLeft, Star, Search } from "lucide-react";
+import SortSelect from "@/components/ui/SortSelect";
+import { fetchHomeContentSSR } from "@/lib/home-content";
+import {
+  Sparkles,
+  Gift,
+  Search,
+  ChevronRight,
+  X,
+  LayoutGrid,
+  Baby,
+  Shirt,
+  Moon,
+} from "lucide-react";
 import type { Product as ApiProduct } from "@/lib/tatan-api";
 
 export const metadata = {
@@ -60,6 +72,9 @@ function mapApiToListProduct(api: ApiProduct): Product {
     rating: Number(api.rating) || 4.6,
     reviews: Number(api.reviews) || 0,
     tagline: api.tagline || "100% Algodón",
+    installments: Number(api.installments) || undefined,
+    buy: buyOptionsFromApi(api),
+    images: Array.isArray(api.gallery) ? api.gallery.filter(Boolean) : [],
   };
 }
 
@@ -95,6 +110,9 @@ type Product = {
   rating: number;
   reviews: number;
   tagline: string;
+  installments?: number;
+  buy: BuyOptions;
+  images: string[];
 };
 
 const CATEGORY_FILTERS: {
@@ -228,150 +246,353 @@ function filterAndSort(all: Product[]) {
   };
 }
 
+const CATEGORY_ICON: Record<CategoryKey, typeof LayoutGrid> = {
+  todos: LayoutGrid,
+  body: Baby,
+  remera: Shirt,
+  pijama: Moon,
+  set: Gift,
+  pantalon: Shirt,
+  buzo: Moon,
+  accesorio: Sparkles,
+};
+
+type FilterState = ReturnType<typeof applyFilters>;
+
+/** Link a /productos con los filtros actuales y un cambio. */
+function hrefWith(state: FilterState, patch: Partial<FilterState>) {
+  const next = { ...state, ...patch };
+  const qs = new URLSearchParams();
+  if (next.cat !== "todos") qs.set("c", next.cat);
+  if (next.size !== "todos") qs.set("t", next.size);
+  if (next.pr !== "todos") qs.set("pr", next.pr);
+  if (next.sort !== "recomendado") qs.set("s", next.sort);
+  if (next.q) qs.set("q", next.q);
+  const str = qs.toString();
+  return str ? `/productos?${str}` : "/productos";
+}
+
+function Chip({
+  href,
+  active,
+  children,
+  tone = "primary",
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+  tone?: "primary" | "soft";
+}) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      aria-current={active ? "true" : undefined}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-2xl border px-3.5 py-2 text-sm font-semibold whitespace-nowrap transition-all ${
+        active
+          ? tone === "primary"
+            ? "border-tatan-primario4 bg-tatan-primario4 text-zinc-800 shadow-sm"
+            : "border-tatan-acento-verde/60 bg-tatan-acento-verde/25 text-zinc-800"
+          : "border-tatan-secundario1/70 bg-white/80 text-zinc-600 hover:border-tatan-primario4 hover:text-zinc-800"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
+
 export default async function ProductosPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const resolvedSp = await searchParams;
-  const allProducts = await getAllProductsForPage();
+  const [allProducts, content] = await Promise.all([
+    getAllProductsForPage(),
+    fetchHomeContentSSR(),
+  ]);
+  const page = content.productsPage!;
+  const quickAdd = content.store?.quickAdd !== false;
   const state = applyFilters({ searchParams: resolvedSp });
   const items = filterAndSort(allProducts)(state);
+  const hasOffers = allProducts.some(
+    (p) => p.originalPrice && p.originalPrice > p.price,
+  );
+  // El banner a /ofertas no se muestra si no hay ninguna oferta cargada
+  const showBanner =
+    page.banner.show &&
+    (page.banner.buttonHref.replace(/\/$/, "") !== "/ofertas" || hasOffers);
 
-  const activeCount = [
-    state.cat !== "todos",
-    state.size !== "todos",
-    state.pr !== "todos",
-    !!state.q,
-    state.sort !== "recomendado",
-  ].filter(Boolean).length;
+  const countFor = (key: CategoryKey) =>
+    key === "todos"
+      ? allProducts.length
+      : allProducts.filter((p) => p.category === key).length;
+  // Solo categorías con productos (y la elegida, aunque quede vacía)
+  const categoryChips = CATEGORY_FILTERS.filter(
+    (c) => c.key === "todos" || countFor(c.key) > 0 || c.key === state.cat,
+  );
+  const categoryLabel =
+    state.cat === "todos"
+      ? null
+      : (CATEGORY_FILTERS.find((x) => x.key === state.cat)?.label ?? null);
 
-  const groupOptions: React.ComponentProps<typeof FilterPanel>["groups"] = [
-    {
-      id: "category",
-      qsKey: "c",
-      title: "Categoría",
-      activeTint: "primary",
-      style: "stack",
-      indicator: "pill",
-      options: CATEGORY_FILTERS.map((c) => ({
-        key: c.key,
-        label: c.label,
-        icon: c.Icon,
-        count:
-          c.key === "todos"
-            ? allProducts.length
-            : allProducts.filter((p) => p.category === c.key).length,
-      })),
+  const activeFilters = [
+    categoryLabel && {
+      label: categoryLabel,
+      href: hrefWith(state, { cat: "todos" }),
     },
-    {
-      id: "size",
-      qsKey: "t",
-      title: "Grupo de talles",
-      activeTint: "beige",
-      style: "stack",
-      indicator: "checkbox",
-      options: SIZE_FILTERS.map((s) => ({
-        key: s.key,
-        label: s.label,
-        hint: s.hint || undefined,
-      })),
+    state.size !== "todos" && {
+      label: SIZE_FILTERS.find((x) => x.key === state.size)?.label ?? "",
+      href: hrefWith(state, { size: "todos" }),
     },
-    {
-      id: "price",
-      qsKey: "pr",
-      title: "Rango de precio",
-      activeTint: "green",
-      style: "stack",
-      indicator: "dot",
-      options: PRICE_FILTERS.map((r) => ({ key: r.key, label: r.label })),
+    state.pr !== "todos" && {
+      label: PRICE_FILTERS.find((x) => x.key === state.pr)?.label ?? "",
+      href: hrefWith(state, { pr: "todos" }),
     },
-  ];
+    state.q && {
+      label: `“${state.q}”`,
+      href: hrefWith(state, { q: "" }),
+    },
+  ].filter(Boolean) as { label: string; href: string }[];
+
+  const sortHrefs = Object.fromEntries(
+    SORTS.map((s) => [s.key, hrefWith(state, { sort: s.key })]),
+  );
 
   return (
     <div className="min-h-dvh flex flex-col relative z-10">
       <main className="flex-1 w-full">
+        {/* ───────── Encabezado ───────── */}
         <section className="relative overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-full max-h-[560px] pointer-events-none">
-            <div className="absolute top-0 -left-8 w-56 h-56 rounded-full bg-tatan-acento-azul/30 blur-3xl" />
-            <div className="absolute top-10 right-0 w-72 h-72 rounded-full bg-tatan-acento-verde/30 blur-3xl" />
-            <div className="absolute bottom-0 left-1/3 w-60 h-60 rounded-full bg-tatan-acento-rosa/30 blur-3xl" />
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -top-10 -left-10 w-56 h-56 rounded-full bg-tatan-acento-azul/25 blur-3xl" />
+            <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-tatan-acento-verde/20 blur-3xl" />
+            <div className="absolute -bottom-20 left-1/3 w-60 h-60 rounded-full bg-tatan-acento-rosa/25 blur-3xl" />
+          </div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-6 sm:pt-10 sm:pb-8">
+            <nav
+              aria-label="Ruta"
+              className="anim-rise mb-3 flex items-center gap-1.5 text-xs font-semibold text-zinc-500"
+            >
+              <Link href="/" className="hover:text-zinc-800">
+                Inicio
+              </Link>
+              <ChevronRight className="h-3 w-3" strokeWidth={2.4} />
+              <Link href="/productos" className="hover:text-zinc-800">
+                Productos
+              </Link>
+              {categoryLabel && (
+                <>
+                  <ChevronRight className="h-3 w-3" strokeWidth={2.4} />
+                  <span className="text-zinc-700">{categoryLabel}</span>
+                </>
+              )}
+            </nav>
+            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+              <div className="min-w-0 max-w-2xl">
+                <h1
+                  className="anim-rise text-3xl sm:text-4xl lg:text-5xl font-bold text-zinc-800 leading-tight"
+                  style={{ "--d": "0.08s" } as React.CSSProperties}
+                >
+                  {categoryLabel ?? page.title}
+                </h1>
+                {page.subtitle && (
+                  <p
+                    className="anim-rise mt-2 text-sm sm:text-base text-zinc-600 leading-relaxed"
+                    style={{ "--d": "0.16s" } as React.CSSProperties}
+                  >
+                    {page.subtitle}
+                  </p>
+                )}
+              </div>
+              <form
+                action="/productos"
+                role="search"
+                className="anim-rise relative w-full md:w-80 shrink-0"
+                style={{ "--d": "0.22s" } as React.CSSProperties}
+              >
+                {state.cat !== "todos" && (
+                  <input type="hidden" name="c" value={state.cat} />
+                )}
+                {state.size !== "todos" && (
+                  <input type="hidden" name="t" value={state.size} />
+                )}
+                {state.pr !== "todos" && (
+                  <input type="hidden" name="pr" value={state.pr} />
+                )}
+                {state.sort !== "recomendado" && (
+                  <input type="hidden" name="s" value={state.sort} />
+                )}
+                <Search
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+                  strokeWidth={2.2}
+                />
+                <input
+                  type="search"
+                  name="q"
+                  defaultValue={state.q}
+                  placeholder="Buscar body, pijama, batita…"
+                  aria-label="Buscar productos"
+                  className="h-12 w-full rounded-2xl border border-tatan-secundario1/70 bg-white/90 pl-10 pr-24 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/70"
+                />
+                <button
+                  type="submit"
+                  className="btn-primary absolute right-1.5 top-1/2 -translate-y-1/2 rounded-xl px-3.5 py-2 text-xs font-bold"
+                >
+                  Buscar
+                </button>
+              </form>
+            </div>
           </div>
         </section>
 
-        <section className="max-w-7xl mt-10 mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-          <FilterPanel
-            basePath="/productos"
-            groups={groupOptions}
-            sort={{ qsKey: "s", options: SORTS, active: state.sort }}
-            active={{
-              c: state.cat,
-              t: state.size,
-              pr: state.pr,
-              s: state.sort,
-            }}
-            clearHref="/productos"
-            activeCount={activeCount}
-          />
-
-          <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 mb-2">
-                <span className="w-8 h-1 rounded-full bg-tatan-primario4" />
-                <span className="text-xs font-bold uppercase tracking-wider text-tatan-secundario2">
-                  {state.cat === "todos"
-                    ? "Toda la colección"
-                    : (CATEGORY_FILTERS.find((x) => x.key === state.cat)
-                        ?.label ?? "Resultados")}
-                </span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-zinc-800 flex items-center gap-2 flex-wrap">
-                {items.length} producto{items.length === 1 ? "" : "s"}
-                {state.sort !== "recomendado" && (
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 rounded-full bg-tatan-primario1/60 px-2.5 py-1">
-                    Orden: {SORTS.find((x) => x.key === state.sort)?.label}
-                  </span>
-                )}
-              </h2>
-            </div>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-colors"
+        {/* ───────── Filtros ───────── */}
+        <div className="sticky top-[var(--header-h,101px)] z-30 border-y border-tatan-secundario1/50 bg-[#FBF7F0]/90 backdrop-blur-md">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div
+              className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 py-3 sm:mx-0 sm:px-0"
+              aria-label="Categorías"
             >
-              <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2.2} />
-              Volver al inicio
-            </Link>
+              {categoryChips.map((c) => {
+                const Icon = CATEGORY_ICON[c.key];
+                const active = state.cat === c.key;
+                return (
+                  <Chip
+                    key={c.key}
+                    href={hrefWith(state, { cat: c.key })}
+                    active={active}
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={2} />
+                    {c.label}
+                    <span
+                      className={`rounded-full px-1.5 text-[11px] font-bold ${
+                        active ? "bg-white/50" : "bg-tatan-secundario1/40"
+                      }`}
+                    >
+                      {countFor(c.key)}
+                    </span>
+                  </Chip>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="no-scrollbar -mx-4 flex min-w-0 items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0 lg:flex-wrap lg:overflow-visible">
+              {SIZE_FILTERS.map((s) => (
+                <Chip
+                  key={s.key}
+                  href={hrefWith(state, { size: s.key })}
+                  active={state.size === s.key}
+                  tone="soft"
+                >
+                  {s.key === "bebe" && (
+                    <Baby className="h-4 w-4" strokeWidth={2} />
+                  )}
+                  {s.key === "ninios" && (
+                    <Shirt className="h-4 w-4" strokeWidth={2} />
+                  )}
+                  {s.key === "todos" ? "Todas las edades" : s.label}
+                </Chip>
+              ))}
+              <span className="mx-1 h-6 w-px shrink-0 bg-tatan-secundario1" />
+              {PRICE_FILTERS.filter((r) => r.key !== "todos").map((r) => (
+                <Chip
+                  key={r.key}
+                  href={hrefWith(state, {
+                    pr: state.pr === r.key ? "todos" : r.key,
+                  })}
+                  active={state.pr === r.key}
+                  tone="soft"
+                >
+                  {r.label}
+                </Chip>
+              ))}
+            </div>
+            <div className="flex shrink-0 items-center justify-between gap-3 lg:justify-end">
+              <p className="text-sm font-semibold text-zinc-500 lg:hidden">
+                {items.length} producto{items.length === 1 ? "" : "s"}
+              </p>
+              <SortSelect
+                value={state.sort}
+                options={SORTS}
+                hrefs={sortHrefs}
+              />
+            </div>
           </div>
 
-          <div className="mt-8">
+          <div
+            className={`mt-4 flex-wrap items-center gap-2 min-h-8 ${
+              activeFilters.length > 0 ? "flex" : "hidden lg:flex"
+            }`}
+          >
+            <p className="hidden lg:block text-sm font-semibold text-zinc-500 mr-1">
+              {items.length} producto{items.length === 1 ? "" : "s"}
+            </p>
+            {activeFilters.map((f) => (
+              <Link
+                key={f.href + f.label}
+                href={f.href}
+                scroll={false}
+                className="group inline-flex items-center gap-1.5 rounded-full bg-tatan-primario1/60 py-1 pl-3 pr-2 text-xs font-bold text-zinc-700 hover:bg-tatan-primario1"
+                aria-label={`Quitar filtro ${f.label}`}
+              >
+                {f.label}
+                <X className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-800" strokeWidth={2.6} />
+              </Link>
+            ))}
+            {activeFilters.length > 1 && (
+              <Link
+                href={hrefWith(state, {
+                  cat: "todos",
+                  size: "todos",
+                  pr: "todos",
+                  q: "",
+                })}
+                scroll={false}
+                className="text-xs font-bold text-zinc-500 underline underline-offset-4 hover:text-zinc-800"
+              >
+                Limpiar todo
+              </Link>
+            )}
+          </div>
+
+          <div className="mt-5">
             {items.length === 0 ? (
-              <div className="paper-card rounded-3xl p-12 text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-tatan-primario1/60 flex items-center justify-center mx-auto">
+              <div className="paper-card rounded-3xl px-6 py-14 text-center flex flex-col items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-tatan-primario1/60 flex items-center justify-center">
                   <Search
                     className="w-8 h-8 text-tatan-primario4"
                     strokeWidth={2}
                   />
                 </div>
-                <p className="text-lg font-bold text-zinc-800">
-                  No encontramos productos con estos filtros
-                </p>
-                <p className="text-sm text-zinc-500 max-w-md mx-auto">
-                  Probá limpiando los filtros o cambiando el rango de precio.
-                </p>
+                <div>
+                  <h2 className="text-xl font-bold text-zinc-800">
+                    No encontramos productos
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Probá con otra categoría o sacá algún filtro.
+                  </p>
+                </div>
                 <Link
                   href="/productos"
-                  className="btn-primary inline-flex items-center gap-2 font-bold px-5 py-2.5 rounded-2xl text-sm"
+                  className="btn-primary inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold"
                 >
                   <Sparkles className="w-4 h-4" strokeWidth={2} />
-                  Limpiar y ver todos
+                  Ver todos los productos
                 </Link>
               </div>
             ) : (
-              <div className="grid gap-6 justify-items-center sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4 justify-items-center">
                 {items.map((p, idx) => (
                   <div
                     key={`prod-${p.id}`}
-                    className="relative w-full max-w-[320px]"
+                    className="anim-rise w-full flex justify-center"
+                    style={
+                      { "--d": `${Math.min(idx, 8) * 0.05}s` } as React.CSSProperties
+                    }
                   >
                     <ProductCard
                       id={p.id}
@@ -380,38 +601,30 @@ export default async function ProductosPage({
                       originalPrice={p.originalPrice}
                       discountedPrice={p.price}
                       discountPercentage={discountPct(p)}
-                      installments={6}
-                      installmentPrice={Math.round(p.price / 6)}
+                      installments={p.installments}
+                      installmentPrice={
+                        p.installments
+                          ? Math.round(p.price / p.installments)
+                          : undefined
+                      }
+                      buy={quickAdd ? p.buy : undefined}
+                    wholesale={p.buy.wholesale}
+                      ctaLabel="Ver producto"
+                      images={p.images}
                       taxFreePrice={Math.round(p.price * 0.79)}
                       colorHex={p.colorHex}
                       productUrl={`/product/${p.id}`}
-                      loading={idx === 0 ? "eager" : "lazy"}
+                      loading={idx < 4 ? "eager" : "lazy"}
                       priority={idx === 0}
+                      badge={
+                        p.badge === "Top"
+                          ? "Más elegido"
+                          : p.badge === "Nuevo"
+                            ? "Nuevo"
+                            : undefined
+                      }
+                      tagline={p.tagline}
                     />
-                    <div className="absolute top-3 left-3 translate-x-0 translate-y-0 pointer-events-none z-20">
-                      <div className="flex flex-col gap-1.5 items-start">
-                        {p.badge && (
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider shadow-md border border-white/80 ${
-                              p.badge === "Top"
-                                ? "bg-gradient-to-r from-tatan-primario4 to-tatan-secundario2 text-white"
-                                : p.badge === "Nuevo"
-                                  ? "bg-tatan-acento-azul/90 text-white"
-                                  : "bg-gradient-to-r from-tatan-acento-rosa to-tatan-primario4 text-white"
-                            }`}
-                          >
-                            {p.badge}
-                          </span>
-                        )}
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/95 text-zinc-700 border border-tatan-secundario1/60 px-2.5 py-0.5 text-[10px] font-bold shadow-sm">
-                          <Star
-                            className="w-2.5 h-2.5 text-amber-500 fill-current"
-                            strokeWidth={0}
-                          />
-                          {p.tagline}
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -419,47 +632,46 @@ export default async function ProductosPage({
           </div>
         </section>
 
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 pt-6">
-          <div className="paper-card rounded-3xl p-6 sm:p-10 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-tatan-acento-rosa/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-tatan-acento-verde/30 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-            <div className="relative grid md:grid-cols-[1fr_auto] gap-6 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-tatan-primario2/70 px-4 py-1.5 mb-4">
-                  <Sparkles
-                    className="w-4 h-4 text-zinc-700"
-                    strokeWidth={2.2}
-                  />
-                  <span className="text-xs font-bold uppercase tracking-wider text-zinc-700">
-                    ¿Buscás algo en oferta?
-                  </span>
+        {showBanner && (
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 pt-8">
+            <div className="paper-card rounded-3xl p-6 sm:p-10 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-tatan-acento-rosa/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-40 h-40 bg-tatan-acento-verde/30 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+              <div className="relative grid md:grid-cols-[1fr_auto] gap-6 items-center">
+                <div>
+                  {page.banner.label && (
+                    <div className="inline-flex items-center gap-2 rounded-full bg-tatan-primario2/70 px-4 py-1.5 mb-4">
+                      <Sparkles
+                        className="w-4 h-4 text-zinc-700"
+                        strokeWidth={2.2}
+                      />
+                      <span className="text-xs font-bold uppercase tracking-wider text-zinc-700">
+                        {page.banner.label}
+                      </span>
+                    </div>
+                  )}
+                  <h2 className="text-2xl sm:text-3xl font-bold text-zinc-800 leading-tight mb-2">
+                    {page.banner.title}
+                  </h2>
+                  {page.banner.text && (
+                    <p className="text-sm sm:text-base text-zinc-600 max-w-xl leading-relaxed">
+                      {page.banner.text}
+                    </p>
+                  )}
                 </div>
-                <h3 className="text-2xl sm:text-3xl font-bold text-zinc-800 leading-tight mb-2">
-                  Mirá las ofertas de la semana
-                </h3>
-                <p className="text-sm sm:text-base text-zinc-600 max-w-xl leading-relaxed">
-                  Hasta 40% OFF en prendas seleccionadas. Envío gratis y cambios
-                  sin cargo.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <Link
-                  href="/ofertas"
-                  className="btn-primary font-bold px-6 py-3.5 rounded-2xl text-base inline-flex items-center justify-center gap-2"
-                >
-                  <Gift className="w-5 h-5" strokeWidth={2} />
-                  Ir a Ofertas
-                </Link>
-                <Link
-                  href="/"
-                  className="px-6 py-3.5 rounded-2xl text-base font-bold border-2 border-tatan-secundario1/50 text-zinc-700 hover:bg-white/60 transition-colors paper-card inline-flex items-center justify-center gap-2"
-                >
-                  Volver al Home
-                </Link>
+                {page.banner.buttonText && (
+                  <Link
+                    href={page.banner.buttonHref || "/ofertas"}
+                    className="btn-primary font-bold px-6 py-3.5 rounded-2xl text-base inline-flex items-center justify-center gap-2"
+                  >
+                    <Gift className="w-5 h-5" strokeWidth={2} />
+                    {page.banner.buttonText}
+                  </Link>
+                )}
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
     </div>
   );
