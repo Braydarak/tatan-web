@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import SmartImage from "@/components/ui/SmartImage";
+import ProductPhoto from "@/components/ui/ProductPhoto";
 import { isPlaceholderImage } from "@/lib/is-placeholder";
 
 function cx(...classes: Array<string | undefined | null | false>) {
@@ -62,7 +62,7 @@ export default function HeroSlideshow({
             )}
             aria-hidden={i !== active}
           >
-            <SmartImage
+            <ProductPhoto
               src={src}
               alt={i === 0 ? alt : `${alt} (${i + 1})`}
               fill

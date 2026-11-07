@@ -1,4 +1,4 @@
-import SmartImage from "@/components/ui/SmartImage";
+import ProductPhoto from "@/components/ui/ProductPhoto";
 import Link from "next/link";
 import { isPlaceholderImage } from "@/lib/is-placeholder";
 import { ArrowRight, Check, Tag } from "lucide-react";
@@ -185,7 +185,7 @@ export default function PromoHero({
                     background: `radial-gradient(circle at 50% 40%, #ffffff 0%, ${product.colorHex}66 70%, ${product.colorHex}aa 100%)`,
                   }}
                 >
-                  <SmartImage
+                  <ProductPhoto
                     src={product.imageSrc}
                     alt={product.name}
                     fill

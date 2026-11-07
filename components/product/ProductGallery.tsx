@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import SmartImage from "@/components/ui/SmartImage";
+import ProductPhoto from "@/components/ui/ProductPhoto";
 import { isPlaceholderImage } from "@/lib/is-placeholder";
 
 function cx(...classes: Array<string | undefined | null | false>) {
@@ -31,7 +31,7 @@ export default function ProductGallery({
         {/* Fondo blanco: las fotos de producto suelen venir en blanco y así
             no se nota el borde de la imagen */}
         <div className="relative aspect-square rounded-2xl overflow-hidden bg-white">
-          <SmartImage
+          <ProductPhoto
             key={current}
             src={current}
             alt={active === 0 ? name : `${name}, foto ${active + 1}`}
@@ -65,7 +65,7 @@ export default function ProductGallery({
                   : "border-transparent opacity-70 hover:opacity-100",
               )}
             >
-              <SmartImage
+              <ProductPhoto compact
                 src={src}
                 alt=""
                 fill

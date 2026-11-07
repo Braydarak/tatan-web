@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import SmartImage from "@/components/ui/SmartImage";
+import ProductPhoto from "@/components/ui/ProductPhoto";
 import Link from "next/link";
 import { isPlaceholderImage } from "@/lib/is-placeholder";
 
@@ -61,7 +61,7 @@ export default function CardGallery({
         aria-label={`Ver ${title}`}
         tabIndex={-1}
       >
-        <SmartImage
+        <ProductPhoto
           src={images[0]}
           alt={title}
           fill
@@ -95,7 +95,7 @@ export default function CardGallery({
             aria-label={`Ver ${title} (foto ${i + 1} de ${images.length})`}
             tabIndex={i === 0 ? 0 : -1}
           >
-            <SmartImage
+            <ProductPhoto
               src={src}
               alt={i === 0 ? title : `${title}, foto ${i + 1}`}
               fill

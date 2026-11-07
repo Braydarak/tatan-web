@@ -1,6 +1,6 @@
 "use client";
 
-import SmartImage from "@/components/ui/SmartImage";
+import ProductPhoto from "@/components/ui/ProductPhoto";
 import Link from "next/link";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import CustomButton from "@/components/ui/CustomButton";
@@ -118,7 +118,7 @@ export default function Cart({
                       className="relative h-24 w-20 shrink-0 overflow-hidden rounded-2xl border border-tatan-secundario1/50"
                       style={{ backgroundColor: item.colorHex ?? "#fff" }}
                     >
-                      <SmartImage
+                      <ProductPhoto compact
                         src={item.imageSrc}
                         alt={item.name}
                         fill

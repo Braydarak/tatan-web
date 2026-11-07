@@ -1,6 +1,7 @@
 "use client";
 
 import SmartImage from "@/components/ui/SmartImage";
+import ProductPhoto from "@/components/ui/ProductPhoto";
 import Link from "next/link";
 import * as React from "react";
 import MessageBanner from "@/components/ui/MessageBanner";
@@ -676,7 +677,8 @@ export default function Header({
                       className="relative h-20 w-16 shrink-0 overflow-hidden rounded-xl border border-tatan-secundario1/50"
                       style={{ backgroundColor: item.colorHex ?? "#fff" }}
                     >
-                      <SmartImage
+                      <ProductPhoto
+                        compact
                         src={item.imageSrc}
                         alt={item.name}
                         fill
