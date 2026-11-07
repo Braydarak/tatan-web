@@ -1,32 +1,26 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Fredoka, Geist, Geist_Mono, Nunito } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import ScrollToTop from "@/components/ui/ScrollToTop";
 import StoreChrome from "@/components/ui/StoreChrome";
 import { fetchHomeContentSSR } from "@/lib/home-content";
 import { fetchAllProductsSSR, offersInfo } from "@/lib/card-props";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const nunito = Nunito({
+// Fuentes incluidas en el repo (variables, set "latin": cubre todo el
+// español). Así el build no depende de descargar de Google Fonts.
+const nunito = localFont({
+  src: "./fonts/nunito-latin-var.woff2",
+  weight: "400 800",
   variable: "--font-nunito",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
-const fredoka = Fredoka({
+const fredoka = localFont({
+  src: "./fonts/fredoka-latin-var.woff2",
+  weight: "400 700",
   variable: "--font-fredoka",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -52,7 +46,7 @@ export default async function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} ${nunito.variable} ${fredoka.variable} h-full antialiased`}
+      className={`${nunito.variable} ${fredoka.variable} h-full antialiased`}
       // Alto del header fijo (con o sin la franja de mensajes)
       style={{ "--header-h": hasBanner ? "101px" : "69px" } as React.CSSProperties}
     >
