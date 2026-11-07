@@ -318,18 +318,6 @@ function ProductDetailRow({ product }: { product: ProductCrm }) {
                 }
               />
               <KeyValue
-                k="Cuotas"
-                v={
-                  <span className="text-zinc-800 tabular-nums">
-                    {product.installments}x de{" "}
-                    {formatMoneyArs(
-                      Math.round(product.price / product.installments),
-                    )}{" "}
-                    s/ interés
-                  </span>
-                }
-              />
-              <KeyValue
                 k="Libre impuestos"
                 v={
                   product.taxFreePrice ? (
@@ -339,20 +327,6 @@ function ProductDetailRow({ product }: { product: ProductCrm }) {
                   ) : (
                     "— no definido"
                   )
-                }
-              />
-              <KeyValue
-                k="Rating"
-                v={
-                  <div className="flex items-center justify-end gap-1">
-                    <span className="font-bold tabular-nums text-zinc-900">
-                      {product.rating.toFixed(1)}
-                    </span>
-                    <span className="text-amber-500 text-xs">★</span>
-                    <span className="text-[11px] text-zinc-500 ml-1">
-                      ({product.reviews} reviews)
-                    </span>
-                  </div>
                 }
               />
             </DetailSection>
@@ -611,6 +585,8 @@ export default function ProductsCrm({
       features: p.features,
       price: p.price,
       originalPrice: p.originalPrice ?? undefined,
+      wholesalePrice: p.wholesalePrice ?? null,
+      wholesaleMinQty: p.wholesaleMinQty ?? null,
       installments: p.installments,
       taxFreePrice: p.taxFreePrice ?? undefined,
       showPointsBadge: p.showPointsBadge,
@@ -735,6 +711,8 @@ export default function ProductsCrm({
       features: editingProduct.features,
       price: editingProduct.price,
       originalPrice: editingProduct.originalPrice,
+      wholesalePrice: editingProduct.wholesalePrice,
+      wholesaleMinQty: editingProduct.wholesaleMinQty,
       installments: editingProduct.installments,
       taxFreePrice: editingProduct.taxFreePrice,
       showPointsBadge: editingProduct.showPointsBadge,

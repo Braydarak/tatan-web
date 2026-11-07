@@ -37,8 +37,8 @@ const VIEW_META: Record<CrmView, { title: string; subtitle: string }> = {
     subtitle: "Stock por talle y ajustes rápidos",
   },
   hero: {
-    title: "Contenido · Home",
-    subtitle: "Portada editable del sitio",
+    title: "Contenido · Inicio y tienda",
+    subtitle: "Portada, secciones del inicio, página de productos y opciones",
   },
   envios: {
     title: "Contenido · Envíos",

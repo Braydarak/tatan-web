@@ -188,6 +188,10 @@ export type Product = {
   description: string | null;
   price: number;
   originalPrice: number | null;
+  /** Precio unitario por mayor (null = no tiene) */
+  wholesalePrice?: number | null;
+  /** Unidades mínimas para el precio por mayor */
+  wholesaleMinQty?: number | null;
   installments: number;
   taxFreePrice: number | null;
   showPointsBadge: boolean;
@@ -317,9 +321,20 @@ export async function apiProductSave(
  * Sube una imagen a la API PHP (requiere sesión CRM) y devuelve su URL pública.
  * Lanza Error con el mensaje del servidor si falla.
  */
+/**
+ * Sube una imagen comprimida. Manda la versión de respaldo (JPEG/PNG) y, si
+ * el navegador pudo generarla, también la WebP: el servidor guarda las dos con
+ * el mismo nombre (…-w.jpg y …-w.webp). Devuelve la URL de la de respaldo; la
+ * tienda usa la WebP sola cuando existe (ver lib/webp.ts).
+ */
 export async function apiUploadImage(file: File): Promise<string> {
+  const { compressImage } = await import("@/lib/image-compress");
+  const img = await compressImage(file);
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", img.fallback, img.fallbackName);
+  if (img.webp) {
+    form.append("webp", img.webp, img.fallbackName.replace(/\.[^.]+$/, ".webp"));
+  }
   const r = await apiFetch<{ ok: boolean; url?: string }>("upload.php", {
     method: "POST",
     body: form,
@@ -398,6 +413,7 @@ export async function apiSiteContentSave<T = unknown>(
 
 /** Tags de caché ISR del sitio que el CRM puede purgar on-demand. */
 export type RevalidateTag =
+  | "tatan-categories"
   | "tatan-site-content"
   | "tatan-products"
   | "tatan-product-detail"
@@ -453,3 +469,98 @@ export async function apiContactSubmit(payload: {
     return { ok: false, errors: ["UNKNOWN"] };
   }
 }
+
+/* ================================================================
+ *  Analítica "La gente también eligió combinar con" (combos.php)
+ *  Se arma solo con pedidos pagados.
+ * ============================================================== */
+
+/** Ids de productos que más se compraron junto con estos (vacío si no hay datos). */
+export async function apiCombos(ids: string[], limit = 4): Promise<string[]> {
+  if (!ids.length) return [];
+  try {
+    const r = await apiFetch<{
+      ok: boolean;
+      data?: { productId: string; times: number }[];
+    }>("combos.php", { query: { ids: ids.join(","), limit } });
+    return r.ok && Array.isArray(r.data) ? r.data.map((d) => d.productId) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Recalcula la analítica desde los pedidos pagados (requiere sesión CRM). */
+export async function apiRebuildCombos(): Promise<{
+  ok: boolean;
+  pairs?: number;
+  error?: string;
+  message?: string;
+}> {
+  try {
+    return await apiFetch("combos.php", {
+      method: "POST",
+      query: { action: "rebuild" },
+      body: {},
+    });
+  } catch (e) {
+    return {
+      ok: false,
+      error: "NETWORK",
+      message: e instanceof Error ? e.message : "No se pudo conectar",
+    };
+  }
+}
+
+/* ================================================================
+ *  Categorías (categories.php)
+ * ============================================================== */
+
+export type { Category } from "@/lib/categories";
+import { DEFAULT_CATEGORIES, type Category as Cat } from "@/lib/categories";
+
+/** Categorías. `all` incluye las ocultas (requiere sesión CRM). */
+export async function apiCategories(all = false): Promise<{
+  list: Cat[];
+  /** false si la API todavía no tiene categories.php (se usa la lista fija) */
+  remote: boolean;
+}> {
+  try {
+    const r = await apiFetch<{ ok: boolean; data?: Cat[] }>("categories.php", {
+      query: all ? { all: 1 } : undefined,
+    });
+    if (r.ok && Array.isArray(r.data)) return { list: r.data, remote: true };
+  } catch {
+    /* sin endpoint todavía */
+  }
+  return { list: DEFAULT_CATEGORIES, remote: false };
+}
+
+type CatResult = { ok: boolean; data?: Cat[]; key?: string; error?: string; message?: string };
+
+async function catCall(
+  method: "POST" | "PUT" | "DELETE",
+  key: string | null,
+  body?: unknown,
+): Promise<CatResult> {
+  try {
+    return await apiFetch<CatResult>("categories.php", {
+      method,
+      query: key ? { key } : undefined,
+      body,
+    });
+  } catch (e) {
+    // Errores de la API (409 con productos, nombre repetido…): vienen en e.data
+    if (e instanceof ApiError && e.data && typeof e.data === "object") {
+      return { ok: false, ...(e.data as Partial<CatResult>) };
+    }
+    const msg = e instanceof Error ? e.message : "";
+    return { ok: false, error: "NETWORK", message: msg || "No se pudo conectar" };
+  }
+}
+
+export const apiCategoryCreate = (label: string) => catCall("POST", null, { label });
+export const apiCategoryUpdate = (
+  key: string,
+  patch: { label?: string; active?: boolean; sortOrder?: number },
+) => catCall("PUT", key, patch);
+export const apiCategoryDelete = (key: string) => catCall("DELETE", key);

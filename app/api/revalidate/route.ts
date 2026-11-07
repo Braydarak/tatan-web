@@ -16,6 +16,7 @@ import { apiBaseUrl, SESSION_HEADER, type RevalidateTag } from "@/lib/tatan-api"
  */
 
 const ALLOWED_TAGS: readonly RevalidateTag[] = [
+  "tatan-categories",
   "tatan-site-content",
   "tatan-products",
   "tatan-product-detail",

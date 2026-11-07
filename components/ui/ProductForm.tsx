@@ -96,6 +96,9 @@ export type ProductFormData = {
   features: string[];
   price: number;
   originalPrice?: number;
+  /** null = sin precio por mayor (se manda así para poder borrarlo) */
+  wholesalePrice?: number | null;
+  wholesaleMinQty?: number | null;
   installments: number;
   taxFreePrice?: number;
   showPointsBadge?: boolean;
@@ -383,10 +386,18 @@ export default function ProductForm({
   const [price, setPrice] = React.useState(
     initialData?.price ? initialData.price.toString() : "",
   );
+  const [wholesalePrice, setWholesalePrice] = React.useState(
+    initialData?.wholesalePrice ? initialData.wholesalePrice.toString() : "",
+  );
+  const [wholesaleMinQty, setWholesaleMinQty] = React.useState(
+    initialData?.wholesaleMinQty ? initialData.wholesaleMinQty.toString() : "6",
+  );
   const [originalPrice, setOriginalPrice] = React.useState(
     initialData?.originalPrice?.toString() ?? "",
   );
-  const [installments, setInstallments] = React.useState(
+  // Las cuotas las define Mercado Pago / el banco: no se editan acá. Se
+  // conserva el valor que ya tenga el producto al guardar.
+  const [installments] = React.useState(
     initialData?.installments?.toString() ?? "6",
   );
   const [taxFreePrice, setTaxFreePrice] = React.useState(
@@ -395,10 +406,11 @@ export default function ProductForm({
   const [showPointsBadge, setShowPointsBadge] = React.useState(
     initialData?.showPointsBadge ?? false,
   );
-  const [rating, setRating] = React.useState(
+  // Puntuación y reseñas no se editan por ahora: se conservan al guardar
+  const [rating] = React.useState(
     initialData?.rating?.toString() ?? "5.0",
   );
-  const [reviews, setReviews] = React.useState(
+  const [reviews] = React.useState(
     initialData?.reviews?.toString() ?? "0",
   );
   const [relatedIds, setRelatedIds] = React.useState<string[]>(
@@ -523,8 +535,11 @@ export default function ProductForm({
   const showErr = (e: string | null) => (triedSubmit ? e : null);
 
   // Cuántos datos opcionales hay cargados en cada sección plegable
-  const filledOffer = [originalPrice, taxFreePrice].filter((v) => Number(v) > 0)
-    .length + (installments !== "6" ? 1 : 0);
+  const filledOffer = [originalPrice, taxFreePrice, wholesalePrice].filter(
+    (v) => Number(v) > 0,
+  ).length;
+  const wholesaleNum = Number(wholesalePrice) || 0;
+  const wholesaleMin = Math.max(2, Math.round(Number(wholesaleMinQty) || 0));
   const filledPhotos =
     (gallery.length ? 1 : 0) +
     (colorVariants.length ? 1 : 0) +
@@ -536,8 +551,7 @@ export default function ProductForm({
     (relatedIds.length ? 1 : 0);
   const filledAdvanced =
     (slug.trim() ? 1 : 0) +
-    (Number(soldTotal) > 0 ? 1 : 0) +
-    (Number(reviews) > 0 ? 1 : 0);
+    (Number(soldTotal) > 0 ? 1 : 0);
 
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -564,6 +578,8 @@ export default function ProductForm({
       features: features.filter((f) => f.trim().length > 0),
       price: priceNum,
       originalPrice: originalNum || undefined,
+      wholesalePrice: wholesaleNum > 0 ? wholesaleNum : null,
+      wholesaleMinQty: wholesaleNum > 0 ? wholesaleMin : null,
       installments: Number(installments) || 1,
       taxFreePrice: Number(taxFreePrice) || undefined,
       showPointsBadge,
@@ -722,11 +738,6 @@ export default function ProductForm({
                   label="Precio"
                   htmlFor="pf-price"
                   error={showErr(errors.price)}
-                  hint={
-                    priceNum > 0 && Number(installments) > 1
-                      ? `Se muestra en ${installments} cuotas de ${formatArs(Math.round(priceNum / Number(installments)))}`
-                      : undefined
-                  }
                 >
                   <div className="relative max-w-60">
                     <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-sm font-semibold text-zinc-400">
@@ -888,8 +899,8 @@ export default function ProductForm({
             </p>
             <div className="flex flex-col gap-3">
               <OptionalSection
-                title="Oferta y cuotas"
-                description="Precio antes de la oferta, cuotas sin interés y precio sin impuestos"
+                title="Oferta y por mayor"
+                description="Precio antes de la oferta, precio sin impuestos y precio por mayor"
                 filled={filledOffer}
               >
                 <div className="grid gap-5 sm:grid-cols-3">
@@ -913,17 +924,6 @@ export default function ProductForm({
                       className={inputClass}
                     />
                   </Field>
-                  <Field label="Cuotas sin interés" htmlFor="pf-inst">
-                    <input
-                      id="pf-inst"
-                      type="number"
-                      min={1}
-                      max={24}
-                      value={installments}
-                      onChange={(e) => setInstallments(e.target.value)}
-                      className={inputClass}
-                    />
-                  </Field>
                   <Field label="Precio sin impuestos" htmlFor="pf-taxfree">
                     <input
                       id="pf-taxfree"
@@ -936,6 +936,48 @@ export default function ProductForm({
                       className={inputClass}
                     />
                   </Field>
+                </div>
+                <div className="mt-5 grid gap-5 rounded-xl border border-black/5 bg-zinc-50/70 p-4 sm:grid-cols-2">
+                  <Field
+                    label="Precio por mayor (por unidad)"
+                    htmlFor="pf-wholesale"
+                    hint={
+                      wholesaleNum > 0 && wholesaleNum >= priceNum
+                        ? "Tiene que ser menor que el precio normal"
+                        : "Dejalo vacío si no vendés por mayor"
+                    }
+                  >
+                    <input
+                      id="pf-wholesale"
+                      type="number"
+                      min={0}
+                      inputMode="numeric"
+                      value={wholesalePrice}
+                      onChange={(e) => setWholesalePrice(e.target.value)}
+                      placeholder="$"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field
+                    label="Desde (unidades)"
+                    htmlFor="pf-wholesale-min"
+                    hint="Sumando todos los talles y colores de este producto"
+                  >
+                    <input
+                      id="pf-wholesale-min"
+                      type="number"
+                      min={2}
+                      inputMode="numeric"
+                      value={wholesaleMinQty}
+                      onChange={(e) => setWholesaleMinQty(e.target.value)}
+                      disabled={!(wholesaleNum > 0)}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <p className="text-xs text-zinc-500 sm:col-span-2">
+                    Cómo se usa (mostrar o aplicar en el carrito) se elige en
+                    Inicio y tienda → Tienda → Precio por mayor.
+                  </p>
                 </div>
               </OptionalSection>
 
@@ -1232,7 +1274,7 @@ export default function ProductForm({
 
               <OptionalSection
                 title="Avanzado"
-                description="ID en la URL, ventas históricas y reseñas. Normalmente no hace falta tocarlo"
+                description="ID en la URL y ventas históricas. Normalmente no hace falta tocarlo"
                 filled={filledAdvanced}
               >
                 <div className="grid gap-5 sm:grid-cols-2">
@@ -1256,28 +1298,6 @@ export default function ProductForm({
                       min={0}
                       value={soldTotal}
                       onChange={(e) => setSoldTotal(e.target.value)}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Puntuación (0 a 5)" htmlFor="pf-rating">
-                    <input
-                      id="pf-rating"
-                      type="number"
-                      step="0.1"
-                      min={0}
-                      max={5}
-                      value={rating}
-                      onChange={(e) => setRating(e.target.value)}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Cantidad de reseñas" htmlFor="pf-reviews">
-                    <input
-                      id="pf-reviews"
-                      type="number"
-                      min={0}
-                      value={reviews}
-                      onChange={(e) => setReviews(e.target.value)}
                       className={inputClass}
                     />
                   </Field>
