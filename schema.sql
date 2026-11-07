@@ -98,8 +98,10 @@ CREATE TABLE IF NOT EXISTS `product_gallery_images` (
 CREATE TABLE IF NOT EXISTS `product_color_variants` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `product_id`  VARCHAR(30) NOT NULL,
-  `name`        VARCHAR(50) NOT NULL,
+  `name`        VARCHAR(80) NOT NULL COMMENT 'Nombre del modelo / estampado / color',
   `hex`         CHAR(7)     NOT NULL,
+  `sku`         VARCHAR(60)  DEFAULT NULL COMMENT 'Número de artículo del modelo',
+  `image_src`   VARCHAR(500) DEFAULT NULL COMMENT 'Foto del modelo (URL)',
   `sort_order`  TINYINT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `idx_colors_product` (`product_id`),

@@ -173,14 +173,8 @@ export type Product = {
   name: string;
   tagline: string | null;
   imageSrc: string;
-  category:
-    | "body"
-    | "remera"
-    | "pijama"
-    | "set"
-    | "pantalon"
-    | "buzo"
-    | "accesorio";
+  /** key de la categoría (ver CRM → Categorías) */
+  category: string;
   sizeGroup: "bebe" | "ninios";
   sizes: string[];
   stockBySize: Record<string, number>;
@@ -200,7 +194,8 @@ export type Product = {
   soldTotal: number;
   active: boolean;
   gallery: string[];
-  colorVariants: { name: string; hex: string }[];
+  /** Modelos / estampados / colores (sku y foto opcionales) */
+  colorVariants: { name: string; hex: string; sku?: string; imageSrc?: string }[];
   features: string[];
   relatedIds: string[];
   createdAt: string | null;

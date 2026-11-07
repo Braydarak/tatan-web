@@ -18,6 +18,19 @@ require __DIR__ . '/config.php';
  * (migrations/2026-11-07-mayorista-y-combinaciones.sql). Mientras no exista
  * la columna, la API funciona igual que antes y simplemente no la usa.
  */
+/** ¿Ya se corrió la migración de modelos (sku/foto por variante)? */
+function has_variant_columns(): bool {
+    static $has = null;
+    if ($has === null) {
+        try {
+            $has = (bool)pdo()->query("SHOW COLUMNS FROM product_color_variants LIKE 'sku'")->fetch();
+        } catch (Throwable $e) {
+            $has = false;
+        }
+    }
+    return $has;
+}
+
 function has_wholesale_columns(): bool {
     static $has = null;
     if ($has === null) {
@@ -90,11 +103,15 @@ function fetch_products(string $whereSql, array $params = []): array {
     }
 
     // colores
-    $co = $pdo->prepare("SELECT product_id, name, hex, sort_order FROM product_color_variants WHERE product_id IN ($in) ORDER BY sort_order, id");
+    $variantCols = has_variant_columns() ? ", sku, image_src" : "";
+    $co = $pdo->prepare("SELECT product_id, name, hex, sort_order{$variantCols} FROM product_color_variants WHERE product_id IN ($in) ORDER BY sort_order, id");
     $co->execute($ids);
     $colorsBy = [];
     foreach ($co->fetchAll() as $r) {
-        $colorsBy[$r['product_id']][] = ['name' => $r['name'], 'hex' => $r['hex']];
+        $v = ['name' => $r['name'], 'hex' => $r['hex']];
+        if (!empty($r['sku']))       $v['sku'] = $r['sku'];
+        if (!empty($r['image_src'])) $v['imageSrc'] = $r['image_src'];
+        $colorsBy[$r['product_id']][] = $v;
     }
 
     // features
@@ -239,7 +256,7 @@ function validate_product_body(array $body, ?string $exceptId = null): array {
 
     $slug = str_or_null($body['slug'] ?? null, 150);
     if ($slug !== null && slug_taken($slug, $exceptId)) {
-        send_json(['ok' => false, 'error' => 'DUPLICATE_SLUG', 'message' => "El slug \"{$slug}\" ya está en uso"], 409);
+        send_json(['ok' => false, 'error' => 'DUPLICATE_SLUG', 'message' => "El número de artículo \"{$slug}\" ya lo usa otro producto"], 409);
     }
 
     $optPrice = fn(string $k): ?float =>
@@ -306,16 +323,29 @@ function insert_child_rows(string $id, array $body): void {
     }
 
     // color variants
+    // modelos / colores (con número de artículo y foto si la migración ya corrió)
     $colors = array_values((array)($body['colorVariants'] ?? []));
     if ($colors) {
-        $stmt = $pdo->prepare("INSERT INTO product_color_variants (product_id, name, hex, sort_order) VALUES (?,?,?,?)");
+        $withExtra = has_variant_columns();
+        $stmt = $withExtra
+            ? $pdo->prepare("INSERT INTO product_color_variants (product_id, name, hex, sku, image_src, sort_order) VALUES (?,?,?,?,?,?)")
+            : $pdo->prepare("INSERT INTO product_color_variants (product_id, name, hex, sort_order) VALUES (?,?,?,?)");
         foreach ($colors as $i => $c) {
-            $stmt->execute([
+            $c = is_array($c) ? $c : [];
+            $row = [
                 $id,
-                is_array($c) ? (str_or_null($c['name'] ?? null, 50) ?? 'Color') : 'Color',
-                valid_hex(is_array($c) ? ($c['hex'] ?? null) : null, '#ffffff'),
-                min(255, $i),
-            ]);
+                str_or_null($c['name'] ?? null, $withExtra ? 80 : 50) ?? 'Modelo',
+                valid_hex($c['hex'] ?? null, '#ffffff'),
+            ];
+            if ($withExtra) {
+                $img = isset($c['imageSrc']) ? trim((string)$c['imageSrc']) : '';
+                // Igual que las fotos del producto: URL, no base64
+                if ($img !== '' && (str_starts_with($img, 'data:') || mb_strlen($img) > 500)) $img = '';
+                $row[] = str_or_null($c['sku'] ?? null, 60);
+                $row[] = $img !== '' ? $img : null;
+            }
+            $row[] = min(255, $i);
+            $stmt->execute($row);
         }
     }
 

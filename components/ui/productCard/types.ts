@@ -32,4 +32,6 @@ export interface ProductCardProps {
   images?: string[];
   /** Precio por mayor (si no viene, se toma de `buy`) */
   wholesale?: Wholesale;
+  /** Número de artículo del producto (para el carrito) */
+  sku?: string;
 }

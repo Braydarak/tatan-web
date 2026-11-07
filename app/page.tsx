@@ -8,7 +8,8 @@ import {
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import type { Product as ApiProduct } from "@/lib/tatan-api";
 import type { HomeBenefitIconKey } from "@/components/sections/HomeHeroEditor";
-import { fetchHomeContentSSR } from "@/lib/home-content";
+import { fetchHomeContentSSR, mergeHomeCategories } from "@/lib/home-content";
+import { fetchCategoriesSSR } from "@/lib/categories";
 import { offersInfo } from "@/lib/card-props";
 import RevealOnScroll from "@/components/home/RevealOnScroll";
 import HeroSlideshow from "@/components/home/HeroSlideshow";
@@ -264,10 +265,17 @@ export default async function Home() {
   const reviewIcons = [Heart, Star, Flower2, Plane];
   const reviewColors = ["#F4B8C8", "#F7E4A3", "#8DBFA3", "#A8C8E0"];
   const { products, byCategory, apiById } = await loadHomeProducts();
-  const hero = await fetchHomeContentSSR();
+  const [hero, dbCategories] = await Promise.all([
+    fetchHomeContentSSR(),
+    fetchCategoriesSSR(),
+  ]);
   const sec = hero.sections!;
   const quickAdd = hero.store?.quickAdd !== false;
-  const visibleCategories = sec.categories.items.filter((c) => c.show);
+  // Tarjetas prendidas en el CRM, de categorías que existen y no están ocultas
+  const visibleCategories = mergeHomeCategories(
+    sec.categories.items,
+    dbCategories,
+  ).filter((c) => c.show && !c.hidden);
 
   // Promoción elegida en el CRM: solo si el producto existe, tiene stock y
   // la fecha de fin (si hay) no pasó. Si no, se ve la portada normal.
@@ -584,7 +592,8 @@ export default async function Home() {
           >
             {visibleCategories.map(({ name, key, imageSrc }, i) => {
               const { Icon, bg, color } =
-                CATEGORY_STYLE[key] ?? CATEGORY_STYLE.body;
+                CATEGORY_STYLE[key] ??
+                Object.values(CATEGORY_STYLE)[i % Object.keys(CATEGORY_STYLE).length];
               const count = byCategory[key] ?? 0;
               return (
                 <Link

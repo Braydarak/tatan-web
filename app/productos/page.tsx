@@ -3,6 +3,7 @@ import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import SortSelect from "@/components/ui/SortSelect";
 import { fetchHomeContentSSR } from "@/lib/home-content";
+import { fetchCategoriesSSR, type Category } from "@/lib/categories";
 import {
   Sparkles,
   Gift,
@@ -13,6 +14,7 @@ import {
   Baby,
   Shirt,
   Moon,
+  Tag,
 } from "lucide-react";
 import type { Product as ApiProduct } from "@/lib/tatan-api";
 
@@ -83,15 +85,8 @@ async function getAllProductsForPage(): Promise<Product[]> {
   return fromApi.map(mapApiToListProduct);
 }
 
-type CategoryKey =
-  | "todos"
-  | "body"
-  | "remera"
-  | "pijama"
-  | "set"
-  | "pantalon"
-  | "buzo"
-  | "accesorio";
+/** key de una categoría (vienen de la base) o "todos" */
+type CategoryKey = string;
 
 type SizeGroup = "bebe" | "ninios" | "todos";
 type SortKey = "recomendado" | "menor" | "mayor" | "novedades";
@@ -100,7 +95,7 @@ type PriceRange = "todos" | "hasta10k" | "10a20k" | "20a30k" | "mas30k";
 type Product = {
   id: string;
   name: string;
-  category: Exclude<CategoryKey, "todos">;
+  category: string;
   imageSrc: string;
   price: number;
   originalPrice?: number;
@@ -115,20 +110,17 @@ type Product = {
   images: string[];
 };
 
-const CATEGORY_FILTERS: {
-  key: CategoryKey;
-  label: string;
-  Icon: "layout-grid" | "baby" | "shirt" | "moon" | "gift" | "sparkles";
-}[] = [
-  { key: "todos", label: "Todos", Icon: "layout-grid" },
-  { key: "body", label: "Bodys", Icon: "baby" },
-  { key: "remera", label: "Remeras", Icon: "shirt" },
-  { key: "pijama", label: "Pijamas", Icon: "moon" },
-  { key: "set", label: "Sets", Icon: "gift" },
-  { key: "pantalon", label: "Pantalones", Icon: "shirt" },
-  { key: "buzo", label: "Buzos", Icon: "moon" },
-  { key: "accesorio", label: "Accesorios", Icon: "sparkles" },
-];
+type CategoryFilter = { key: CategoryKey; label: string };
+
+/** Chips de categorías: "Todos" + las categorías visibles de la base. */
+function categoryFilters(categories: Category[]): CategoryFilter[] {
+  return [
+    { key: "todos", label: "Todos" },
+    ...categories
+      .filter((c) => c.active)
+      .map((c) => ({ key: c.key, label: c.label })),
+  ];
+}
 
 const SIZE_FILTERS: { key: SizeGroup; label: string; hint: string }[] = [
   { key: "todos", label: "Todos los talles", hint: "" },
@@ -171,12 +163,13 @@ function discountPct(p: Product) {
 
 function applyFilters(params: {
   searchParams: Awaited<{ [k: string]: string | string[] | undefined }>;
+  filters: CategoryFilter[];
 }) {
   const sp = params.searchParams ?? {};
-  const cat =
-    typeof sp.c === "string" && CATEGORY_FILTERS.some((x) => x.key === sp.c)
-      ? (sp.c as CategoryKey)
-      : ("todos" as const);
+  const cat: CategoryKey =
+    typeof sp.c === "string" && params.filters.some((x) => x.key === sp.c)
+      ? sp.c
+      : "todos";
   const size =
     typeof sp.t === "string" && SIZE_FILTERS.some((x) => x.key === sp.t)
       ? (sp.t as SizeGroup)
@@ -246,7 +239,8 @@ function filterAndSort(all: Product[]) {
   };
 }
 
-const CATEGORY_ICON: Record<CategoryKey, typeof LayoutGrid> = {
+// Ícono de cada categoría conocida; las nuevas usan una etiqueta
+const CATEGORY_ICON: Record<string, typeof LayoutGrid> = {
   todos: LayoutGrid,
   body: Baby,
   remera: Shirt,
@@ -307,13 +301,18 @@ export default async function ProductosPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const resolvedSp = await searchParams;
-  const [allProducts, content] = await Promise.all([
+  const [allProducts, content, categories] = await Promise.all([
     getAllProductsForPage(),
     fetchHomeContentSSR(),
+    fetchCategoriesSSR(),
   ]);
+  const CATEGORY_FILTERS = categoryFilters(categories);
   const page = content.productsPage!;
   const quickAdd = content.store?.quickAdd !== false;
-  const state = applyFilters({ searchParams: resolvedSp });
+  const state = applyFilters({
+    searchParams: resolvedSp,
+    filters: CATEGORY_FILTERS,
+  });
   const items = filterAndSort(allProducts)(state);
   const hasOffers = allProducts.some(
     (p) => p.originalPrice && p.originalPrice > p.price,
@@ -454,7 +453,7 @@ export default async function ProductosPage({
               aria-label="Categorías"
             >
               {categoryChips.map((c) => {
-                const Icon = CATEGORY_ICON[c.key];
+                const Icon = CATEGORY_ICON[c.key] ?? Tag;
                 const active = state.cat === c.key;
                 return (
                   <Chip

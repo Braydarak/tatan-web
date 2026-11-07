@@ -16,6 +16,8 @@ type Props = {
   imageSrc: string;
   unitPrice: number;
   options: BuyOptions;
+  /** Número de artículo del producto */
+  sku?: string;
 };
 
 /** Talle, color, cantidad y botones de compra de la página de producto. */
@@ -25,12 +27,15 @@ export default function ProductBuyBox({
   imageSrc,
   unitPrice,
   options,
+  sku,
 }: Props) {
   const router = useRouter();
   const sel = useBuySelection(
-    { productId, name, imageSrc, unitPrice },
+    { productId, name, imageSrc, unitPrice, sku },
     options,
   );
+  const isModels = options.colors.some((c) => c.imageSrc || c.sku);
+  const shownSku = sel.color?.sku || sku;
   const [qty, setQty] = useState(1);
   const max = sel.size ? sel.remaining(sel.size) : 0;
   const needSize = sel.status === "need-size";
@@ -107,13 +112,28 @@ export default function ProductBuyBox({
 
       {options.colors.length > 0 && (
         <div>
-          <span className="text-sm font-bold text-zinc-800 block mb-2.5">
-            Color
-          </span>
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-sm font-bold text-zinc-800">
+              {isModels ? "Modelo" : "Color"}
+              {sel.status === "need-model" ? (
+                <span className="ml-2 text-xs font-bold text-rose-500" role="alert">
+                  Elegí un {isModels ? "modelo" : "color"}
+                </span>
+              ) : sel.color ? (
+                <span className="ml-1.5 font-semibold text-zinc-500">
+                  · {sel.color.name}
+                </span>
+              ) : null}
+            </span>
+          </div>
           <div
-            className="flex items-center gap-3 flex-wrap"
+            className={cx(
+              "grid gap-2",
+              isModels ? "grid-cols-2" : "grid-cols-3 sm:grid-cols-4",
+              sel.status === "need-model" && "quick-shake",
+            )}
             role="radiogroup"
-            aria-label="Color"
+            aria-label={isModels ? "Modelo" : "Color"}
           >
             {options.colors.map((c, i) => {
               const active = sel.colorIdx === i;
@@ -123,26 +143,55 @@ export default function ProductBuyBox({
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  onClick={() => sel.setColorIdx(i)}
+                  onClick={() => {
+                    sel.setColorIdx(i);
+                    // La galería de la página salta a la foto del modelo
+                    if (c.imageSrc) {
+                      window.dispatchEvent(
+                        new CustomEvent("tatan:show-image", { detail: c.imageSrc }),
+                      );
+                    }
+                  }}
                   className={cx(
-                    "flex items-center gap-2 rounded-2xl px-3 py-2 border transition-all",
+                    "flex items-center gap-2 rounded-xl border px-2.5 py-2 text-left text-sm font-bold transition-all",
                     active
-                      ? "border-tatan-primario4 bg-white shadow-sm"
-                      : "border-transparent bg-white/50 hover:bg-white",
+                      ? "bg-tatan-primario4 border-tatan-primario4 text-zinc-800 shadow-md"
+                      : cx(
+                          "bg-white/70 border-tatan-secundario1/40 text-zinc-700 hover:border-tatan-primario4/60",
+                          sel.status === "need-model" && "border-rose-300",
+                        ),
                   )}
                 >
                   <span
-                    className="w-6 h-6 rounded-full border border-zinc-200 shadow-inner"
-                    style={{ backgroundColor: c.hex }}
+                    className={cx(
+                      "shrink-0 border border-white shadow-inner bg-cover bg-center",
+                      c.imageSrc ? "h-10 w-10 rounded-lg" : "h-6 w-6 rounded-full",
+                    )}
+                    style={{
+                      backgroundColor: c.hex,
+                      backgroundImage: c.imageSrc ? `url("${c.imageSrc}")` : undefined,
+                    }}
+                    aria-hidden="true"
                   />
-                  <span className="text-xs font-semibold text-zinc-700">
-                    {c.name}
+                  <span className="min-w-0 leading-tight">
+                    <span className="block truncate">{c.name}</span>
+                    {c.sku && (
+                      <span className="block truncate font-mono text-[10px] font-semibold opacity-70">
+                        Art. {c.sku}
+                      </span>
+                    )}
                   </span>
                 </button>
               );
             })}
           </div>
         </div>
+      )}
+
+      {shownSku && (
+        <p className="-mt-2 text-xs font-semibold text-zinc-500">
+          Art. <span className="font-mono text-zinc-700">{shownSku}</span>
+        </p>
       )}
 
       {!sel.soldOut && (

@@ -3,6 +3,7 @@ import type {
   HomeHeroData,
   HomeSections,
 } from "@/components/sections/HomeHeroEditor";
+import type { Category } from "@/lib/categories";
 import {
   HOME_HERO_DEFAULT,
   HOME_PROMO_DEFAULT,
@@ -35,13 +36,40 @@ function mergeCategories(saved: unknown): HomeCategoryItem[] {
   if (!Array.isArray(saved)) return def;
   const list = saved
     .filter(isObj)
+    .filter((it) => typeof it.key === "string" && it.key)
     .map((it) => {
       const d = def.find((x) => x.key === it.key);
-      return d ? ({ ...d, ...it } as HomeCategoryItem) : null;
-    })
-    .filter((x): x is HomeCategoryItem => x !== null);
+      return {
+        key: String(it.key),
+        name: typeof it.name === "string" ? it.name : (d?.name ?? String(it.key)),
+        show: typeof it.show === "boolean" ? it.show : (d?.show ?? false),
+        imageSrc: typeof it.imageSrc === "string" ? it.imageSrc : "",
+      };
+    });
   for (const d of def) if (!list.some((x) => x.key === d.key)) list.push(d);
   return list;
+}
+
+/**
+ * Tarjetas de categorías del inicio cruzadas con las categorías reales:
+ *  - saca las que ya no existen en la base,
+ *  - suma las nuevas (apagadas, con su nombre) para poder prenderlas,
+ *  - si una está oculta en CRM → Categorías, no se muestra en el inicio.
+ */
+export function mergeHomeCategories(
+  items: HomeCategoryItem[],
+  categories: Category[],
+): (HomeCategoryItem & { hidden: boolean })[] {
+  const byKey = new Map(categories.map((c) => [c.key, c]));
+  const out = items
+    .filter((it) => byKey.has(it.key))
+    .map((it) => ({ ...it, hidden: !byKey.get(it.key)!.active }));
+  for (const c of categories) {
+    if (!out.some((x) => x.key === c.key)) {
+      out.push({ key: c.key, name: c.label, show: false, imageSrc: "", hidden: !c.active });
+    }
+  }
+  return out;
 }
 
 function mergeHeader(saved: unknown): typeof HEADER_DEFAULT {

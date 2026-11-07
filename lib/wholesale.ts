@@ -3,13 +3,27 @@ import type { StoreSettings } from "@/components/sections/HomeHeroEditor";
 export type WholesaleMode = StoreSettings["wholesaleMode"];
 export type Wholesale = { price: number; minQty: number };
 
+/**
+ * Recargo que se suma al precio por mayor cargado en el CRM antes de
+ * mostrarlo y cobrarlo en la web. En la base queda el precio cargado (así
+ * editar el producto no lo vuelve a sumar). No se menciona en la tienda.
+ */
+export const WHOLESALE_MARKUP = 0.1;
+
+/** Precio por mayor tal como se ve y se cobra en la web (con el recargo). */
+export function wholesaleWebPrice(loaded: number): number {
+  return Math.round(loaded * (1 + WHOLESALE_MARKUP));
+}
+
 /** Precio por mayor del producto, si tiene uno válido (menor al normal). */
 export function wholesaleOf(
   p: { price?: number | null; wholesalePrice?: number | null; wholesaleMinQty?: number | null },
 ): Wholesale | undefined {
-  const w = Number(p.wholesalePrice) || 0;
+  const loaded = Number(p.wholesalePrice) || 0;
+  if (!(loaded > 0)) return undefined;
+  const w = wholesaleWebPrice(loaded);
   const price = Number(p.price) || 0;
-  if (!(w > 0) || (price > 0 && w >= price)) return undefined;
+  if (price > 0 && w >= price) return undefined;
   return { price: w, minQty: Math.max(2, Number(p.wholesaleMinQty) || 2) };
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useCategories } from "@/lib/use-categories";
 import SuccessModal from "@/components/ui/SuccessModal";
 import { LOW_STOCK } from "@/components/crm/format";
 import Image from "next/image";
@@ -28,14 +29,7 @@ function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
 }
 
-type CategoryKey =
-  | "body"
-  | "remera"
-  | "pijama"
-  | "set"
-  | "pantalon"
-  | "buzo"
-  | "accesorio";
+type CategoryKey = string;
 
 type SizeGroup = "bebe" | "ninios";
 
@@ -68,17 +62,7 @@ function discountPct(p: ProductFormData) {
     : 0;
 }
 
-const CATEGORY_LABEL: Record<CategoryKey, string> = {
-  body: "Body",
-  remera: "Remera",
-  pijama: "Pijama",
-  set: "Set",
-  pantalon: "Pantalón",
-  buzo: "Buzo",
-  accesorio: "Accesorio",
-};
 
-const CATEGORY_KEYS = Object.keys(CATEGORY_LABEL) as CategoryKey[];
 
 function StockBadge({ stock }: { stock: number }) {
   const tone =
@@ -199,6 +183,7 @@ function KeyValue({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 function ProductDetailRow({ product }: { product: ProductCrm }) {
+  const { label: catLabel } = useCategories();
   const totalStock = sum(Object.values(product.stockBySize));
   const pct = discountPct(product);
 
@@ -237,7 +222,7 @@ function ProductDetailRow({ product }: { product: ProductCrm }) {
             </div>
             <div className="flex gap-2">
               <Pill className="bg-tatan-primario1/60 border-tatan-secundario1/60 text-zinc-800">
-                {CATEGORY_LABEL[product.category]}
+                {catLabel(product.category)}
               </Pill>
               <Pill
                 className={cx(
@@ -256,7 +241,7 @@ function ProductDetailRow({ product }: { product: ProductCrm }) {
           <div className="grid gap-4 lg:grid-cols-3">
             <DetailSection title="Identidad">
               <KeyValue k="Tagline" v={product.tagline || "—"} />
-              <KeyValue k="Categoría" v={CATEGORY_LABEL[product.category]} />
+              <KeyValue k="Categoría" v={catLabel(product.category)} />
               <KeyValue
                 k="Grupo de talles"
                 v={SIZE_GROUP_LABEL[product.sizeGroup]}
@@ -535,6 +520,7 @@ export default function ProductsCrm({
   products: initialPropProducts,
   className,
 }: ProductsCrmProps) {
+  const { categories, label: catLabel } = useCategories();
   const [remoteProducts, setRemoteProducts] = React.useState<ProductCrm[]>([]);
   const [loadStatus, setLoadStatus] = React.useState<
     "idle" | "loading" | "ok" | "error"
@@ -796,7 +782,7 @@ export default function ProductsCrm({
         </div>
 
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {(["all", ...CATEGORY_KEYS] as const).map((key) => {
+          {["all", ...categories.map((c) => c.key)].map((key) => {
             const count =
               key === "all"
                 ? products.length
@@ -816,7 +802,7 @@ export default function ProductsCrm({
                     : "border-black/10 bg-white text-zinc-600 hover:text-zinc-900",
                 )}
               >
-                {key === "all" ? "Todos" : CATEGORY_LABEL[key]}
+                {key === "all" ? "Todos" : catLabel(key)}
                 <span className="tabular-nums text-zinc-400">{count}</span>
               </button>
             );
@@ -881,7 +867,7 @@ export default function ProductsCrm({
                           {p.name}
                         </p>
                         <p className="mt-0.5 text-xs text-zinc-500">
-                          {CATEGORY_LABEL[p.category]} · {p.sizes.length}{" "}
+                          {catLabel(p.category)} · {p.sizes.length}{" "}
                           {p.sizes.length === 1 ? "talle" : "talles"}
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -966,7 +952,7 @@ export default function ProductsCrm({
                           </td>
                           <td className="px-3 py-3">
                             <span className="inline-flex h-7 items-center rounded-full bg-tatan-primario1/50 px-2.5 text-xs font-semibold text-zinc-800">
-                              {CATEGORY_LABEL[p.category]}
+                              {catLabel(p.category)}
                             </span>
                           </td>
                           <td className="px-3 py-3">

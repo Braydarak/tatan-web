@@ -2,7 +2,8 @@ import type { Product } from "@/lib/tatan-api";
 import { wholesaleOf, type Wholesale } from "@/lib/wholesale";
 
 export type SizeOption = { label: string; stock: number };
-export type ColorOption = { name: string; hex: string };
+/** Modelo / estampado / color: con número de artículo y foto opcionales */
+export type ColorOption = { name: string; hex: string; sku?: string; imageSrc?: string };
 
 export type BuyOptions = {
   sizes: SizeOption[];
