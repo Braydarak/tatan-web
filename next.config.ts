@@ -4,8 +4,22 @@ import type { NextConfig } from "next";
 const API_ORIGIN = "https://tatankids.com.ar";
 
 const nextConfig: NextConfig = {
+  /**
+   * Optimización de imágenes de Next (Vercel): las fotos de Ferozo se bajan
+   * una sola vez, se achican al tamaño real en pantalla (según `sizes`), se
+   * convierten a AVIF/WebP y quedan cacheadas en la CDN de Vercel. Así el
+   * cliente no espera al servidor lento de Ferozo ni baja fotos de 1600 px
+   * para una tarjeta de 300 px.
+   */
   images: {
-    unoptimized: true,
+    formats: ["image/avif", "image/webp"],
+    qualities: [75, 85],
+    // Los archivos subidos tienen nombre único (fecha + hash): nunca cambian.
+    minimumCacheTTL: 2678400, // 31 días
+    remotePatterns: [
+      { protocol: "https", hostname: "tatankids.com.ar", pathname: "/api/uploads/**" },
+      { protocol: "https", hostname: "www.tatankids.com.ar", pathname: "/api/uploads/**" },
+    ],
   },
   /**
    * Proxy same-origin hacia la API PHP.

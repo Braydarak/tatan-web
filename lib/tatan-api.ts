@@ -320,7 +320,7 @@ export async function apiProductSave(
  * Sube una imagen comprimida. Manda la versión de respaldo (JPEG/PNG) y, si
  * el navegador pudo generarla, también la WebP: el servidor guarda las dos con
  * el mismo nombre (…-w.jpg y …-w.webp). Devuelve la URL de la de respaldo; la
- * tienda usa la WebP sola cuando existe (ver lib/webp.ts).
+ * tienda la sirve optimizada (AVIF/WebP achicada) vía next/image en Vercel.
  */
 export async function apiUploadImage(file: File): Promise<string> {
   const { compressImage } = await import("@/lib/image-compress");

@@ -60,10 +60,34 @@ if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
     send_json(['ok' => false, 'error' => 'UPLOAD_DIR_FAILED', 'message' => 'No se pudo crear la carpeta de subidas'], 500);
 }
 
-// Bloquea la ejecución de scripts dentro de la carpeta de subidas.
+// .htaccess de la carpeta de subidas:
+//  - bloquea la ejecución de scripts,
+//  - cachea las fotos 1 año: cada archivo tiene nombre único (fecha + hash) y
+//    nunca se pisa, así que el navegador/CDN no necesita volver a pedirlas.
+// Se reescribe si es de la versión vieja (sin caché).
 $htaccess = $dir . '/.htaccess';
-if (!is_file($htaccess)) {
-    @file_put_contents($htaccess, "Options -Indexes\n<FilesMatch \"\\.(php|phtml|phar|pl|py|cgi|sh)$\">\n  Require all denied\n</FilesMatch>\n");
+$htaccessBody = <<<'HT'
+Options -Indexes
+<FilesMatch "\.(php|phtml|phar|pl|py|cgi|sh)$">
+  Require all denied
+</FilesMatch>
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/gif "access plus 1 year"
+</IfModule>
+<IfModule mod_headers.c>
+  <FilesMatch "\.(jpe?g|png|webp|gif)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+HT;
+$current = is_file($htaccess) ? (string) @file_get_contents($htaccess) : '';
+if (!str_contains($current, 'max-age=31536000')) {
+    @file_put_contents($htaccess, $htaccessBody);
 }
 
 $ext = $allowed[$type];
