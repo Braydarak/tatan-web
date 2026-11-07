@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useCategories } from "@/lib/use-categories";
+import { wholesaleWebPrice } from "@/lib/wholesale";
 import Image from "next/image";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -928,8 +929,10 @@ export default function ProductForm({
                     label="Precio por mayor (por unidad)"
                     htmlFor="pf-wholesale"
                     hint={
-                      wholesaleNum > 0 && wholesaleNum >= priceNum
-                        ? "Tiene que ser menor que el precio normal"
+                      wholesaleNum > 0
+                        ? wholesaleWebPrice(wholesaleNum) >= priceNum
+                          ? `En la web quedaría ${formatArs(wholesaleWebPrice(wholesaleNum))} (con el 10%): tiene que ser menor que el precio normal`
+                          : `En la web se ve ${formatArs(wholesaleWebPrice(wholesaleNum))} c/u (le sumamos el 10%)`
                         : "Dejalo vacío si no vendés por mayor"
                     }
                   >
