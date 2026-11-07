@@ -9,9 +9,11 @@ type Product = {
   name: string;
   imageSrc: string;
   unitPrice: number;
+  /** Número de artículo del producto (si el modelo no tiene uno propio) */
+  sku?: string;
 };
 
-export type AddStatus = "idle" | "added" | "need-size" | "no-stock";
+export type AddStatus = "idle" | "added" | "need-size" | "need-model" | "no-stock";
 
 /**
  * Estado compartido para elegir talle/color y agregar al carrito
@@ -24,7 +26,10 @@ export function useBuySelection(product: Product, opts: BuyOptions) {
   const [size, setSize] = useState<string | null>(
     inStock.length === 1 ? inStock[0].label : null,
   );
-  const [colorIdx, setColorIdx] = useState(0);
+  // Con un solo modelo/color ya viene elegido; con varios, hay que elegir
+  const [colorIdx, setColorIdxState] = useState<number | null>(
+    opts.colors.length > 1 ? null : 0,
+  );
   const [status, setStatus] = useState<AddStatus>("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -47,8 +52,14 @@ export function useBuySelection(product: Product, opts: BuyOptions) {
   const remaining = (label: string) =>
     Math.max(0, sizeStock(label) - inCartForSize(items, product.productId, label));
 
-  const color = opts.colors[colorIdx];
+  const color = colorIdx === null ? undefined : opts.colors[colorIdx];
+  const mustChooseModel = opts.colors.length > 1;
   const soldOut = inStock.length === 0;
+
+  function setColorIdx(i: number) {
+    setColorIdxState(i);
+    if (status === "need-model") setStatus("idle");
+  }
 
   function chooseSize(label: string) {
     if (sizeStock(label) <= 0) return;
@@ -58,12 +69,19 @@ export function useBuySelection(product: Product, opts: BuyOptions) {
 
   function add(quantity = 1): boolean {
     if (soldOut) return false;
+    if (mustChooseModel && !color) {
+      flash("need-model", 2200);
+      return false;
+    }
     if (!size) {
       flash("need-size", 2200);
       return false;
     }
     const added = addToCart({
       ...product,
+      // Foto y número de artículo del modelo elegido, si tiene
+      imageSrc: color?.imageSrc || product.imageSrc,
+      sku: color?.sku || product.sku || undefined,
       wholesalePrice: opts.wholesale?.price,
       wholesaleMinQty: opts.wholesale?.minQty,
       size,

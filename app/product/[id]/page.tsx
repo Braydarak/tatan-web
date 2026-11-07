@@ -40,6 +40,8 @@ type FullProduct = {
   category: string;
   categoryKey: string;
   tagline: string;
+  /** Número de artículo del producto */
+  sku?: string;
   rating: number;
   reviews: number;
   description: string;
@@ -127,6 +129,7 @@ function mapApiToFullProduct(api: ApiProduct): FullProduct {
     category: CATEGORY_LABEL[cat] ?? capitalizeLabel(cat),
     categoryKey: cat,
     tagline: (api.tagline ?? "").trim(),
+    sku: (api.slug ?? "").trim() || undefined,
     rating: Number(api.rating) || 0,
     reviews: Number(api.reviews) || 0,
     description,
@@ -207,7 +210,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <div className="lg:sticky lg:top-[calc(var(--header-h,101px)+1.5rem)]">
               <ProductGallery
                 images={Array.from(
-                  new Set([product.imageSrc, ...product.images].filter(Boolean)),
+                  new Set(
+                    [
+                      product.imageSrc,
+                      ...product.images,
+                      // fotos de los modelos, al final de la galería
+                      ...product.buy.colors.map((c) => c.imageSrc ?? ""),
+                    ].filter(Boolean),
+                  ),
                 )}
                 name={product.name}
                 colorHex={product.colorHex}
@@ -301,6 +311,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                   imageSrc={product.imageSrc}
                   unitPrice={product.price}
                   options={product.buy}
+                  sku={product.sku}
                 />
 
                 {/* Por qué comprar tranquilo */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ProductPhoto from "@/components/ui/ProductPhoto";
 import { isPlaceholderImage } from "@/lib/is-placeholder";
 
@@ -23,6 +23,16 @@ export default function ProductGallery({
 }) {
   const [active, setActive] = useState(0);
   const current = images[active] ?? images[0];
+  // Al elegir un modelo con foto, la galería salta a esa foto
+  useEffect(() => {
+    const onShow = (e: Event) => {
+      const src = (e as CustomEvent<string>).detail;
+      const i = images.indexOf(src);
+      if (i >= 0) setActive(i);
+    };
+    window.addEventListener("tatan:show-image", onShow);
+    return () => window.removeEventListener("tatan:show-image", onShow);
+  }, [images]);
 
   return (
     <div className="space-y-3">

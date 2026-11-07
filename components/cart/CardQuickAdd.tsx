@@ -14,6 +14,10 @@ type Props = {
   imageSrc: string;
   unitPrice: number;
   options: BuyOptions;
+  /** Número de artículo del producto */
+  sku?: string;
+  /** Avisa la foto del modelo elegido (para mostrarla en la card) */
+  onModelChange?: (imageSrc?: string) => void;
 };
 
 /** Talle + color + "Agregar" dentro de la card del producto. */
@@ -23,11 +27,15 @@ export default function CardQuickAdd({
   imageSrc,
   unitPrice,
   options,
+  sku,
+  onModelChange,
 }: Props) {
   const sel = useBuySelection(
-    { productId, name, imageSrc, unitPrice },
+    { productId, name, imageSrc, unitPrice, sku },
     options,
   );
+  // "Modelo" si son estampados (tienen foto o número de artículo); si no, "Color"
+  const isModels = options.colors.some((c) => c.imageSrc || c.sku);
   const needSize = sel.status === "need-size";
   // Solo se muestran los talles que hay (sin stock no aparecen)
   const sizes = options.sizes.filter((s) => s.stock > 0);
@@ -77,11 +85,19 @@ export default function CardQuickAdd({
       )}
 
       {options.colors.length > 0 && (
-        <div className="mt-2 flex items-center gap-2 min-w-0">
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+          {sel.status === "need-model" && (
+            <p className="basis-full text-[11px] font-bold text-rose-500" role="alert">
+              Elegí un {isModels ? "modelo" : "color"}
+            </p>
+          )}
           <div
-            className="flex shrink-0 items-center gap-1.5"
+            className={cx(
+              "flex shrink-0 items-center gap-1.5",
+              sel.status === "need-model" && "quick-shake",
+            )}
             role="radiogroup"
-            aria-label={`Color de ${name}`}
+            aria-label={`${isModels ? "Modelo" : "Color"} de ${name}`}
           >
             {options.colors.map((c, i) => {
               const active = sel.colorIdx === i;
@@ -93,14 +109,21 @@ export default function CardQuickAdd({
                   aria-checked={active}
                   aria-label={c.name}
                   title={c.name}
-                  onClick={() => sel.setColorIdx(i)}
+                  onClick={() => {
+                    sel.setColorIdx(i);
+                    onModelChange?.(c.imageSrc);
+                  }}
                   className={cx(
-                    "w-4 h-4 sm:w-[18px] sm:h-[18px] rounded-full border border-zinc-300/80 shadow-inner transition-all",
+                    "rounded-full border border-zinc-300/80 shadow-inner transition-all bg-cover bg-center",
+                    c.imageSrc ? "w-6 h-6 sm:w-7 sm:h-7" : "w-4 h-4 sm:w-[18px] sm:h-[18px]",
                     active
                       ? "ring-2 ring-tatan-primario4 ring-offset-1 ring-offset-white scale-110"
                       : "hover:scale-110",
                   )}
-                  style={{ backgroundColor: c.hex }}
+                  style={{
+                    backgroundColor: c.hex,
+                    backgroundImage: c.imageSrc ? `url("${c.imageSrc}")` : undefined,
+                  }}
                 />
               );
             })}

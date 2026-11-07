@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import Link from "next/link";
 import { ProductCardProps } from "./types";
 import CardQuickAdd from "@/components/cart/CardQuickAdd";
@@ -48,8 +50,11 @@ export default function ProductCard({
   soldOut: soldOutProp = false,
   images,
   wholesale,
+  sku,
 }: ProductCardProps) {
   const { wholesaleMode } = useStoreSettings();
+  // Foto del modelo elegido (si el modelo tiene foto propia)
+  const [modelImage, setModelImage] = useState<string | null>(null);
   // Foto principal + galería, sin repetidas
   const gallery = Array.from(
     new Set([imageSrc, ...(images ?? [])].filter(Boolean)),
@@ -79,7 +84,12 @@ export default function ProductCard({
         }}
       >
         <CardGallery
-          images={gallery}
+          key={modelImage ?? "base"}
+          images={
+            modelImage
+              ? [modelImage, ...gallery.filter((g) => g !== modelImage)]
+              : gallery
+          }
           title={title}
           href={productUrl}
           priority={priority}
@@ -165,6 +175,8 @@ export default function ProductCard({
             imageSrc={imageSrc}
             unitPrice={discountedPrice}
             options={buy}
+            sku={sku}
+            onModelChange={(img) => setModelImage(img || null)}
           />
         ) : (
           <>

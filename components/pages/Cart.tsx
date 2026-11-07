@@ -146,6 +146,11 @@ export default function Cart({
                             {item.colorName}
                           </span>
                         )}
+                        {item.sku && (
+                          <span className="inline-flex items-center rounded-full border border-tatan-secundario1/60 bg-white px-2.5 py-1 font-mono">
+                            Art. {item.sku}
+                          </span>
+                        )}
                       </div>
                       <div className="mt-2 text-sm font-semibold tabular-nums text-zinc-700">
                         {(() => {

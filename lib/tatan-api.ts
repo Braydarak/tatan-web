@@ -194,7 +194,8 @@ export type Product = {
   soldTotal: number;
   active: boolean;
   gallery: string[];
-  colorVariants: { name: string; hex: string }[];
+  /** Modelos / estampados / colores (sku y foto opcionales) */
+  colorVariants: { name: string; hex: string; sku?: string; imageSrc?: string }[];
   features: string[];
   relatedIds: string[];
   createdAt: string | null;

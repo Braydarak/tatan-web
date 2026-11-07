@@ -60,7 +60,8 @@ const SIZE_GROUP_NINIOS = [
 
 type SizeGroup = "bebe" | "ninios";
 
-type ColorVariant = { name: string; hex: string };
+/** Modelo / estampado / color del producto */
+type ColorVariant = { name: string; hex: string; sku?: string; imageSrc?: string };
 
 export type ProductFormData = {
   id?: string;
@@ -536,7 +537,6 @@ export default function ProductForm({
     (showPointsBadge ? 1 : 0) +
     (relatedIds.length ? 1 : 0);
   const filledAdvanced =
-    (slug.trim() ? 1 : 0) +
     (Number(soldTotal) > 0 ? 1 : 0);
 
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
@@ -559,7 +559,14 @@ export default function ProductForm({
       stockTotal,
       soldTotal: Number(soldTotal) || 0,
       colorHex,
-      colorVariants,
+      colorVariants: colorVariants
+        .map((v) => ({
+          name: v.name.trim(),
+          hex: v.hex,
+          ...(v.sku?.trim() ? { sku: v.sku.trim() } : {}),
+          ...(v.imageSrc ? { imageSrc: v.imageSrc } : {}),
+        }))
+        .filter((v) => v.name || v.sku || v.imageSrc),
       description,
       features: features.filter((f) => f.trim().length > 0),
       price: priceNum,
@@ -699,6 +706,21 @@ export default function ProductForm({
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ej: Body Osito Amor"
                     className={inputClass}
+                  />
+                </Field>
+
+                <Field
+                  label="Número de artículo"
+                  htmlFor="pf-slug"
+                  hint="Opcional. Si tiene modelos, cada uno puede tener el suyo (en Más fotos y modelos)"
+                  className="max-w-xs"
+                >
+                  <input
+                    id="pf-slug"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value)}
+                    placeholder="Ej: BC-1001"
+                    className={cx(inputClass, "font-mono")}
                   />
                 </Field>
 
@@ -971,8 +993,8 @@ export default function ProductForm({
               </OptionalSection>
 
               <OptionalSection
-                title="Más fotos y colores"
-                description="Fotos extra, color del producto y otras variantes de color"
+                title="Más fotos y modelos"
+                description="Fotos extra, color del producto y modelos/estampados con su número de artículo"
                 filled={filledPhotos}
               >
                 <div className="flex flex-col gap-6">
@@ -1052,72 +1074,128 @@ export default function ProductForm({
                     </div>
 
                     <div className="min-w-0">
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-sm font-semibold text-zinc-800">
-                          Otros colores
-                        </p>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-800">
+                            Modelos / estampados
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            El cliente elige uno al comprar. Cada uno puede tener
+                            su foto y su número de artículo.
+                          </p>
+                        </div>
                         <button
                           type="button"
                           onClick={() =>
                             setColorVariants((prev) => [
                               ...prev,
-                              { name: "", hex: "#F5E6D3" },
+                              { name: "", hex: "#F5E6D3", sku: "", imageSrc: "" },
                             ])
                           }
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
                         >
-                          <Plus className="h-3.5 w-3.5" /> Agregar color
+                          <Plus className="h-3.5 w-3.5" /> Agregar modelo
                         </button>
                       </div>
                       {colorVariants.length ? (
-                        <div className="flex flex-col gap-2">
-                          {colorVariants.map((cv, i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <input
-                                type="color"
-                                value={cv.hex}
-                                onChange={(e) =>
-                                  setColorVariants((prev) =>
-                                    prev.map((v, idx) =>
-                                      idx === i ? { ...v, hex: e.target.value } : v,
-                                    ),
-                                  )
-                                }
-                                aria-label={`Color ${i + 1}`}
-                                className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-black/10 bg-white p-1"
-                              />
-                              <input
-                                type="text"
-                                value={cv.name}
-                                onChange={(e) =>
-                                  setColorVariants((prev) =>
-                                    prev.map((v, idx) =>
-                                      idx === i ? { ...v, name: e.target.value } : v,
-                                    ),
-                                  )
-                                }
-                                placeholder="Nombre, ej: Rosa"
-                                aria-label={`Nombre del color ${i + 1}`}
-                                className={inputClass}
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setColorVariants((prev) =>
-                                    prev.filter((_, idx) => idx !== i),
-                                  )
-                                }
-                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-800"
-                                aria-label={`Quitar color ${i + 1}`}
+                        <div className="flex flex-col gap-2.5">
+                          {colorVariants.map((cv, i) => {
+                            const setV = (patch: Partial<ColorVariant>) =>
+                              setColorVariants((prev) =>
+                                prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v)),
+                              );
+                            return (
+                              <div
+                                key={i}
+                                className="flex gap-2.5 rounded-xl border border-black/10 bg-white p-2.5"
                               >
-                                <X className="h-4 w-4" />
-                              </button>
-                            </div>
-                          ))}
+                                <label
+                                  className="relative flex h-[88px] w-[72px] shrink-0 cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-dashed border-black/15 bg-zinc-50 text-zinc-400 hover:border-tatan-primario4"
+                                  title={cv.imageSrc ? "Cambiar foto del modelo" : "Subir foto del modelo"}
+                                >
+                                  {cv.imageSrc ? (
+                                    <Image
+                                      src={cv.imageSrc}
+                                      alt={`Foto de ${cv.name || `modelo ${i + 1}`}`}
+                                      fill
+                                      sizes="72px"
+                                      className="object-cover"
+                                    />
+                                  ) : (
+                                    <>
+                                      <Upload className="h-4 w-4" />
+                                      <span className="text-[10px] font-semibold">Foto</span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="sr-only"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      e.target.value = "";
+                                      if (!f) return;
+                                      void uploadFiles([f]).then((urls) => {
+                                        if (urls[0]) setV({ imageSrc: urls[0] });
+                                      });
+                                    }}
+                                  />
+                                </label>
+                                <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
+                                  <div className="flex items-center gap-2 sm:col-span-2">
+                                    <input
+                                      type="color"
+                                      value={cv.hex}
+                                      onChange={(e) => setV({ hex: e.target.value })}
+                                      aria-label={`Color del modelo ${i + 1}`}
+                                      className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-black/10 bg-white p-1"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={cv.name}
+                                      onChange={(e) => setV({ name: e.target.value })}
+                                      placeholder="Nombre, ej: Ositos, Rosa, Estrellas"
+                                      aria-label={`Nombre del modelo ${i + 1}`}
+                                      className={inputClass}
+                                    />
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={cv.sku ?? ""}
+                                    onChange={(e) => setV({ sku: e.target.value })}
+                                    placeholder="Nº de artículo"
+                                    aria-label={`Número de artículo del modelo ${i + 1}`}
+                                    className={cx(inputClass, "font-mono")}
+                                  />
+                                  <div className="flex items-center justify-end gap-1">
+                                    {cv.imageSrc ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setV({ imageSrc: "" })}
+                                        className="rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-500 hover:bg-zinc-100"
+                                      >
+                                        Quitar foto
+                                      </button>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setColorVariants((prev) => prev.filter((_, idx) => idx !== i))
+                                      }
+                                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-500"
+                                      aria-label={`Quitar modelo ${i + 1}`}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="rounded-xl border border-dashed border-black/10 px-4 py-3 text-center text-xs text-zinc-400">
-                          Solo el color del producto
+                          Un solo modelo (el color del producto)
                         </p>
                       )}
                     </div>
@@ -1263,23 +1341,10 @@ export default function ProductForm({
 
               <OptionalSection
                 title="Avanzado"
-                description="ID en la URL y ventas históricas. Normalmente no hace falta tocarlo"
+                description="Ventas históricas. Normalmente no hace falta tocarlo"
                 filled={filledAdvanced}
               >
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <Field
-                    label="ID / slug"
-                    htmlFor="pf-slug"
-                    hint="Si lo dejás vacío se genera solo"
-                  >
-                    <input
-                      id="pf-slug"
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
-                      placeholder="Ej: b-001"
-                      className={cx(inputClass, "font-mono")}
-                    />
-                  </Field>
                   <Field label="Vendidos (histórico)" htmlFor="pf-sold">
                     <input
                       id="pf-sold"

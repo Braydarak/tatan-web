@@ -32,6 +32,7 @@ export function apiToCardProps(
     ctaLabel: "Ver producto",
     buy: opts.quickAdd === false ? undefined : buyOptionsFromApi(api),
     wholesale: wholesaleOf(api),
+    sku: api.slug?.trim() || undefined,
   };
 }
 

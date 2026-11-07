@@ -17,6 +17,8 @@ export type CartItem = {
   size: string;
   colorName?: string;
   colorHex?: string;
+  /** Número de artículo del modelo (o del producto) */
+  sku?: string;
   quantity: number;
   /** Stock del talle cuando se agregó (tope de cantidad) */
   maxStock: number;
