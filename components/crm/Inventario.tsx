@@ -4,7 +4,9 @@ import Image from "next/image";
 import * as React from "react";
 import { Check, Minus, Plus, RotateCcw, Search } from "lucide-react";
 import { apiProductSave, apiProducts, type Product } from "@/lib/tatan-api";
+import { matchesProduct } from "@/lib/product-search";
 import { LOW_STOCK, stockLevel, totalStockOf, type StockLevel } from "./format";
+import { colorKey, hasColorStock, totalsBySize, type StockByColor } from "@/lib/stock";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -14,8 +16,28 @@ type Filter = "todos" | "bajo" | "agotados";
 
 const LEVEL_ORDER: Record<StockLevel, number> = { out: 0, low: 1, ok: 2 };
 
+/** Modelos del producto (nombres con los que se guarda su stock). */
+function modelsOf(p: Product): string[] {
+  return p.colorVariants.map((v) => colorKey(v.name));
+}
+
+/** Clave de una celda de stock: modelo ("" = sin modelo) + talle. */
+const cellKey = (model: string, size: string) => `${model}\u0001${size}`;
+
+/** Stock guardado de un modelo+talle. */
+function savedStock(p: Product, model: string, size: string): number {
+  if (!model) return p.stockBySize[size] ?? 0;
+  if (hasColorStock(p.stockByColor)) return p.stockByColor[model]?.[size] ?? 0;
+  // Cargado antes del stock por modelo: el total queda en el primer modelo
+  return model === modelsOf(p)[0] ? (p.stockBySize[size] ?? 0) : 0;
+}
+
 /** Guarda el producto entero con el stock nuevo (la API reemplaza el registro). */
-function saveStock(p: Product, stockBySize: Record<string, number>) {
+function saveStock(
+  p: Product,
+  stockBySize: Record<string, number>,
+  stockByColor?: StockByColor,
+) {
   return apiProductSave({
     id: p.id,
     name: p.name,
@@ -26,6 +48,7 @@ function saveStock(p: Product, stockBySize: Record<string, number>) {
     sizeGroup: p.sizeGroup,
     sizes: p.sizes,
     stockBySize,
+    stockByColor,
     colorHex: p.colorHex,
     description: p.description,
     price: p.price,
@@ -52,12 +75,16 @@ function SizeStepper({
   value,
   changed,
   onChange,
+  label,
 }: {
   size: string;
   value: number;
   changed: boolean;
   onChange: (next: number) => void;
+  /** Para lectores de pantalla (por defecto "talle X") */
+  label?: string;
 }) {
+  const what = label ?? `talle ${size}`;
   return (
     <div
       className={cx(
@@ -76,7 +103,7 @@ function SizeStepper({
         type="button"
         onClick={() => onChange(Math.max(0, value - 1))}
         disabled={value <= 0}
-        aria-label={`Restar uno al talle ${size}`}
+        aria-label={`Restar uno al ${what}`}
         className="flex h-8 w-7 items-center justify-center text-zinc-400 transition hover:text-zinc-900 disabled:opacity-30"
       >
         <Minus className="h-3.5 w-3.5" />
@@ -88,7 +115,7 @@ function SizeStepper({
         value={value}
         onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
         onFocus={(e) => e.currentTarget.select()}
-        aria-label={`Stock del talle ${size}`}
+        aria-label={`Stock del ${what}`}
         className={cx(
           "w-8 bg-transparent text-center text-sm font-extrabold tabular-nums focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
           value === 0 && !changed ? "text-rose-600" : "text-zinc-900",
@@ -97,7 +124,7 @@ function SizeStepper({
       <button
         type="button"
         onClick={() => onChange(value + 1)}
-        aria-label={`Sumar uno al talle ${size}`}
+        aria-label={`Sumar uno al ${what}`}
         className="flex h-8 w-7 items-center justify-center text-zinc-400 transition hover:text-zinc-900"
       >
         <Plus className="h-3.5 w-3.5" />
@@ -144,18 +171,24 @@ export default function Inventario() {
     void load();
   }, [load]);
 
-  const stockOf = (p: Product, size: string) =>
-    edits[p.id]?.[size] ?? p.stockBySize[size] ?? 0;
+  const stockOf = (p: Product, model: string, size: string) =>
+    edits[p.id]?.[cellKey(model, size)] ?? savedStock(p, model, size);
 
-  const totalOf = (p: Product) =>
-    p.sizes.reduce((acc, s) => acc + stockOf(p, s), 0);
+  const totalOf = (p: Product) => {
+    const models = modelsOf(p);
+    return (models.length ? models : [""]).reduce(
+      (acc, m) => acc + p.sizes.reduce((a, s) => a + stockOf(p, m, s), 0),
+      0,
+    );
+  };
 
-  const setSizeStock = (p: Product, size: string, value: number) => {
+  const setCellStock = (p: Product, model: string, size: string, value: number) => {
+    const key = cellKey(model, size);
     setEdits((prev) => {
       const forProduct = { ...(prev[p.id] ?? {}) };
       // Si vuelve al valor original deja de contar como cambio
-      if (value === (p.stockBySize[size] ?? 0)) delete forProduct[size];
-      else forProduct[size] = value;
+      if (value === savedStock(p, model, size)) delete forProduct[key];
+      else forProduct[key] = value;
       const next = { ...prev };
       if (Object.keys(forProduct).length) next[p.id] = forProduct;
       else delete next[p.id];
@@ -171,11 +204,21 @@ export default function Inventario() {
     const targets = products.filter((p) => edits[p.id]);
     const results = await Promise.allSettled(
       targets.map(async (p) => {
-        const merged: Record<string, number> = { ...p.stockBySize };
-        for (const [size, value] of Object.entries(edits[p.id])) {
-          merged[size] = Math.max(0, Math.floor(value) || 0);
+        const value = (m: string, s: string) =>
+          Math.max(0, Math.floor(stockOf(p, m, s)) || 0);
+        const models = modelsOf(p);
+        let r;
+        if (models.length) {
+          // Con modelos se manda el stock de todos (modelo × talle)
+          const byColor: StockByColor = Object.fromEntries(
+            models.map((m) => [m, Object.fromEntries(p.sizes.map((s) => [s, value(m, s)]))]),
+          );
+          r = await saveStock(p, totalsBySize(byColor, p.sizes), byColor);
+        } else {
+          const merged: Record<string, number> = { ...p.stockBySize };
+          for (const s of p.sizes) merged[s] = value("", s);
+          r = await saveStock(p, merged);
         }
-        const r = await saveStock(p, merged);
         if (!r.ok) throw new Error(r.error || `No se pudo guardar "${p.name}"`);
         return p.id;
       }),
@@ -225,12 +268,7 @@ export default function Inventario() {
           ? levelOf(p) === "out"
           : true,
     )
-    .filter(
-      (p) =>
-        !q ||
-        p.name.toLowerCase().includes(q) ||
-        p.id.toLowerCase().includes(q),
-    )
+    .filter((p) => matchesProduct(p, q))
     // Lo que necesita reposición primero
     .sort(
       (a, b) =>
@@ -323,7 +361,7 @@ export default function Inventario() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar producto"
+          placeholder="Buscar por nombre o Nº de artículo"
           aria-label="Buscar producto"
           className="block w-full rounded-xl border border-black/10 bg-white py-2.5 pl-10 pr-3 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-tatan-primario4 focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60"
         />
@@ -394,23 +432,69 @@ export default function Inventario() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {p.sizes.length === 0 ? (
-                    <p className="text-xs italic text-zinc-400">
-                      Sin talles. Agregalos desde Productos.
-                    </p>
-                  ) : (
-                    p.sizes.map((size) => (
+                {p.sizes.length === 0 ? (
+                  <p className="text-xs italic text-zinc-400">
+                    Sin talles. Agregalos desde Productos.
+                  </p>
+                ) : p.colorVariants.length === 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {p.sizes.map((size) => (
                       <SizeStepper
                         key={size}
                         size={size}
-                        value={stockOf(p, size)}
-                        changed={edits[p.id]?.[size] !== undefined}
-                        onChange={(v) => setSizeStock(p, size, v)}
+                        value={stockOf(p, "", size)}
+                        changed={edits[p.id]?.[cellKey("", size)] !== undefined}
+                        onChange={(v) => setCellStock(p, "", size, v)}
                       />
-                    ))
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  // Con modelos: una fila por modelo/color con sus talles
+                  <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+                    {!hasColorStock(p.stockByColor) ? (
+                      <p className="text-[11px] text-amber-800">
+                        El stock todavía no está repartido por modelo: quedó en el primero.
+                      </p>
+                    ) : null}
+                    {p.colorVariants.map((v, vi) => {
+                      const model = colorKey(v.name);
+                      return (
+                        <div key={`${model}-${vi}`} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                          <span className="flex min-w-0 items-center gap-2 sm:w-36 sm:shrink-0">
+                            <span
+                              className="h-4 w-4 shrink-0 rounded-full border border-black/10 bg-cover bg-center"
+                              style={{
+                                backgroundColor: v.hex,
+                                backgroundImage: v.imageSrc ? `url("${v.imageSrc}")` : undefined,
+                              }}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate text-xs font-bold text-zinc-700">
+                              {v.name}
+                              {v.sku ? (
+                                <span className="ml-1 font-mono font-semibold text-zinc-400">
+                                  {v.sku}
+                                </span>
+                              ) : null}
+                            </span>
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {p.sizes.map((size) => (
+                              <SizeStepper
+                                key={size}
+                                size={size}
+                                value={stockOf(p, model, size)}
+                                changed={edits[p.id]?.[cellKey(model, size)] !== undefined}
+                                onChange={(n) => setCellStock(p, model, size, n)}
+                                label={`${v.name} talle ${size}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </li>
             );
           })}

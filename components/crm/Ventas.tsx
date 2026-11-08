@@ -5,6 +5,7 @@ import * as React from "react";
 import { useCategories } from "@/lib/use-categories";
 import { Search } from "lucide-react";
 import { apiProducts, type Product } from "@/lib/tatan-api";
+import { matchesProduct } from "@/lib/product-search";
 import { formatMoneyArs, totalStockOf } from "./format";
 
 function cx(...classes: Array<string | undefined | null | false>) {
@@ -42,9 +43,7 @@ export default function Ventas() {
     if (!q) return list;
     return list.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.id.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q),
+        matchesProduct(p, q) || p.category.toLowerCase().includes(q),
     );
   }, [products, query]);
 
@@ -111,7 +110,7 @@ export default function Ventas() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar producto…"
+              placeholder="Buscar por nombre o Nº de artículo"
               className="w-full rounded-xl border border-black/10 bg-white py-2 pl-9 pr-3 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-tatan-primario1 focus:ring-2 focus:ring-tatan-primario1/40"
             />
           </div>
@@ -161,7 +160,7 @@ export default function Ventas() {
                             {p.name}
                           </p>
                           <p className="font-mono text-[11px] text-zinc-400">
-                            {p.id}
+                            {p.slug ? `Art. ${p.slug}` : "Sin Nº de artículo"}
                           </p>
                         </div>
                       </div>

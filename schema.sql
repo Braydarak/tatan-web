@@ -111,15 +111,16 @@ CREATE TABLE IF NOT EXISTS `product_color_variants` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------
--- 6. Stock por talle por producto
+-- 6. Stock por producto + color + talle
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `product_sizes_stock` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `product_id`  VARCHAR(30) NOT NULL,
+  `color`       VARCHAR(80) NOT NULL DEFAULT '' COMMENT 'Nombre del modelo/color ('''' = sin color)',
   `size`        VARCHAR(15) NOT NULL COMMENT 'RN / 3M / 2-4 / 8 …',
   `stock`       INT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_sizestock_product_size` (`product_id`, `size`),
+  UNIQUE KEY `uk_sizestock_product_color_size` (`product_id`, `color`, `size`),
   CONSTRAINT `fk_sizestock_product`
     FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
     ON DELETE CASCADE ON UPDATE CASCADE

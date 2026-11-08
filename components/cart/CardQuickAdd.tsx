@@ -37,8 +37,9 @@ export default function CardQuickAdd({
   // "Modelo" si son estampados (tienen foto o número de artículo); si no, "Color"
   const isModels = options.colors.some((c) => c.imageSrc || c.sku);
   const needSize = sel.status === "need-size";
-  // Solo se muestran los talles que hay (sin stock no aparecen)
-  const sizes = options.sizes.filter((s) => s.stock > 0);
+  // Solo se muestran los talles que hay (sin stock no aparecen); con stock por
+  // color, los que no hay en el color elegido aparecen tachados
+  const sizes = sel.sizes;
 
   return (
     <div className="mt-2 flex flex-1 flex-col">
@@ -59,18 +60,23 @@ export default function CardQuickAdd({
           >
             {sizes.map((s) => {
               const active = sel.size === s.label;
+              const out = s.stock <= 0;
               return (
                 <button
                   key={s.label}
                   type="button"
                   role="radio"
                   aria-checked={active}
+                  disabled={out}
+                  title={out ? "Sin stock en este color" : undefined}
                   onClick={() => sel.chooseSize(s.label)}
                   className={cx(
                     "h-6 sm:h-7 min-w-7 sm:min-w-8 rounded-lg px-1.5 text-[11px] font-bold border transition-all",
                     active
                       ? "bg-tatan-primario4 border-tatan-primario4 text-zinc-800 shadow-sm scale-105"
-                      : cx(
+                      : out
+                        ? "bg-white/40 border-zinc-200 text-zinc-300 line-through cursor-not-allowed"
+                        : cx(
                           "bg-white border-tatan-secundario1/70 text-zinc-700 hover:border-tatan-primario4",
                           needSize && "border-rose-300",
                         ),
@@ -101,14 +107,16 @@ export default function CardQuickAdd({
           >
             {options.colors.map((c, i) => {
               const active = sel.colorIdx === i;
+              const colorOut = sel.isColorSoldOut(i);
               return (
                 <button
                   key={`${c.hex}-${i}`}
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  aria-label={c.name}
-                  title={c.name}
+                  aria-label={colorOut ? `${c.name} (sin stock)` : c.name}
+                  title={colorOut ? `${c.name} · sin stock` : c.name}
+                  disabled={colorOut}
                   onClick={() => {
                     sel.setColorIdx(i);
                     onModelChange?.(c.imageSrc);
@@ -118,7 +126,9 @@ export default function CardQuickAdd({
                     c.imageSrc ? "w-6 h-6 sm:w-7 sm:h-7" : "w-4 h-4 sm:w-[18px] sm:h-[18px]",
                     active
                       ? "ring-2 ring-tatan-primario4 ring-offset-1 ring-offset-white scale-110"
-                      : "hover:scale-110",
+                      : colorOut
+                        ? "opacity-30 cursor-not-allowed"
+                        : "hover:scale-110",
                   )}
                   style={{
                     backgroundColor: c.hex,

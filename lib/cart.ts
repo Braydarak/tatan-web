@@ -20,8 +20,10 @@ export type CartItem = {
   /** Número de artículo del modelo (o del producto) */
   sku?: string;
   quantity: number;
-  /** Stock del talle cuando se agregó (tope de cantidad) */
+  /** Stock del talle (o del talle+color) cuando se agregó (tope de cantidad) */
   maxStock: number;
+  /** true = maxStock es del color; si no, se comparte entre los colores del talle */
+  stockPerColor?: boolean;
   /** Precio por mayor y desde cuántas unidades (del producto) */
   wholesalePrice?: number;
   wholesaleMinQty?: number;
@@ -96,13 +98,16 @@ export function addToCart(input: AddToCartInput): number {
   load();
   const key = itemKey(input.productId, input.size, input.colorName);
   const qty = Math.max(1, input.quantity ?? 1);
-  // El tope es el stock del talle, sumando todos los colores de ese talle
-  const sameSize = items
-    .filter(
-      (i) =>
-        i.productId === input.productId && i.size === input.size && i.key !== key,
-    )
-    .reduce((a, i) => a + i.quantity, 0);
+  // El tope es el stock del talle (sumando todos los colores de ese talle),
+  // o el del talle+color si el producto tiene stock por color
+  const sameSize = input.stockPerColor
+    ? 0
+    : items
+        .filter(
+          (i) =>
+            i.productId === input.productId && i.size === input.size && i.key !== key,
+        )
+        .reduce((a, i) => a + i.quantity, 0);
   const existing = items.find((i) => i.key === key);
   const current = existing?.quantity ?? 0;
   const room = Math.max(0, input.maxStock - sameSize - current);
@@ -112,7 +117,12 @@ export function addToCart(input: AddToCartInput): number {
   const next = existing
     ? items.map((i) =>
         i.key === key
-          ? { ...i, quantity: i.quantity + added, maxStock: input.maxStock }
+          ? {
+              ...i,
+              quantity: i.quantity + added,
+              maxStock: input.maxStock,
+              stockPerColor: input.stockPerColor,
+            }
           : i,
       )
     : [...items, { ...input, key, quantity: added }];
@@ -128,12 +138,14 @@ export function addToCart(input: AddToCartInput): number {
 export function setQuantity(key: string, quantity: number) {
   const item = items.find((i) => i.key === key);
   if (!item) return;
-  const sameSize = items
-    .filter(
-      (i) =>
-        i.productId === item.productId && i.size === item.size && i.key !== key,
-    )
-    .reduce((a, i) => a + i.quantity, 0);
+  const sameSize = item.stockPerColor
+    ? 0
+    : items
+        .filter(
+          (i) =>
+            i.productId === item.productId && i.size === item.size && i.key !== key,
+        )
+        .reduce((a, i) => a + i.quantity, 0);
   const q = Math.min(quantity, Math.max(1, item.maxStock - sameSize));
   if (q <= 0) return removeFromCart(key);
   commit(items.map((i) => (i.key === key ? { ...i, quantity: q } : i)));
@@ -147,14 +159,23 @@ export function clearCart() {
   commit([]);
 }
 
-/** Cuántas unidades de ese producto+talle hay en el carrito (todos los colores). */
+/**
+ * Cuántas unidades de ese producto+talle hay en el carrito: de todos los
+ * colores, o solo de `colorName` si se pasa (stock por color).
+ */
 export function inCartForSize(
   list: CartItem[],
   productId: string,
   size: string,
+  colorName?: string,
 ) {
   return list
-    .filter((i) => i.productId === productId && i.size === size)
+    .filter(
+      (i) =>
+        i.productId === productId &&
+        i.size === size &&
+        (colorName === undefined || i.colorName === colorName),
+    )
     .reduce((a, i) => a + i.quantity, 0);
 }
 

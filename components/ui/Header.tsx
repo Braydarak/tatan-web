@@ -382,7 +382,7 @@ export default function Header({
                 type="search"
                 name="q"
                 aria-label="Buscar productos"
-                placeholder="Buscar body, pijama, gorrito..."
+                placeholder="Buscar producto o Nº de artículo"
                 inputClassName={cx(
                   "h-11 rounded-2xl border border-tatan-secundario1/60 bg-white text-sm text-zinc-900 shadow-sm",
                   "pr-3 py-0",
@@ -450,7 +450,7 @@ export default function Header({
               <div className="relative">
                 <CustomInput
                   type="search"
-                  placeholder="Buscar body, remera, pijama..."
+                  placeholder="Buscar producto o Nº de artículo"
                   inputClassName="h-12 rounded-2xl border border-tatan-secundario1/60 bg-white text-base pl-10 pr-3"
                 />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-tatan-primario4">

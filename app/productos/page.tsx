@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { matchesProduct } from "@/lib/product-search";
 import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import SortSelect from "@/components/ui/SortSelect";
@@ -59,6 +60,8 @@ function mapApiToListProduct(api: ApiProduct): Product {
   return {
     id: api.id,
     name: api.name,
+    // Número de artículo (para buscar por artículo)
+    slug: api.slug,
     category: api.category,
     imageSrc:
       api.imageSrc ||
@@ -95,6 +98,8 @@ type PriceRange = "todos" | "hasta10k" | "10a20k" | "20a30k" | "mas30k";
 type Product = {
   id: string;
   name: string;
+  /** Número de artículo */
+  slug?: string | null;
   category: string;
   imageSrc: string;
   price: number;
@@ -201,8 +206,12 @@ function filterAndSort(all: Product[]) {
       if (!priceRule(p.price)) return false;
       if (state.q) {
         const qq = state.q.toLowerCase();
+        // Nombre o número de artículo (del producto o de sus modelos)
         return (
-          p.name.toLowerCase().includes(qq) ||
+          matchesProduct(
+            { name: p.name, slug: p.slug, colorVariants: p.buy?.colors },
+            state.q,
+          ) ||
           p.tagline.toLowerCase().includes(qq) ||
           p.category.toLowerCase().includes(qq)
         );
@@ -430,7 +439,7 @@ export default async function ProductosPage({
                   type="search"
                   name="q"
                   defaultValue={state.q}
-                  placeholder="Buscar body, pijama, batita…"
+                  placeholder="Buscar producto o Nº de artículo"
                   aria-label="Buscar productos"
                   className="h-12 w-full rounded-2xl border border-tatan-secundario1/70 bg-white/90 pl-10 pr-24 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/70"
                 />

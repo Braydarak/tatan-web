@@ -177,7 +177,10 @@ export type Product = {
   category: string;
   sizeGroup: "bebe" | "ninios";
   sizes: string[];
+  /** Total de cada talle (todos los colores sumados) */
   stockBySize: Record<string, number>;
+  /** Stock por modelo/color y talle (vacío si se carga solo por talle). Ver lib/stock.ts */
+  stockByColor?: Record<string, Record<string, number>>;
   colorHex: string;
   description: string | null;
   price: number;
