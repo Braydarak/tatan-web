@@ -24,6 +24,8 @@ import {
   apiProductDelete,
   type Product,
 } from "@/lib/tatan-api";
+import { matchesProduct } from "@/lib/product-search";
+import { colorKey, hasColorStock } from "@/lib/stock";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -215,8 +217,7 @@ function ProductDetailRow({ product }: { product: ProductCrm }) {
                   ) : null}
                 </p>
                 <p className="text-[11px] font-mono text-zinc-400">
-                  ID {product.id}
-                  {product.slug ? ` · slug ${product.slug}` : ""}
+                  {product.slug ? `Art. ${product.slug}` : "Sin Nº de artículo"}
                 </p>
               </div>
             </div>
@@ -411,9 +412,17 @@ function ProductDetailRow({ product }: { product: ProductCrm }) {
                           {v.name}
                         </span>
                       </div>
-                      <span className="font-mono text-[11px] text-zinc-500 shrink-0">
-                        {v.hex}
-                      </span>
+                      {hasColorStock(product.stockByColor) ? (
+                        <span className="text-[11px] text-zinc-500 text-right tabular-nums">
+                          {product.sizes
+                            .map((s) => `${s}: ${product.stockByColor?.[colorKey(v.name)]?.[s] ?? 0}`)
+                            .join(" · ")}
+                        </span>
+                      ) : (
+                        <span className="font-mono text-[11px] text-zinc-500 shrink-0">
+                          {v.hex}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -424,7 +433,7 @@ function ProductDetailRow({ product }: { product: ProductCrm }) {
               )}
             </DetailSection>
 
-            <DetailSection title="Stock por talle">
+            <DetailSection title="Stock por talle (total)">
               {product.sizes.length ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {product.sizes.map((s) => {
@@ -563,6 +572,7 @@ export default function ProductsCrm({
       sizeGroup: p.sizeGroup,
       sizes: p.sizes,
       stockBySize: p.stockBySize,
+      stockByColor: p.stockByColor,
       stockTotal: totalStock,
       soldTotal: p.soldTotal,
       colorHex: p.colorHex,
@@ -613,9 +623,7 @@ export default function ProductsCrm({
   const visible = products.filter(
     (p) =>
       (categoryFilter === "all" || p.category === categoryFilter) &&
-      (!normalized ||
-        p.name.toLowerCase().includes(normalized) ||
-        p.id.toLowerCase().includes(normalized)),
+      matchesProduct(p, normalized),
   );
 
   /* ------------------------------------------------------------------ */
@@ -652,7 +660,7 @@ export default function ProductsCrm({
 
   const handleDelete = async (p: ProductCrm) => {
     const ok = window.confirm(
-      `¿Borrar el producto "${p.name}" (ID ${p.id})?\nEsta acción no se puede deshacer.`,
+      `¿Borrar el producto "${p.name}"${p.slug ? ` (Art. ${p.slug})` : ""}?\nEsta acción no se puede deshacer.`,
     );
     if (!ok) return;
     try {
@@ -689,6 +697,7 @@ export default function ProductsCrm({
       sizeGroup: editingProduct.sizeGroup,
       sizes: editingProduct.sizes,
       stockBySize: editingProduct.stockBySize,
+      stockByColor: editingProduct.stockByColor,
       stockTotal: editingProduct.stockTotal,
       soldTotal: editingProduct.soldTotal,
       colorHex: editingProduct.colorHex,
@@ -746,7 +755,7 @@ export default function ProductsCrm({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por nombre o ID"
+              placeholder="Buscar por nombre o Nº de artículo"
               aria-label="Buscar productos"
               className="block w-full rounded-xl border border-black/10 bg-white py-2.5 pl-10 pr-3 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-tatan-primario4 focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60"
             />
@@ -940,7 +949,7 @@ export default function ProductsCrm({
                                   {p.name}
                                 </button>
                                 <p className="mt-0.5 font-mono text-[11px] text-zinc-400">
-                                  {p.id}
+                                  {p.slug ? `Art. ${p.slug}` : "Sin Nº de artículo"}
                                   {p.tagline ? (
                                     <span className="ml-2 font-sans text-zinc-500">
                                       · {p.tagline}

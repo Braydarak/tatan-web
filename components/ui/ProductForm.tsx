@@ -20,6 +20,8 @@ import {
   X,
 } from "lucide-react";
 import { apiUploadImage } from "@/lib/tatan-api";
+import ColorPicker, { paletteName } from "@/components/ui/ColorPicker";
+import { colorKey, hasColorStock, totalsBySize, type StockByColor } from "@/lib/stock";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -60,8 +62,14 @@ const SIZE_GROUP_NINIOS = [
 
 type SizeGroup = "bebe" | "ninios";
 
-/** Modelo / estampado / color del producto */
-type ColorVariant = { name: string; hex: string; sku?: string; imageSrc?: string };
+/** Modelo / estampado / color del producto (con su stock por talle en el form) */
+type ColorVariant = {
+  name: string;
+  hex: string;
+  sku?: string;
+  imageSrc?: string;
+  stock?: Record<string, number>;
+};
 
 export type ProductFormData = {
   id?: string;
@@ -73,7 +81,10 @@ export type ProductFormData = {
   category: CategoryKey;
   sizeGroup: SizeGroup;
   sizes: string[];
+  /** Total por talle (con modelos: la suma de todos) */
   stockBySize: Record<string, number>;
+  /** Stock por modelo y talle (solo si el producto tiene modelos) */
+  stockByColor?: StockByColor;
   stockTotal: number;
   soldTotal: number;
   colorHex: string;
@@ -110,6 +121,32 @@ function initialStockFromSizes(
     out[s] = Number.isFinite(prev[s]) ? prev[s]! : 0;
   }
   return out;
+}
+
+/** Modelos del producto con su stock por talle (de stockByColor). */
+function initialVariants(data?: Partial<ProductFormData>): ColorVariant[] {
+  const variants = data?.colorVariants ?? [];
+  const byColor = data?.stockByColor;
+  if (hasColorStock(byColor)) {
+    return variants.map((v) => ({ ...v, stock: { ...(byColor[colorKey(v.name)] ?? {}) } }));
+  }
+  // Todavía sin stock por modelo: el stock por talle va al primero
+  return variants.map((v, i) => ({
+    ...v,
+    stock: i === 0 ? { ...(data?.stockBySize ?? {}) } : {},
+  }));
+}
+
+/** El stock de cada modelo se guarda por su nombre: tiene que ser único. */
+function modelsError(variants: ColorVariant[]): string | null {
+  if (variants.some((v) => !v.name.trim())) {
+    return "Poné un nombre a cada modelo (el stock se guarda por modelo)";
+  }
+  const names = variants.map((v) => colorKey(v.name).toLowerCase());
+  if (new Set(names).size !== names.length) {
+    return "Hay dos modelos con el mismo nombre";
+  }
+  return null;
 }
 
 function sumObj(obj: Record<string, number>) {
@@ -354,15 +391,38 @@ export default function ProductForm({
   const [stockBySize, setStockBySize] = React.useState<Record<string, number>>(
     () => initialStockFromSizes(sizesInit, initialData?.stockBySize ?? {}),
   );
-  const stockTotal = sumObj(stockBySize);
+  // Con modelos el stock se carga por modelo y talle; sin modelos, por talle.
+  const [colorVariants, setColorVariants] = React.useState<ColorVariant[]>(
+    () => initialVariants(initialData),
+  );
+  // Productos con modelos cargados antes del stock por color: su stock quedó
+  // en el primer modelo para no perderlo. Se avisa para que lo repartan.
+  const [stockMovedToFirst] = React.useState(
+    () =>
+      (initialData?.colorVariants?.length ?? 0) > 0 &&
+      !hasColorStock(initialData?.stockByColor) &&
+      sumObj(initialData?.stockBySize ?? {}) > 0,
+  );
+  const perModel = colorVariants.length > 0;
+  const variantStock = (v: ColorVariant, size: string) =>
+    Math.max(0, Number(v.stock?.[size]) || 0);
+  const stockTotal = perModel
+    ? colorVariants.reduce(
+        (acc, v) => acc + sizes.reduce((a, s) => a + variantStock(v, s), 0),
+        0,
+      )
+    : sizes.reduce((a, s) => a + (Number(stockBySize[s]) || 0), 0);
+  const setVariantStock = (i: number, size: string, value: number) =>
+    setColorVariants((prev) =>
+      prev.map((v, idx) =>
+        idx === i ? { ...v, stock: { ...(v.stock ?? {}), [size]: value } } : v,
+      ),
+    );
   const [soldTotal, setSoldTotal] = React.useState(
     initialData?.soldTotal?.toString() ?? "0",
   );
   const [colorHex, setColorHex] = React.useState(
     initialData?.colorHex ?? "#F5E6D3",
-  );
-  const [colorVariants, setColorVariants] = React.useState<ColorVariant[]>(
-    initialData?.colorVariants ?? [],
   );
   const [description, setDescription] = React.useState(
     initialData?.description ?? "",
@@ -511,12 +571,18 @@ export default function ProductForm({
       ? Math.round(((originalNum - priceNum) / originalNum) * 100)
       : 0;
 
+  // Modelos que se guardan (los vacíos se descartan)
+  const keptVariants = colorVariants.filter(
+    (v) => v.name.trim() || v.sku?.trim() || v.imageSrc,
+  );
+
   // Validación de lo mínimo para publicar
   const errors = {
     name: name.trim() ? null : "Poné un nombre para el producto",
     image: imageSrc.trim() ? null : "Subí una foto del producto",
     price: priceNum > 0 ? null : "Poné el precio",
     sizes: sizes.length ? null : "Elegí al menos un talle",
+    models: modelsError(keptVariants),
   };
   const missing = Object.values(errors).filter(Boolean).length;
   const showErr = (e: string | null) => (triedSubmit ? e : null);
@@ -545,6 +611,16 @@ export default function ProductForm({
     if (submitting || uploading > 0 || !onSubmit) return;
     if (missing > 0) return;
 
+    // Stock por modelo: { "Rosa": { "3M": 4 } } (solo los talles elegidos)
+    const stockByColor: StockByColor | undefined = keptVariants.length
+      ? Object.fromEntries(
+          keptVariants.map((v) => [
+            colorKey(v.name),
+            Object.fromEntries(sizes.map((s) => [s, variantStock(v, s)])),
+          ]),
+        )
+      : undefined;
+
     const data: ProductFormData = {
       id: initialData?.id,
       slug: slug.trim() || undefined,
@@ -555,18 +631,17 @@ export default function ProductForm({
       category,
       sizeGroup,
       sizes,
-      stockBySize,
+      stockBySize: stockByColor ? totalsBySize(stockByColor, sizes) : stockBySize,
+      stockByColor,
       stockTotal,
       soldTotal: Number(soldTotal) || 0,
       colorHex,
-      colorVariants: colorVariants
-        .map((v) => ({
-          name: v.name.trim(),
-          hex: v.hex,
-          ...(v.sku?.trim() ? { sku: v.sku.trim() } : {}),
-          ...(v.imageSrc ? { imageSrc: v.imageSrc } : {}),
-        }))
-        .filter((v) => v.name || v.sku || v.imageSrc),
+      colorVariants: keptVariants.map((v) => ({
+        name: v.name.trim(),
+        hex: v.hex,
+        ...(v.sku?.trim() ? { sku: v.sku.trim() } : {}),
+        ...(v.imageSrc ? { imageSrc: v.imageSrc } : {}),
+      })),
       description,
       features: features.filter((f) => f.trim().length > 0),
       price: priceNum,
@@ -772,7 +847,11 @@ export default function ProductForm({
           <Card
             step={2}
             title="Talles y stock"
-            description="Tocá los talles que hay y cargá cuántos tenés de cada uno"
+            description={
+              perModel
+                ? "Tocá los talles que hay y cargá cuántos tenés de cada modelo"
+                : "Tocá los talles que hay y cargá cuántos tenés de cada uno"
+            }
             aside={
               <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold tabular-nums text-zinc-700">
                 {stockTotal} u.
@@ -816,18 +895,86 @@ export default function ProductForm({
               </p>
             ) : null}
 
-            {sizes.length > 0 ? (
-              <div className="mt-5 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
-                {sizes.map((s) => (
-                  <Stepper
-                    key={s}
-                    label={s}
-                    value={stockBySize[s] ?? 0}
-                    onChange={(next) =>
-                      setStockBySize((prev) => ({ ...prev, [s]: next }))
-                    }
-                  />
-                ))}
+            {sizes.length > 0 && !perModel ? (
+              <>
+                <div className="mt-5 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
+                  {sizes.map((s) => (
+                    <Stepper
+                      key={s}
+                      label={s}
+                      value={stockBySize[s] ?? 0}
+                      onChange={(next) =>
+                        setStockBySize((prev) => ({ ...prev, [s]: next }))
+                      }
+                    />
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-zinc-500">
+                  ¿Viene en varios colores o estampados? Agregalos en{" "}
+                  <span className="font-semibold">Más fotos y modelos</span> y
+                  el stock se carga por cada uno.
+                </p>
+              </>
+            ) : null}
+
+            {/* Con modelos: un bloque por modelo con su stock por talle */}
+            {sizes.length > 0 && perModel ? (
+              <div className="mt-5 flex flex-col gap-3">
+                {stockMovedToFirst ? (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    El stock que tenía este producto quedó en el primer modelo.
+                    Repartilo entre los modelos y guardá.
+                  </p>
+                ) : null}
+                {colorVariants.map((v, i) => {
+                  const subtotal = sizes.reduce((a, s) => a + variantStock(v, s), 0);
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-xl border border-black/10 bg-zinc-50/60 p-3"
+                    >
+                      <div className="mb-2 flex items-center gap-2">
+                        <span
+                          className="h-5 w-5 shrink-0 rounded-full border border-black/10 bg-cover bg-center"
+                          style={{
+                            backgroundColor: v.hex,
+                            backgroundImage: v.imageSrc ? `url("${v.imageSrc}")` : undefined,
+                          }}
+                          aria-hidden="true"
+                        />
+                        <span
+                          className={cx(
+                            "min-w-0 flex-1 truncate text-sm font-bold",
+                            v.name.trim() ? "text-zinc-800" : "italic text-zinc-400",
+                          )}
+                        >
+                          {v.name.trim() || `Modelo ${i + 1} (sin nombre)`}
+                          {v.sku?.trim() ? (
+                            <span className="ml-2 font-mono text-[11px] font-semibold text-zinc-400">
+                              Art. {v.sku.trim()}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 text-xs font-bold tabular-nums text-zinc-500">
+                          {subtotal} u.
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
+                        {sizes.map((s) => (
+                          <Stepper
+                            key={s}
+                            label={s}
+                            value={variantStock(v, s)}
+                            onChange={(next) => setVariantStock(i, s, next)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {showErr(errors.models) ? (
+                  <p className="text-xs font-medium text-rose-600">{errors.models}</p>
+                ) : null}
               </div>
             ) : null}
           </Card>
@@ -1055,22 +1202,11 @@ export default function ProductForm({
                       <p className="mb-1.5 text-sm font-semibold text-zinc-800">
                         Color del producto
                       </p>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={colorHex}
-                          onChange={(e) => setColorHex(e.target.value)}
-                          aria-label="Color del producto"
-                          className="h-10 w-12 cursor-pointer rounded-lg border border-black/10 bg-white p-1"
-                        />
-                        <input
-                          type="text"
-                          value={colorHex}
-                          onChange={(e) => setColorHex(e.target.value)}
-                          aria-label="Código del color"
-                          className={cx(inputClass, "w-28 font-mono text-xs")}
-                        />
-                      </div>
+                      <ColorPicker
+                        value={colorHex}
+                        onChange={(hex) => setColorHex(hex)}
+                        label="Color del producto"
+                      />
                     </div>
 
                     <div className="min-w-0">
@@ -1143,12 +1279,19 @@ export default function ProductForm({
                                 </label>
                                 <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
                                   <div className="flex items-center gap-2 sm:col-span-2">
-                                    <input
-                                      type="color"
+                                    <ColorPicker
                                       value={cv.hex}
-                                      onChange={(e) => setV({ hex: e.target.value })}
-                                      aria-label={`Color del modelo ${i + 1}`}
-                                      className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-black/10 bg-white p-1"
+                                      onChange={(hex, colorName) =>
+                                        // Si el nombre estaba vacío (o era el del color
+                                        // anterior), toma el nombre del color elegido
+                                        setV(
+                                          !cv.name.trim() || cv.name.trim() === paletteName(cv.hex)
+                                            ? { hex, name: colorName }
+                                            : { hex },
+                                        )
+                                      }
+                                      label={`Color del modelo ${i + 1}`}
+                                      className="shrink-0"
                                     />
                                     <input
                                       type="text"
@@ -1198,6 +1341,9 @@ export default function ProductForm({
                           Un solo modelo (el color del producto)
                         </p>
                       )}
+                      {showErr(errors.models) ? (
+                        <p className="mt-2 text-xs font-medium text-rose-600">{errors.models}</p>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -1422,6 +1568,7 @@ export default function ProductForm({
                   ["Nombre", !errors.name],
                   ["Precio", !errors.price],
                   ["Al menos un talle", !errors.sizes],
+                  ...(perModel ? [["Modelos con nombre", !errors.models]] : []),
                 ].map(([label, ok]) => (
                   <li
                     key={label as string}

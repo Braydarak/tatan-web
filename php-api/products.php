@@ -31,6 +31,19 @@ function has_variant_columns(): bool {
     return $has;
 }
 
+/** ¿Ya se corrió la migración de stock por color (migrations/2026-11-08-stock-por-color.sql)? */
+function has_stock_color_column(): bool {
+    static $has = null;
+    if ($has === null) {
+        try {
+            $has = (bool)pdo()->query("SHOW COLUMNS FROM product_sizes_stock LIKE 'color'")->fetch();
+        } catch (Throwable $e) {
+            $has = false;
+        }
+    }
+    return $has;
+}
+
 function has_wholesale_columns(): bool {
     static $has = null;
     if ($has === null) {
@@ -86,8 +99,9 @@ function fetch_products(string $whereSql, array $params = []): array {
     $ids = array_values(array_unique(array_map(fn($r) => $r['id'], $products)));
     $in  = implode(',', array_fill(0, count($ids), '?'));
 
-    // sizes + stock
-    $s = $pdo->prepare("SELECT product_id, size, stock FROM product_sizes_stock WHERE product_id IN ($in)");
+    // sizes + stock (por color si la migración ya corrió)
+    $colorCol = has_stock_color_column() ? "color" : "'' AS color";
+    $s = $pdo->prepare("SELECT product_id, {$colorCol}, size, stock FROM product_sizes_stock WHERE product_id IN ($in) ORDER BY id");
     $s->execute($ids);
     $sizesBy = [];
     foreach ($s->fetchAll() as $r) {
@@ -132,12 +146,18 @@ function fetch_products(string $whereSql, array $params = []): array {
 
     $out = [];
     foreach ($products as $p) {
+        // stockBySize = total del talle (todos los colores);
+        // stockByColor = { "Rosa": { "3M": 4, … }, … } solo con stock por color.
         $sizeRows = $sizesBy[$p['id']] ?? [];
         $stock = [];
         $sizes = [];
+        $byColor = [];
         foreach ($sizeRows as $r) {
-            $sizes[] = $r['size'];
-            $stock[$r['size']] = (int)$r['stock'];
+            $sz = $r['size'];
+            if (!in_array($sz, $sizes, true)) $sizes[] = $sz;
+            $stock[$sz] = ($stock[$sz] ?? 0) + (int)$r['stock'];
+            $color = (string)$r['color'];
+            if ($color !== '') $byColor[$color][$sz] = (int)$r['stock'];
         }
         $out[] = [
             'id'               => $p['id'],
@@ -149,6 +169,7 @@ function fetch_products(string $whereSql, array $params = []): array {
             'sizeGroup'        => $p['sizeGroup'],
             'sizes'            => $sizes,
             'stockBySize'      => (object)$stock,
+            'stockByColor'     => (object)array_map(fn($m) => (object)$m, $byColor),
             'colorHex'         => $p['colorHex'],
             'description'      => $p['description'],
             'price'            => (float)$p['price'],
@@ -303,10 +324,38 @@ function insert_child_rows(string $id, array $body): void {
         fn($s) => $s !== ''
     )));
     $stock = (array)($body['stockBySize'] ?? []);
+    // Stock por color: { "Rosa": { "3M": 4 } }. Solo cuenta para colores que
+    // existen en el producto (las claves son el nombre del modelo/color).
+    $colorNames = array_map(
+        fn($c) => is_array($c) ? (str_or_null($c['name'] ?? null, 80) ?? 'Modelo') : 'Modelo',
+        array_values((array)($body['colorVariants'] ?? []))
+    );
+    $byColor = [];
+    foreach ((array)($body['stockByColor'] ?? []) as $cName => $perSize) {
+        $cName = mb_substr(trim((string)$cName), 0, 80);
+        if ($cName === '' || !in_array($cName, $colorNames, true) || !is_array($perSize)) continue;
+        $byColor[$cName] = $perSize;
+    }
     if ($sizes) {
-        $stmt = $pdo->prepare("INSERT INTO product_sizes_stock (product_id, size, stock) VALUES (?,?,?)");
-        foreach ($sizes as $sz) {
-            $stmt->execute([$id, $sz, max(0, (int)($stock[$sz] ?? 0))]);
+        if ($byColor && has_stock_color_column()) {
+            $stmt = $pdo->prepare("INSERT INTO product_sizes_stock (product_id, color, size, stock) VALUES (?,?,?,?)");
+            foreach ($byColor as $cName => $perSize) {
+                foreach ($sizes as $sz) {
+                    $stmt->execute([$id, $cName, $sz, max(0, (int)($perSize[$sz] ?? 0))]);
+                }
+            }
+        } else {
+            // Sin stock por color (o sin la migración): un total por talle.
+            if ($byColor) {
+                $stock = [];
+                foreach ($byColor as $perSize) {
+                    foreach ($sizes as $sz) $stock[$sz] = ($stock[$sz] ?? 0) + max(0, (int)($perSize[$sz] ?? 0));
+                }
+            }
+            $stmt = $pdo->prepare("INSERT INTO product_sizes_stock (product_id, size, stock) VALUES (?,?,?)");
+            foreach ($sizes as $sz) {
+                $stmt->execute([$id, $sz, max(0, (int)($stock[$sz] ?? 0))]);
+            }
         }
     }
 

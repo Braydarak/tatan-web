@@ -39,8 +39,9 @@ export default function ProductBuyBox({
   const [qty, setQty] = useState(1);
   const max = sel.size ? sel.remaining(sel.size) : 0;
   const needSize = sel.status === "need-size";
-  // Igual que en la card: los talles sin stock no se muestran
-  const sizes = options.sizes.filter((s) => s.stock > 0);
+  // Igual que en la card: los talles sin stock no se muestran; con stock por
+  // color, los que no hay en el color elegido aparecen tachados
+  const sizes = sel.sizes;
   const quantity = Math.max(1, Math.min(qty, max || 1));
 
   return (
@@ -76,7 +77,7 @@ export default function ProductBuyBox({
             aria-label="Talle"
           >
             {sizes.map((s) => {
-              const out = false;
+              const out = s.stock <= 0;
               const active = sel.size === s.label;
               return (
                 <button
@@ -89,7 +90,7 @@ export default function ProductBuyBox({
                     sel.chooseSize(s.label);
                     setQty(1);
                   }}
-                  title={out ? "Sin stock" : undefined}
+                  title={out ? `Sin stock${sel.color ? ` en ${sel.color.name}` : ""}` : undefined}
                   className={cx(
                     "py-2.5 rounded-xl text-sm font-bold border transition-all",
                     active
@@ -137,12 +138,15 @@ export default function ProductBuyBox({
           >
             {options.colors.map((c, i) => {
               const active = sel.colorIdx === i;
+              const colorOut = sel.isColorSoldOut(i);
               return (
                 <button
                   key={`${c.name}-${i}`}
                   type="button"
                   role="radio"
                   aria-checked={active}
+                  disabled={colorOut}
+                  title={colorOut ? "Sin stock" : undefined}
                   onClick={() => {
                     sel.setColorIdx(i);
                     // La galería de la página salta a la foto del modelo
@@ -156,10 +160,12 @@ export default function ProductBuyBox({
                     "flex items-center gap-2 rounded-xl border px-2.5 py-2 text-left text-sm font-bold transition-all",
                     active
                       ? "bg-tatan-primario4 border-tatan-primario4 text-zinc-800 shadow-md"
-                      : cx(
-                          "bg-white/70 border-tatan-secundario1/40 text-zinc-700 hover:border-tatan-primario4/60",
-                          sel.status === "need-model" && "border-rose-300",
-                        ),
+                      : colorOut
+                        ? "bg-white/40 border-zinc-200 text-zinc-300 cursor-not-allowed opacity-60"
+                        : cx(
+                            "bg-white/70 border-tatan-secundario1/40 text-zinc-700 hover:border-tatan-primario4/60",
+                            sel.status === "need-model" && "border-rose-300",
+                          ),
                   )}
                 >
                   <span
@@ -174,7 +180,12 @@ export default function ProductBuyBox({
                     aria-hidden="true"
                   />
                   <span className="min-w-0 leading-tight">
-                    <span className="block truncate">{c.name}</span>
+                    <span className={cx("block truncate", colorOut && "line-through")}>
+                      {c.name}
+                    </span>
+                    {colorOut && (
+                      <span className="block text-[10px] font-semibold">Sin stock</span>
+                    )}
                     {c.sku && (
                       <span className="block truncate font-mono text-[10px] font-semibold opacity-70">
                         Art. {c.sku}
@@ -250,7 +261,9 @@ export default function ProductBuyBox({
               ¡Agregado!
             </>
           ) : sel.status === "no-stock" ? (
-            "No queda más stock de ese talle"
+            sel.color && options.perColor
+              ? "No queda más stock de ese talle y color"
+              : "No queda más stock de ese talle"
           ) : (
             <>
               <ShoppingCart className="w-5 h-5" strokeWidth={2} />

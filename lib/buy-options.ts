@@ -1,13 +1,23 @@
 import type { Product } from "@/lib/tatan-api";
 import { wholesaleOf, type Wholesale } from "@/lib/wholesale";
+import { colorKey, hasColorStock, sumStock } from "@/lib/stock";
 
 export type SizeOption = { label: string; stock: number };
 /** Modelo / estampado / color: con número de artículo y foto opcionales */
-export type ColorOption = { name: string; hex: string; sku?: string; imageSrc?: string };
+export type ColorOption = {
+  name: string;
+  hex: string;
+  sku?: string;
+  imageSrc?: string;
+  /** Stock de este modelo por talle (solo si el producto tiene stock por color) */
+  stock?: Record<string, number>;
+};
 
 export type BuyOptions = {
   sizes: SizeOption[];
   colors: ColorOption[];
+  /** true = cada color tiene su propio stock (colors[i].stock) */
+  perColor?: boolean;
   /** Precio por mayor del producto (si tiene) */
   wholesale?: Wholesale;
 };
@@ -32,9 +42,12 @@ export function sizeRank(label: string): number {
 /** Talles (ordenados de menor a mayor) con su stock, y colores reales del producto. */
 export function buyOptionsFromApi(
   api: Pick<Product, "sizes" | "stockBySize" | "colorVariants"> &
-    Partial<Pick<Product, "price" | "wholesalePrice" | "wholesaleMinQty">>,
+    Partial<Pick<Product, "price" | "wholesalePrice" | "wholesaleMinQty" | "stockByColor">>,
 ): BuyOptions {
   const stock = api.stockBySize ?? {};
+  const byColor = api.stockByColor;
+  const colors = (api.colorVariants ?? []).filter((c) => c && c.hex);
+  const perColor = colors.length > 0 && hasColorStock(byColor);
   const labels =
     Array.isArray(api.sizes) && api.sizes.length > 0
       ? api.sizes
@@ -48,9 +61,17 @@ export function buyOptionsFromApi(
       }))
       .sort((a, b) => sizeRank(a.label) - sizeRank(b.label) || a.i - b.i)
       .map(({ label, stock }) => ({ label, stock })),
-    colors: (api.colorVariants ?? []).filter((c) => c && c.hex),
+    colors: perColor
+      ? colors.map((c) => ({ ...c, stock: { ...(byColor[colorKey(c.name)] ?? {}) } }))
+      : colors,
+    perColor,
     wholesale: wholesaleOf(api),
   };
+}
+
+/** ¿Ese color está agotado? (solo con stock por color) */
+export function colorSoldOut(opts: BuyOptions, c: ColorOption): boolean {
+  return !!opts.perColor && sumStock(c.stock) <= 0;
 }
 
 export function totalStock(opts: BuyOptions) {

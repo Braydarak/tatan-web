@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { apiProducts, type Product } from "@/lib/tatan-api";
 import { LOW_STOCK, formatMoneyArs, totalStockOf } from "./format";
+import { hasColorStock } from "@/lib/stock";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -117,11 +118,23 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     const soldTotal = list.reduce((acc, p) => acc + p.soldTotal, 0);
     const revenue = list.reduce((acc, p) => acc + p.soldTotal * p.price, 0);
 
-    const lowStock: Array<{ product: Product; size: string; stock: number }> = [];
+    // Con stock por modelo, la alerta es por modelo + talle
+    const lowStock: Array<{
+      product: Product;
+      size: string;
+      model?: string;
+      stock: number;
+    }> = [];
     for (const p of list) {
-      for (const [size, stock] of Object.entries(p.stockBySize)) {
-        if (stock > 0 && stock <= LOW_STOCK) {
-          lowStock.push({ product: p, size, stock });
+      const groups: Array<[string | undefined, Record<string, number>]> =
+        hasColorStock(p.stockByColor)
+          ? Object.entries(p.stockByColor)
+          : [[undefined, p.stockBySize]];
+      for (const [model, bySize] of groups) {
+        for (const [size, stock] of Object.entries(bySize)) {
+          if (stock > 0 && stock <= LOW_STOCK) {
+            lowStock.push({ product: p, size, model, stock });
+          }
         }
       }
     }
@@ -293,15 +306,15 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                     </span>
                   </li>
                 ))}
-                {stats.lowStock.map(({ product, size, stock }) => (
+                {stats.lowStock.map(({ product, size, model, stock }) => (
                   <li
-                    key={`low-${product.id}-${size}`}
+                    key={`low-${product.id}-${model ?? ""}-${size}`}
                     className="flex items-center justify-between gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2"
                   >
                     <span className="truncate text-sm font-semibold text-amber-900">
                       {product.name}
                       <span className="ml-2 rounded-md border border-amber-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-                        {size}
+                        {model ? `${model} · ${size}` : size}
                       </span>
                     </span>
                     <span className="shrink-0 text-xs font-bold tabular-nums text-amber-800">
