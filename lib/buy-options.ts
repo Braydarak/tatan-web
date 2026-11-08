@@ -1,8 +1,14 @@
 import type { Product } from "@/lib/tatan-api";
 import { wholesaleOf, type Wholesale } from "@/lib/wholesale";
 import { colorKey, hasColorStock, sumStock } from "@/lib/stock";
+import { sizeHint } from "@/lib/sizes";
 
-export type SizeOption = { label: string; stock: number };
+export type SizeOption = {
+  label: string;
+  stock: number;
+  /** Referencia del talle de bebé, p. ej. "3 a 6 meses" */
+  hint?: string;
+};
 /** Modelo / estampado / color: con número de artículo y foto opcionales */
 export type ColorOption = {
   name: string;
@@ -23,7 +29,8 @@ export type BuyOptions = {
 };
 
 /**
- * Orden natural de talles: RN, meses (1M, 3M, 6-9M…), después años (2, 4, 6…)
+ * Orden natural de talles: RN, meses (1M, 3M, 6-9M…), números (bebé 0 a 4,
+ * niños 2, 4, 6…)
  * y al final cualquier otro (S, M, L / "Único"). La base los devuelve en
  * cualquier orden.
  */
@@ -42,7 +49,9 @@ export function sizeRank(label: string): number {
 /** Talles (ordenados de menor a mayor) con su stock, y colores reales del producto. */
 export function buyOptionsFromApi(
   api: Pick<Product, "sizes" | "stockBySize" | "colorVariants"> &
-    Partial<Pick<Product, "price" | "wholesalePrice" | "wholesaleMinQty" | "stockByColor">>,
+    Partial<
+      Pick<Product, "price" | "wholesalePrice" | "wholesaleMinQty" | "stockByColor" | "sizeGroup">
+    >,
 ): BuyOptions {
   const stock = api.stockBySize ?? {};
   const byColor = api.stockByColor;
@@ -60,7 +69,11 @@ export function buyOptionsFromApi(
         i,
       }))
       .sort((a, b) => sizeRank(a.label) - sizeRank(b.label) || a.i - b.i)
-      .map(({ label, stock }) => ({ label, stock })),
+      .map(({ label, stock }) => ({
+        label,
+        stock,
+        hint: sizeHint(api.sizeGroup, label),
+      })),
     colors: perColor
       ? colors.map((c) => ({ ...c, stock: { ...(byColor[colorKey(c.name)] ?? {}) } }))
       : colors,

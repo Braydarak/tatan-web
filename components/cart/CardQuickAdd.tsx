@@ -68,7 +68,7 @@ export default function CardQuickAdd({
                   role="radio"
                   aria-checked={active}
                   disabled={out}
-                  title={out ? "Sin stock en este color" : undefined}
+                  title={out ? "Sin stock en este color" : s.hint}
                   onClick={() => sel.chooseSize(s.label)}
                   className={cx(
                     "h-6 sm:h-7 min-w-7 sm:min-w-8 rounded-lg px-1.5 text-[11px] font-bold border transition-all",

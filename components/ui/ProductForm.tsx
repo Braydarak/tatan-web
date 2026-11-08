@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { apiUploadImage } from "@/lib/tatan-api";
 import ColorPicker, { AddColorButton, paletteName } from "@/components/ui/ColorPicker";
+import { BABY_SIZES, sizeHint } from "@/lib/sizes";
 import { colorKey, hasColorStock, totalsBySize, type StockByColor } from "@/lib/stock";
 
 function cx(...classes: Array<string | undefined | null | false>) {
@@ -29,22 +30,8 @@ function cx(...classes: Array<string | undefined | null | false>) {
 
 type CategoryKey = string;
 
-const SIZE_GROUP_BEBE = [
-  "RN",
-  "1M",
-  "3M",
-  "6M",
-  "9M",
-  "12M",
-  "18M",
-  "24M",
-  "0-3",
-  "3-6",
-  "6-9",
-  "9-12",
-  "12-18",
-  "18-24",
-];
+/** Talles de bebé: 0 a 4 (ver lib/sizes.ts para la referencia de cada uno) */
+const SIZE_GROUP_BEBE = BABY_SIZES.map((s) => s.label);
 const SIZE_GROUP_NINIOS = [
   "2",
   "3",
@@ -315,14 +302,22 @@ function Stepper({
   label,
   value,
   onChange,
+  hint,
 }: {
   label: string;
   value: number;
   onChange: (next: number) => void;
+  /** Referencia del talle (p. ej. "3 a 6 meses") */
+  hint?: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-white py-1.5 pl-3 pr-1.5">
-      <span className="text-sm font-bold text-zinc-800">{label}</span>
+      <span className="min-w-0 text-sm font-bold leading-tight text-zinc-800">
+        {label}
+        {hint ? (
+          <span className="block truncate text-[10px] font-medium text-zinc-500">{hint}</span>
+        ) : null}
+      </span>
       <div className="flex items-center">
         <button
           type="button"
@@ -385,7 +380,7 @@ export default function ProductForm({
   const sizesInit = initialData?.sizes?.length
     ? initialData.sizes
     : sizeGroup === "bebe"
-      ? ["RN", "3M", "6M", "12M"]
+      ? [...SIZE_GROUP_BEBE]
       : ["2", "4", "6", "8"];
   const [sizes, setSizes] = React.useState<string[]>(sizesInit);
   const [stockBySize, setStockBySize] = React.useState<Record<string, number>>(
@@ -562,7 +557,7 @@ export default function ProductForm({
     if (next === sizeGroup) return;
     setSizeGroup(next);
     const nextSizes =
-      next === "bebe" ? ["RN", "3M", "6M", "12M"] : ["2", "4", "6", "8"];
+      next === "bebe" ? [...SIZE_GROUP_BEBE] : ["2", "4", "6", "8"];
     setSizes(nextSizes);
     setStockBySize((prev) => initialStockFromSizes(nextSizes, prev));
   };
@@ -686,8 +681,12 @@ export default function ProductForm({
     onSubmit(data);
   };
 
-  const sizeChoices =
-    sizeGroup === "bebe" ? SIZE_GROUP_BEBE : SIZE_GROUP_NINIOS;
+  const baseChoices = sizeGroup === "bebe" ? SIZE_GROUP_BEBE : SIZE_GROUP_NINIOS;
+  // Talles viejos que tenga el producto (p. ej. "3M") siguen visibles para poder sacarlos
+  const sizeChoices = [
+    ...baseChoices,
+    ...sizes.filter((s) => !baseChoices.includes(s)),
+  ];
   const categoryLabel = catLabel(category);
 
   const toolbarBtn = (active?: boolean) =>
@@ -911,9 +910,19 @@ export default function ProductForm({
                   key={size}
                   active={sizes.includes(size)}
                   onClick={() => toggleSize(size)}
-                  className="min-w-11 px-2.5"
+                  className={cx(
+                    "min-w-11 px-2.5",
+                    sizeHint(sizeGroup, size) && "h-auto flex-col py-1.5 leading-tight",
+                  )}
                 >
-                  {size}
+                  {sizeGroup === "bebe" && SIZE_GROUP_BEBE.includes(size)
+                    ? `Talle ${size}`
+                    : size}
+                  {sizeHint(sizeGroup, size) ? (
+                    <span className="text-[10px] font-medium text-zinc-500">
+                      {sizeHint(sizeGroup, size)}
+                    </span>
+                  ) : null}
                 </Chip>
               ))}
             </div>
@@ -1028,7 +1037,8 @@ export default function ProductForm({
                           {sizes.map((s) => (
                             <Stepper
                               key={s}
-                              label={s}
+                              label={sizeHint(sizeGroup, s) ? `Talle ${s}` : s}
+                              hint={sizeHint(sizeGroup, s)}
                               value={variantStock(v, s)}
                               onChange={(next) => setVariantStock(i, s, next)}
                             />
@@ -1049,7 +1059,8 @@ export default function ProductForm({
                       {sizes.map((s) => (
                         <Stepper
                           key={s}
-                          label={s}
+                          label={sizeHint(sizeGroup, s) ? `Talle ${s}` : s}
+                          hint={sizeHint(sizeGroup, s)}
                           value={stockBySize[s] ?? 0}
                           onChange={(next) =>
                             setStockBySize((prev) => ({ ...prev, [s]: next }))

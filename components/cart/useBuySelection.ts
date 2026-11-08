@@ -67,7 +67,7 @@ export function useBuySelection(product: Product, opts: BuyOptions) {
     );
   /** Talles a mostrar (los que hay en algún color) con el stock del color elegido */
   const sizes: SizeOption[] = inStock.map((s) => ({
-    label: s.label,
+    ...s,
     stock: sizeStock(s.label),
   }));
   const isColorSoldOut = (i: number) => {
