@@ -449,50 +449,84 @@ export default function Inventario() {
                     ))}
                   </div>
                 ) : (
-                  // Con modelos: una fila por modelo/color con sus talles
-                  <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+                  // Con colores: tabla color × talle
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     {!hasColorStock(p.stockByColor) ? (
                       <p className="text-[11px] text-amber-800">
-                        El stock todavía no está repartido por modelo: quedó en el primero.
+                        El stock todavía no está repartido por color: quedó en el primero.
                       </p>
                     ) : null}
-                    {p.colorVariants.map((v, vi) => {
-                      const model = colorKey(v.name);
-                      return (
-                        <div key={`${model}-${vi}`} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-                          <span className="flex min-w-0 items-center gap-2 sm:w-36 sm:shrink-0">
-                            <span
-                              className="h-4 w-4 shrink-0 rounded-full border border-black/10 bg-cover bg-center"
-                              style={{
-                                backgroundColor: v.hex,
-                                backgroundImage: v.imageSrc ? `url("${v.imageSrc}")` : undefined,
-                              }}
-                              aria-hidden="true"
-                            />
-                            <span className="truncate text-xs font-bold text-zinc-700">
-                              {v.name}
-                              {v.sku ? (
-                                <span className="ml-1 font-mono font-semibold text-zinc-400">
-                                  {v.sku}
-                                </span>
-                              ) : null}
-                            </span>
-                          </span>
-                          <div className="flex flex-wrap gap-2">
+                    <div className="overflow-x-auto">
+                      <table className="border-collapse text-sm">
+                        <thead>
+                          <tr className="text-[11px] font-bold text-zinc-500">
+                            <th className="pb-1 pr-3 text-left font-bold">Color</th>
                             {p.sizes.map((size) => (
-                              <SizeStepper
-                                key={size}
-                                size={size}
-                                value={stockOf(p, model, size)}
-                                changed={edits[p.id]?.[cellKey(model, size)] !== undefined}
-                                onChange={(n) => setCellStock(p, model, size, n)}
-                                label={`${v.name} talle ${size}`}
-                              />
+                              <th key={size} className="px-0.5 pb-1 text-center text-zinc-700">
+                                {size}
+                              </th>
                             ))}
-                          </div>
-                        </div>
-                      );
-                    })}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {p.colorVariants.map((v, vi) => {
+                            const model = colorKey(v.name);
+                            return (
+                              <tr key={`${model}-${vi}`}>
+                                <td className="py-0.5 pr-3">
+                                  <span className="flex max-w-36 items-center gap-2">
+                                    <span
+                                      className="h-4 w-4 shrink-0 rounded-full border border-black/10 bg-cover bg-center"
+                                      style={{
+                                        backgroundColor: v.hex,
+                                        backgroundImage: v.imageSrc ? `url("${v.imageSrc}")` : undefined,
+                                      }}
+                                      aria-hidden="true"
+                                    />
+                                    <span className="truncate text-xs font-bold text-zinc-700">
+                                      {v.name}
+                                    </span>
+                                  </span>
+                                </td>
+                                {p.sizes.map((size) => {
+                                  const value = stockOf(p, model, size);
+                                  const changed = edits[p.id]?.[cellKey(model, size)] !== undefined;
+                                  return (
+                                    <td key={size} className="px-0.5 py-0.5 text-center">
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        inputMode="numeric"
+                                        value={value || ""}
+                                        placeholder="0"
+                                        onChange={(e) =>
+                                          setCellStock(
+                                            p,
+                                            model,
+                                            size,
+                                            Math.max(0, Math.floor(Number(e.target.value)) || 0),
+                                          )
+                                        }
+                                        onFocus={(e) => e.currentTarget.select()}
+                                        aria-label={`Stock de ${v.name} talle ${size}`}
+                                        className={cx(
+                                          "h-8 w-11 rounded-lg border text-center text-sm font-bold tabular-nums placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+                                          changed
+                                            ? "border-tatan-primario4 bg-tatan-primario1/40 text-zinc-900"
+                                            : value === 0
+                                              ? "border-rose-100 bg-rose-50/60 text-rose-600 placeholder:text-rose-300"
+                                              : "border-black/10 bg-white text-zinc-900",
+                                        )}
+                                      />
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </li>

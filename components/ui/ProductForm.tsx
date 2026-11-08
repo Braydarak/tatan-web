@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { apiUploadImage } from "@/lib/tatan-api";
-import ColorPicker, { paletteName } from "@/components/ui/ColorPicker";
+import ColorPicker, { AddColorButton, paletteName } from "@/components/ui/ColorPicker";
 import { colorKey, hasColorStock, totalsBySize, type StockByColor } from "@/lib/stock";
 
 function cx(...classes: Array<string | undefined | null | false>) {
@@ -140,11 +140,11 @@ function initialVariants(data?: Partial<ProductFormData>): ColorVariant[] {
 /** El stock de cada modelo se guarda por su nombre: tiene que ser único. */
 function modelsError(variants: ColorVariant[]): string | null {
   if (variants.some((v) => !v.name.trim())) {
-    return "Poné un nombre a cada modelo (el stock se guarda por modelo)";
+    return "Poné un nombre a cada color (el stock se guarda por color)";
   }
   const names = variants.map((v) => colorKey(v.name).toLowerCase());
   if (new Set(names).size !== names.length) {
-    return "Hay dos modelos con el mismo nombre";
+    return "Hay dos colores con el mismo nombre";
   }
   return null;
 }
@@ -412,6 +412,30 @@ export default function ProductForm({
         0,
       )
     : sizes.reduce((a, s) => a + (Number(stockBySize[s]) || 0), 0);
+  const updateVariant = (i: number, patch: Partial<ColorVariant>) =>
+    setColorVariants((prev) =>
+      prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v)),
+    );
+  /** Agrega un color. El primero se lleva el stock que ya estaba cargado por talle. */
+  const addColor = (hex: string, colorName: string) =>
+    setColorVariants((prev) => [
+      ...prev,
+      {
+        name: colorName,
+        hex,
+        sku: "",
+        imageSrc: "",
+        stock: prev.length === 0 ? { ...stockBySize } : {},
+      },
+    ]);
+  /** Quita un color. Si era el último, su stock vuelve a ser el stock por talle. */
+  const removeVariant = (i: number) => {
+    if (colorVariants.length === 1) {
+      const only = colorVariants[0];
+      setStockBySize(Object.fromEntries(sizes.map((s) => [s, variantStock(only, s)])));
+    }
+    setColorVariants((prev) => prev.filter((_, idx) => idx !== i));
+  };
   const setVariantStock = (i: number, size: string, value: number) =>
     setColorVariants((prev) =>
       prev.map((v, idx) =>
@@ -849,7 +873,7 @@ export default function ProductForm({
             title="Talles y stock"
             description={
               perModel
-                ? "Tocá los talles que hay y cargá cuántos tenés de cada modelo"
+                ? "Tocá los talles que hay y cargá cuántos tenés de cada color"
                 : "Tocá los talles que hay y cargá cuántos tenés de cada uno"
             }
             aside={
@@ -909,69 +933,131 @@ export default function ProductForm({
                     />
                   ))}
                 </div>
-                <p className="mt-3 text-xs text-zinc-500">
-                  ¿Viene en varios colores o estampados? Agregalos en{" "}
-                  <span className="font-semibold">Más fotos y modelos</span> y
-                  el stock se carga por cada uno.
-                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-black/5 bg-zinc-50/70 px-3 py-2.5">
+                  <p className="mr-auto text-xs text-zinc-600">
+                    ¿Viene en varios colores? Cargá el stock de cada color.
+                  </p>
+                  <AddColorButton
+                    label="Cargar por color"
+                    alignRight
+                    onAdd={addColor}
+                    used={colorVariants.map((v) => v.hex)}
+                  />
+                </div>
               </>
             ) : null}
 
-            {/* Con modelos: un bloque por modelo con su stock por talle */}
+            {/* Con colores: tabla color × talle */}
             {sizes.length > 0 && perModel ? (
               <div className="mt-5 flex flex-col gap-3">
                 {stockMovedToFirst ? (
                   <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    El stock que tenía este producto quedó en el primer modelo.
-                    Repartilo entre los modelos y guardá.
+                    El stock que tenía este producto quedó en el primer color.
+                    Repartilo entre los colores y guardá.
                   </p>
                 ) : null}
-                {colorVariants.map((v, i) => {
-                  const subtotal = sizes.reduce((a, s) => a + variantStock(v, s), 0);
-                  return (
-                    <div
-                      key={i}
-                      className="rounded-xl border border-black/10 bg-zinc-50/60 p-3"
-                    >
-                      <div className="mb-2 flex items-center gap-2">
-                        <span
-                          className="h-5 w-5 shrink-0 rounded-full border border-black/10 bg-cover bg-center"
-                          style={{
-                            backgroundColor: v.hex,
-                            backgroundImage: v.imageSrc ? `url("${v.imageSrc}")` : undefined,
-                          }}
-                          aria-hidden="true"
-                        />
-                        <span
-                          className={cx(
-                            "min-w-0 flex-1 truncate text-sm font-bold",
-                            v.name.trim() ? "text-zinc-800" : "italic text-zinc-400",
-                          )}
-                        >
-                          {v.name.trim() || `Modelo ${i + 1} (sin nombre)`}
-                          {v.sku?.trim() ? (
-                            <span className="ml-2 font-mono text-[11px] font-semibold text-zinc-400">
-                              Art. {v.sku.trim()}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="shrink-0 text-xs font-bold tabular-nums text-zinc-500">
-                          {subtotal} u.
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
+                <div className="overflow-x-auto rounded-xl border border-black/10">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-zinc-50 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                        <th className="px-3 py-2 text-left">Color</th>
                         {sizes.map((s) => (
-                          <Stepper
-                            key={s}
-                            label={s}
-                            value={variantStock(v, s)}
-                            onChange={(next) => setVariantStock(i, s, next)}
-                          />
+                          <th key={s} className="px-1 py-2 text-center normal-case tracking-normal text-xs text-zinc-700">
+                            {s}
+                          </th>
                         ))}
-                      </div>
-                    </div>
-                  );
-                })}
+                        <th className="px-2 py-2 text-right">Total</th>
+                        <th className="w-8" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {colorVariants.map((v, i) => {
+                        const subtotal = sizes.reduce((a, s) => a + variantStock(v, s), 0);
+                        return (
+                          <tr key={i} className="border-t border-black/5">
+                            <td className="px-2 py-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <ColorPicker
+                                  compact
+                                  value={v.hex}
+                                  onChange={(hex, colorName) =>
+                                    updateVariant(
+                                      i,
+                                      !v.name.trim() || v.name.trim() === paletteName(v.hex)
+                                        ? { hex, name: colorName }
+                                        : { hex },
+                                    )
+                                  }
+                                  label={`Color ${i + 1}`}
+                                />
+                                <input
+                                  type="text"
+                                  value={v.name}
+                                  onChange={(e) => updateVariant(i, { name: e.target.value })}
+                                  placeholder="Nombre"
+                                  aria-label={`Nombre del color ${i + 1}`}
+                                  className="h-9 w-28 min-w-0 rounded-lg border border-black/10 bg-white px-2 text-sm font-semibold text-zinc-800 focus:border-tatan-primario4 focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60"
+                                />
+                              </div>
+                            </td>
+                            {sizes.map((s) => (
+                              <td key={s} className="px-1 py-1.5 text-center">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  inputMode="numeric"
+                                  value={variantStock(v, s) || ""}
+                                  placeholder="0"
+                                  onChange={(e) =>
+                                    setVariantStock(i, s, Math.max(0, Math.floor(Number(e.target.value)) || 0))
+                                  }
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  aria-label={`Stock de ${v.name || `color ${i + 1}`} talle ${s}`}
+                                  className="h-9 w-12 rounded-lg border border-black/10 bg-white text-center text-sm font-bold tabular-nums text-zinc-900 placeholder:font-normal placeholder:text-zinc-300 focus:border-tatan-primario4 focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                />
+                              </td>
+                            ))}
+                            <td className="px-2 py-1.5 text-right text-sm font-extrabold tabular-nums text-zinc-700">
+                              {subtotal}
+                            </td>
+                            <td className="pr-1.5">
+                              <button
+                                type="button"
+                                onClick={() => removeVariant(i)}
+                                aria-label={`Quitar ${v.name || `color ${i + 1}`}`}
+                                title="Quitar color"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-500"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    {colorVariants.length > 1 ? (
+                      <tfoot>
+                        <tr className="border-t border-black/10 bg-zinc-50 text-xs font-bold tabular-nums text-zinc-600">
+                          <td className="px-3 py-2">Total por talle</td>
+                          {sizes.map((s) => (
+                            <td key={s} className="px-1 py-2 text-center">
+                              {colorVariants.reduce((a, v) => a + variantStock(v, s), 0)}
+                            </td>
+                          ))}
+                          <td className="px-2 py-2 text-right text-zinc-900">{stockTotal}</td>
+                          <td />
+                        </tr>
+                      </tfoot>
+                    ) : null}
+                  </table>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <AddColorButton onAdd={addColor} used={colorVariants.map((v) => v.hex)} />
+                  <p className="text-xs text-zinc-500">
+                    La foto y el Nº de artículo de cada color se cargan en{" "}
+                    <span className="font-semibold">Más fotos y modelos</span>.
+                  </p>
+                </div>
                 {showErr(errors.models) ? (
                   <p className="text-xs font-medium text-rose-600">{errors.models}</p>
                 ) : null}
@@ -1322,9 +1408,7 @@ export default function ProductForm({
                                     ) : null}
                                     <button
                                       type="button"
-                                      onClick={() =>
-                                        setColorVariants((prev) => prev.filter((_, idx) => idx !== i))
-                                      }
+                                      onClick={() => removeVariant(i)}
                                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-500"
                                       aria-label={`Quitar modelo ${i + 1}`}
                                     >
@@ -1568,7 +1652,7 @@ export default function ProductForm({
                   ["Nombre", !errors.name],
                   ["Precio", !errors.price],
                   ["Al menos un talle", !errors.sizes],
-                  ...(perModel ? [["Modelos con nombre", !errors.models]] : []),
+                  ...(perModel ? [["Colores con nombre", !errors.models]] : []),
                 ].map(([label, ok]) => (
                   <li
                     key={label as string}
