@@ -230,7 +230,7 @@ function productCardProps(p: HomeProductCard) {
 const AGE_SHORTCUTS = [
   {
     label: "Para bebés",
-    hint: "Talles RN a 24 meses",
+    hint: "Talles 0 a 4 (hasta 12 meses)",
     href: "/productos?t=bebe",
     Icon: Baby,
     color: "#E58BA0",

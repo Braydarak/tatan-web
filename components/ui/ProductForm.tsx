@@ -20,7 +20,8 @@ import {
   X,
 } from "lucide-react";
 import { apiUploadImage } from "@/lib/tatan-api";
-import ColorPicker, { paletteName } from "@/components/ui/ColorPicker";
+import ColorPicker, { AddColorButton, paletteName } from "@/components/ui/ColorPicker";
+import { BABY_SIZES, sizeHint } from "@/lib/sizes";
 import { colorKey, hasColorStock, totalsBySize, type StockByColor } from "@/lib/stock";
 
 function cx(...classes: Array<string | undefined | null | false>) {
@@ -29,22 +30,8 @@ function cx(...classes: Array<string | undefined | null | false>) {
 
 type CategoryKey = string;
 
-const SIZE_GROUP_BEBE = [
-  "RN",
-  "1M",
-  "3M",
-  "6M",
-  "9M",
-  "12M",
-  "18M",
-  "24M",
-  "0-3",
-  "3-6",
-  "6-9",
-  "9-12",
-  "12-18",
-  "18-24",
-];
+/** Talles de bebé: 0 a 4 (ver lib/sizes.ts para la referencia de cada uno) */
+const SIZE_GROUP_BEBE = BABY_SIZES.map((s) => s.label);
 const SIZE_GROUP_NINIOS = [
   "2",
   "3",
@@ -140,11 +127,11 @@ function initialVariants(data?: Partial<ProductFormData>): ColorVariant[] {
 /** El stock de cada modelo se guarda por su nombre: tiene que ser único. */
 function modelsError(variants: ColorVariant[]): string | null {
   if (variants.some((v) => !v.name.trim())) {
-    return "Poné un nombre a cada modelo (el stock se guarda por modelo)";
+    return "Poné un nombre a cada color (el stock se guarda por color)";
   }
   const names = variants.map((v) => colorKey(v.name).toLowerCase());
   if (new Set(names).size !== names.length) {
-    return "Hay dos modelos con el mismo nombre";
+    return "Hay dos colores con el mismo nombre";
   }
   return null;
 }
@@ -315,14 +302,22 @@ function Stepper({
   label,
   value,
   onChange,
+  hint,
 }: {
   label: string;
   value: number;
   onChange: (next: number) => void;
+  /** Referencia del talle (p. ej. "3 a 6 meses") */
+  hint?: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-white py-1.5 pl-3 pr-1.5">
-      <span className="text-sm font-bold text-zinc-800">{label}</span>
+      <span className="min-w-0 text-sm font-bold leading-tight text-zinc-800">
+        {label}
+        {hint ? (
+          <span className="block truncate text-[10px] font-medium text-zinc-500">{hint}</span>
+        ) : null}
+      </span>
       <div className="flex items-center">
         <button
           type="button"
@@ -385,7 +380,7 @@ export default function ProductForm({
   const sizesInit = initialData?.sizes?.length
     ? initialData.sizes
     : sizeGroup === "bebe"
-      ? ["RN", "3M", "6M", "12M"]
+      ? [...SIZE_GROUP_BEBE]
       : ["2", "4", "6", "8"];
   const [sizes, setSizes] = React.useState<string[]>(sizesInit);
   const [stockBySize, setStockBySize] = React.useState<Record<string, number>>(
@@ -412,6 +407,34 @@ export default function ProductForm({
         0,
       )
     : sizes.reduce((a, s) => a + (Number(stockBySize[s]) || 0), 0);
+  const updateVariant = (i: number, patch: Partial<ColorVariant>) =>
+    setColorVariants((prev) =>
+      prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v)),
+    );
+  const [activeColor, setActiveColor] = React.useState(0);
+  /** Agrega un color (y lo deja elegido). El primero se lleva el stock que ya estaba cargado por talle. */
+  const addColor = (hex: string, colorName: string) => {
+    setActiveColor(colorVariants.length);
+    setColorVariants((prev) => [
+      ...prev,
+      {
+        name: colorName,
+        hex,
+        sku: "",
+        imageSrc: "",
+        stock: prev.length === 0 ? { ...stockBySize } : {},
+      },
+    ]);
+  };
+  /** Quita un color. Si era el último, su stock vuelve a ser el stock por talle. */
+  const removeVariant = (i: number) => {
+    if (colorVariants.length === 1) {
+      const only = colorVariants[0];
+      setStockBySize(Object.fromEntries(sizes.map((s) => [s, variantStock(only, s)])));
+    }
+    setColorVariants((prev) => prev.filter((_, idx) => idx !== i));
+    setActiveColor((a) => (a > i ? a - 1 : a === i ? Math.max(0, i - 1) : a));
+  };
   const setVariantStock = (i: number, size: string, value: number) =>
     setColorVariants((prev) =>
       prev.map((v, idx) =>
@@ -534,7 +557,7 @@ export default function ProductForm({
     if (next === sizeGroup) return;
     setSizeGroup(next);
     const nextSizes =
-      next === "bebe" ? ["RN", "3M", "6M", "12M"] : ["2", "4", "6", "8"];
+      next === "bebe" ? [...SIZE_GROUP_BEBE] : ["2", "4", "6", "8"];
     setSizes(nextSizes);
     setStockBySize((prev) => initialStockFromSizes(nextSizes, prev));
   };
@@ -658,8 +681,12 @@ export default function ProductForm({
     onSubmit(data);
   };
 
-  const sizeChoices =
-    sizeGroup === "bebe" ? SIZE_GROUP_BEBE : SIZE_GROUP_NINIOS;
+  const baseChoices = sizeGroup === "bebe" ? SIZE_GROUP_BEBE : SIZE_GROUP_NINIOS;
+  // Talles viejos que tenga el producto (p. ej. "3M") siguen visibles para poder sacarlos
+  const sizeChoices = [
+    ...baseChoices,
+    ...sizes.filter((s) => !baseChoices.includes(s)),
+  ];
   const categoryLabel = catLabel(category);
 
   const toolbarBtn = (active?: boolean) =>
@@ -846,11 +873,11 @@ export default function ProductForm({
           {/* 2. Talles y stock */}
           <Card
             step={2}
-            title="Talles y stock"
+            title="Talles, colores y stock"
             description={
               perModel
-                ? "Tocá los talles que hay y cargá cuántos tenés de cada modelo"
-                : "Tocá los talles que hay y cargá cuántos tenés de cada uno"
+                ? "Elegí los talles, después cada color y cargá cuántos hay por talle"
+                : "Elegí los talles y los colores que hay, y cargá cuántos tenés"
             }
             aside={
               <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold tabular-nums text-zinc-700">
@@ -883,9 +910,19 @@ export default function ProductForm({
                   key={size}
                   active={sizes.includes(size)}
                   onClick={() => toggleSize(size)}
-                  className="min-w-11 px-2.5"
+                  className={cx(
+                    "min-w-11 px-2.5",
+                    sizeHint(sizeGroup, size) && "h-auto flex-col py-1.5 leading-tight",
+                  )}
                 >
-                  {size}
+                  {sizeGroup === "bebe" && SIZE_GROUP_BEBE.includes(size)
+                    ? `Talle ${size}`
+                    : size}
+                  {sizeHint(sizeGroup, size) ? (
+                    <span className="text-[10px] font-medium text-zinc-500">
+                      {sizeHint(sizeGroup, size)}
+                    </span>
+                  ) : null}
                 </Chip>
               ))}
             </div>
@@ -895,85 +932,147 @@ export default function ProductForm({
               </p>
             ) : null}
 
-            {sizes.length > 0 && !perModel ? (
-              <>
-                <div className="mt-5 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
-                  {sizes.map((s) => (
-                    <Stepper
-                      key={s}
-                      label={s}
-                      value={stockBySize[s] ?? 0}
-                      onChange={(next) =>
-                        setStockBySize((prev) => ({ ...prev, [s]: next }))
-                      }
-                    />
-                  ))}
-                </div>
-                <p className="mt-3 text-xs text-zinc-500">
-                  ¿Viene en varios colores o estampados? Agregalos en{" "}
-                  <span className="font-semibold">Más fotos y modelos</span> y
-                  el stock se carga por cada uno.
-                </p>
-              </>
-            ) : null}
-
-            {/* Con modelos: un bloque por modelo con su stock por talle */}
-            {sizes.length > 0 && perModel ? (
-              <div className="mt-5 flex flex-col gap-3">
-                {stockMovedToFirst ? (
-                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    El stock que tenía este producto quedó en el primer modelo.
-                    Repartilo entre los modelos y guardá.
+            {/* Colores: se elige uno y se carga su stock por talle */}
+            {sizes.length > 0 ? (
+              <div className="mt-6 border-t border-black/5 pt-5">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <p className="mr-auto text-sm font-bold text-zinc-800">
+                    Colores
+                    <span className="ml-2 text-xs font-medium text-zinc-500">
+                      {perModel
+                        ? "Tocá un color para cargar su stock por talle"
+                        : "Agregá los colores que hay de este artículo"}
+                    </span>
                   </p>
-                ) : null}
-                {colorVariants.map((v, i) => {
-                  const subtotal = sizes.reduce((a, s) => a + variantStock(v, s), 0);
-                  return (
-                    <div
-                      key={i}
-                      className="rounded-xl border border-black/10 bg-zinc-50/60 p-3"
-                    >
-                      <div className="mb-2 flex items-center gap-2">
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {colorVariants.map((v, i) => {
+                    const active = i === activeColor;
+                    const subtotal = sizes.reduce((a, s) => a + variantStock(v, s), 0);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setActiveColor(i)}
+                        aria-pressed={active}
+                        className={cx(
+                          "inline-flex h-10 items-center gap-2 rounded-xl border pl-1.5 pr-3 text-sm font-semibold transition",
+                          active
+                            ? "border-tatan-primario4 bg-tatan-primario1/50 text-zinc-900 ring-2 ring-tatan-primario1"
+                            : "border-black/10 bg-white text-zinc-700 hover:bg-zinc-50",
+                        )}
+                      >
                         <span
-                          className="h-5 w-5 shrink-0 rounded-full border border-black/10 bg-cover bg-center"
+                          className="h-7 w-7 shrink-0 rounded-lg border border-black/10 bg-cover bg-center"
                           style={{
                             backgroundColor: v.hex,
                             backgroundImage: v.imageSrc ? `url("${v.imageSrc}")` : undefined,
                           }}
                           aria-hidden="true"
                         />
-                        <span
-                          className={cx(
-                            "min-w-0 flex-1 truncate text-sm font-bold",
-                            v.name.trim() ? "text-zinc-800" : "italic text-zinc-400",
-                          )}
-                        >
-                          {v.name.trim() || `Modelo ${i + 1} (sin nombre)`}
-                          {v.sku?.trim() ? (
-                            <span className="ml-2 font-mono text-[11px] font-semibold text-zinc-400">
-                              Art. {v.sku.trim()}
-                            </span>
-                          ) : null}
+                        <span className={cx(!v.name.trim() && "italic text-zinc-400")}>
+                          {v.name.trim() || "Sin nombre"}
                         </span>
-                        <span className="shrink-0 text-xs font-bold tabular-nums text-zinc-500">
+                        <span className="rounded-full bg-white/80 px-1.5 text-[11px] font-bold tabular-nums text-zinc-500">
                           {subtotal} u.
                         </span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
-                        {sizes.map((s) => (
-                          <Stepper
-                            key={s}
-                            label={s}
-                            value={variantStock(v, s)}
-                            onChange={(next) => setVariantStock(i, s, next)}
+                      </button>
+                    );
+                  })}
+                  <AddColorButton
+                    label={perModel ? "Agregar color" : "Elegir color"}
+                    onAdd={addColor}
+                    used={colorVariants.map((v) => v.hex)}
+                  />
+                </div>
+
+                {stockMovedToFirst ? (
+                  <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    El stock que tenía este producto quedó en el primer color.
+                    Repartilo entre los colores y guardá.
+                  </p>
+                ) : null}
+
+                {perModel && colorVariants[activeColor] ? (
+                  (() => {
+                    const i = activeColor;
+                    const v = colorVariants[i];
+                    return (
+                      <div className="mt-4 rounded-2xl border border-tatan-primario4/50 bg-tatan-primario1/15 p-3 sm:p-4">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          <ColorPicker
+                            compact
+                            value={v.hex}
+                            onChange={(hex, colorName) =>
+                              updateVariant(
+                                i,
+                                !v.name.trim() || v.name.trim() === paletteName(v.hex)
+                                  ? { hex, name: colorName }
+                                  : { hex },
+                              )
+                            }
+                            label={`Color ${i + 1}`}
                           />
-                        ))}
+                          <input
+                            type="text"
+                            value={v.name}
+                            onChange={(e) => updateVariant(i, { name: e.target.value })}
+                            placeholder="Nombre del color"
+                            aria-label="Nombre del color"
+                            className="h-9 w-44 min-w-0 rounded-lg border border-black/10 bg-white px-2.5 text-sm font-semibold text-zinc-800 focus:border-tatan-primario4 focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeVariant(i)}
+                            className="ml-auto inline-flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-zinc-500 transition hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <X className="h-3.5 w-3.5" /> Quitar color
+                          </button>
+                        </div>
+                        <p className="mb-2 text-xs font-semibold text-zinc-600">
+                          Cantidad por talle en {v.name.trim() || "este color"}
+                        </p>
+                        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
+                          {sizes.map((s) => (
+                            <Stepper
+                              key={s}
+                              label={sizeHint(sizeGroup, s) ? `Talle ${s}` : s}
+                              hint={sizeHint(sizeGroup, s)}
+                              value={variantStock(v, s)}
+                              onChange={(next) => setVariantStock(i, s, next)}
+                            />
+                          ))}
+                        </div>
                       </div>
+                    );
+                  })()
+                ) : null}
+
+                {/* Sin colores: stock por talle (artículo de un solo color) */}
+                {!perModel ? (
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-semibold text-zinc-600">
+                      Sin colores elegidos: cantidad por talle
+                    </p>
+                    <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
+                      {sizes.map((s) => (
+                        <Stepper
+                          key={s}
+                          label={sizeHint(sizeGroup, s) ? `Talle ${s}` : s}
+                          hint={sizeHint(sizeGroup, s)}
+                          value={stockBySize[s] ?? 0}
+                          onChange={(next) =>
+                            setStockBySize((prev) => ({ ...prev, [s]: next }))
+                          }
+                        />
+                      ))}
                     </div>
-                  );
-                })}
+                  </div>
+                ) : null}
+
                 {showErr(errors.models) ? (
-                  <p className="text-xs font-medium text-rose-600">{errors.models}</p>
+                  <p className="mt-2 text-xs font-medium text-rose-600">{errors.models}</p>
                 ) : null}
               </div>
             ) : null}
@@ -1322,9 +1421,7 @@ export default function ProductForm({
                                     ) : null}
                                     <button
                                       type="button"
-                                      onClick={() =>
-                                        setColorVariants((prev) => prev.filter((_, idx) => idx !== i))
-                                      }
+                                      onClick={() => removeVariant(i)}
                                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-500"
                                       aria-label={`Quitar modelo ${i + 1}`}
                                     >
@@ -1568,7 +1665,7 @@ export default function ProductForm({
                   ["Nombre", !errors.name],
                   ["Precio", !errors.price],
                   ["Al menos un talle", !errors.sizes],
-                  ...(perModel ? [["Modelos con nombre", !errors.models]] : []),
+                  ...(perModel ? [["Colores con nombre", !errors.models]] : []),
                 ].map(([label, ok]) => (
                   <li
                     key={label as string}

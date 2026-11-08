@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import * as React from "react";
-import { Check, Minus, Plus, RotateCcw, Search } from "lucide-react";
+import { Check, ChevronDown, Minus, Plus, RotateCcw, Search } from "lucide-react";
 import { apiProductSave, apiProducts, type Product } from "@/lib/tatan-api";
 import { matchesProduct } from "@/lib/product-search";
 import { LOW_STOCK, stockLevel, totalStockOf, type StockLevel } from "./format";
@@ -142,6 +142,18 @@ export default function Inventario() {
     Record<string, Record<string, number>>
   >({});
   const [saving, setSaving] = React.useState(false);
+  // Acordeón: artículos abiertos y, de cada uno, el color abierto
+  const [openProducts, setOpenProducts] = React.useState<Set<string>>(new Set());
+  const [openColors, setOpenColors] = React.useState<Record<string, string | null>>({});
+  const toggleProduct = (id: string) =>
+    setOpenProducts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleColor = (id: string, model: string) =>
+    setOpenColors((prev) => ({ ...prev, [id]: prev[id] === model ? null : model }));
   const [notice, setNotice] = React.useState<{
     type: "ok" | "err";
     text: string;
@@ -388,15 +400,24 @@ export default function Inventario() {
             const total = totalOf(p);
             const level = stockLevel(total);
             const changed = Boolean(edits[p.id]);
+            const open = openProducts.has(p.id);
+            const colorTotal = (model: string) =>
+              p.sizes.reduce((a, size) => a + stockOf(p, model, size), 0);
             return (
               <li
                 key={p.id}
                 className={cx(
-                  "flex flex-col gap-3 border-b border-black/5 px-4 py-4 last:border-b-0 md:flex-row md:items-center md:gap-5 md:px-5",
+                  "border-b border-black/5 last:border-b-0",
                   changed && "bg-tatan-primario1/10",
                 )}
               >
-                <div className="flex min-w-0 items-center gap-3 md:w-64 md:shrink-0">
+                {/* Nivel 1: el artículo */}
+                <button
+                  type="button"
+                  onClick={() => toggleProduct(p.id)}
+                  aria-expanded={open}
+                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-zinc-50/80 md:px-5"
+                >
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-black/5 bg-[#FEFDF8]">
                     <Image
                       src={p.imageSrc || "/tatanLogo.png"}
@@ -410,7 +431,12 @@ export default function Inventario() {
                     <p className="truncate text-sm font-semibold text-zinc-900">
                       {p.name}
                     </p>
-                    <p className="mt-0.5 flex items-center gap-2 text-xs">
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      {p.slug ? (
+                        <span className="font-mono text-[11px] text-zinc-400">
+                          Art. {p.slug}
+                        </span>
+                      ) : null}
                       <span
                         className={cx(
                           "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
@@ -423,6 +449,12 @@ export default function Inventario() {
                       >
                         {level === "out" ? "Agotado" : `${total} u.`}
                       </span>
+                      {p.colorVariants.length ? (
+                        <span className="text-zinc-500">
+                          {p.colorVariants.length}{" "}
+                          {p.colorVariants.length === 1 ? "color" : "colores"}
+                        </span>
+                      ) : null}
                       {changed ? (
                         <span className="font-semibold text-tatan-secundario2">
                           Sin guardar
@@ -430,71 +462,134 @@ export default function Inventario() {
                       ) : null}
                     </p>
                   </div>
-                </div>
-
-                {p.sizes.length === 0 ? (
-                  <p className="text-xs italic text-zinc-400">
-                    Sin talles. Agregalos desde Productos.
-                  </p>
-                ) : p.colorVariants.length === 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {p.sizes.map((size) => (
-                      <SizeStepper
-                        key={size}
-                        size={size}
-                        value={stockOf(p, "", size)}
-                        changed={edits[p.id]?.[cellKey("", size)] !== undefined}
-                        onChange={(v) => setCellStock(p, "", size, v)}
+                  {/* Puntitos de los colores */}
+                  <span className="hidden shrink-0 items-center -space-x-1 sm:flex" aria-hidden="true">
+                    {p.colorVariants.slice(0, 6).map((v, vi) => (
+                      <span
+                        key={vi}
+                        className="h-4 w-4 rounded-full border-2 border-white"
+                        style={{ backgroundColor: v.hex }}
                       />
                     ))}
-                  </div>
-                ) : (
-                  // Con modelos: una fila por modelo/color con sus talles
-                  <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-                    {!hasColorStock(p.stockByColor) ? (
-                      <p className="text-[11px] text-amber-800">
-                        El stock todavía no está repartido por modelo: quedó en el primero.
+                  </span>
+                  <ChevronDown
+                    className={cx(
+                      "h-5 w-5 shrink-0 text-zinc-400 transition-transform",
+                      open && "rotate-180",
+                    )}
+                  />
+                </button>
+
+                {open ? (
+                  <div className="px-4 pb-4 md:px-5 md:pl-[5.25rem]">
+                    {p.sizes.length === 0 ? (
+                      <p className="text-xs italic text-zinc-400">
+                        Sin talles. Agregalos desde Productos.
                       </p>
-                    ) : null}
-                    {p.colorVariants.map((v, vi) => {
-                      const model = colorKey(v.name);
-                      return (
-                        <div key={`${model}-${vi}`} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-                          <span className="flex min-w-0 items-center gap-2 sm:w-36 sm:shrink-0">
-                            <span
-                              className="h-4 w-4 shrink-0 rounded-full border border-black/10 bg-cover bg-center"
-                              style={{
-                                backgroundColor: v.hex,
-                                backgroundImage: v.imageSrc ? `url("${v.imageSrc}")` : undefined,
-                              }}
-                              aria-hidden="true"
+                    ) : p.colorVariants.length === 0 ? (
+                      // Sin colores: directamente el stock por talle
+                      <div>
+                        <p className="mb-2 text-xs text-zinc-500">
+                          Sin colores cargados. Stock por talle:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {p.sizes.map((size) => (
+                            <SizeStepper
+                              key={size}
+                              size={size}
+                              value={stockOf(p, "", size)}
+                              changed={edits[p.id]?.[cellKey("", size)] !== undefined}
+                              onChange={(v) => setCellStock(p, "", size, v)}
                             />
-                            <span className="truncate text-xs font-bold text-zinc-700">
-                              {v.name}
-                              {v.sku ? (
-                                <span className="ml-1 font-mono font-semibold text-zinc-400">
-                                  {v.sku}
-                                </span>
-                              ) : null}
-                            </span>
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {p.sizes.map((size) => (
-                              <SizeStepper
-                                key={size}
-                                size={size}
-                                value={stockOf(p, model, size)}
-                                changed={edits[p.id]?.[cellKey(model, size)] !== undefined}
-                                onChange={(n) => setCellStock(p, model, size, n)}
-                                label={`${v.name} talle ${size}`}
-                              />
-                            ))}
-                          </div>
+                          ))}
                         </div>
-                      );
-                    })}
+                      </div>
+                    ) : (
+                      // Nivel 2: los colores; nivel 3: los talles de ese color
+                      <div className="flex flex-col gap-2">
+                        {!hasColorStock(p.stockByColor) ? (
+                          <p className="text-[11px] text-amber-800">
+                            El stock todavía no está repartido por color: quedó en el primero.
+                          </p>
+                        ) : null}
+                        {p.colorVariants.map((v, vi) => {
+                          const model = colorKey(v.name);
+                          const colorOpen = openColors[p.id] === model;
+                          const ct = colorTotal(model);
+                          const colorChanged = p.sizes.some(
+                            (size) => edits[p.id]?.[cellKey(model, size)] !== undefined,
+                          );
+                          return (
+                            <div
+                              key={`${model}-${vi}`}
+                              className={cx(
+                                "overflow-hidden rounded-xl border",
+                                colorOpen ? "border-tatan-primario4/60 bg-white" : "border-black/10 bg-zinc-50/60",
+                              )}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => toggleColor(p.id, model)}
+                                aria-expanded={colorOpen}
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition hover:bg-white"
+                              >
+                                <span
+                                  className="h-6 w-6 shrink-0 rounded-full border border-black/10 bg-cover bg-center"
+                                  style={{
+                                    backgroundColor: v.hex,
+                                    backgroundImage: v.imageSrc ? `url("${v.imageSrc}")` : undefined,
+                                  }}
+                                  aria-hidden="true"
+                                />
+                                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-800">
+                                  {v.name}
+                                  {v.sku ? (
+                                    <span className="ml-2 font-mono text-[11px] font-normal text-zinc-400">
+                                      Art. {v.sku}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                {colorChanged ? (
+                                  <span className="text-[11px] font-semibold text-tatan-secundario2">
+                                    Sin guardar
+                                  </span>
+                                ) : null}
+                                <span
+                                  className={cx(
+                                    "rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums",
+                                    ct === 0 ? "bg-rose-50 text-rose-700" : "bg-zinc-100 text-zinc-700",
+                                  )}
+                                >
+                                  {ct === 0 ? "Agotado" : `${ct} u.`}
+                                </span>
+                                <ChevronDown
+                                  className={cx(
+                                    "h-4 w-4 shrink-0 text-zinc-400 transition-transform",
+                                    colorOpen && "rotate-180",
+                                  )}
+                                />
+                              </button>
+                              {colorOpen ? (
+                                <div className="flex flex-wrap gap-2 border-t border-black/5 px-3 py-3">
+                                  {p.sizes.map((size) => (
+                                    <SizeStepper
+                                      key={size}
+                                      size={size}
+                                      value={stockOf(p, model, size)}
+                                      changed={edits[p.id]?.[cellKey(model, size)] !== undefined}
+                                      onChange={(n) => setCellStock(p, model, size, n)}
+                                      label={`${v.name} talle ${size}`}
+                                    />
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
+                ) : null}
               </li>
             );
           })}

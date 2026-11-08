@@ -90,7 +90,11 @@ export default function ProductBuyBox({
                     sel.chooseSize(s.label);
                     setQty(1);
                   }}
-                  title={out ? `Sin stock${sel.color ? ` en ${sel.color.name}` : ""}` : undefined}
+                  title={
+                    out
+                      ? `Sin stock${sel.color ? ` en ${sel.color.name}` : ""}`
+                      : s.hint
+                  }
                   className={cx(
                     "py-2.5 rounded-xl text-sm font-bold border transition-all",
                     active
@@ -108,6 +112,21 @@ export default function ProductBuyBox({
               );
             })}
           </div>
+          {/* Referencia de los talles de bebé (0 = recién nacido, 1 = 1 a 3 meses…) */}
+          {sizes.some((s) => s.hint) && (
+            <ul className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">
+              {sizes
+                .filter((s) => s.hint)
+                .map((s) => (
+                  <li
+                    key={s.label}
+                    className={cx(sel.size === s.label && "font-bold text-zinc-800")}
+                  >
+                    <span className="font-bold">Talle {s.label}:</span> {s.hint}
+                  </li>
+                ))}
+            </ul>
+          )}
         </div>
       )}
 
