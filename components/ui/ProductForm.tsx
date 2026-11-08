@@ -416,8 +416,10 @@ export default function ProductForm({
     setColorVariants((prev) =>
       prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v)),
     );
-  /** Agrega un color. El primero se lleva el stock que ya estaba cargado por talle. */
-  const addColor = (hex: string, colorName: string) =>
+  const [activeColor, setActiveColor] = React.useState(0);
+  /** Agrega un color (y lo deja elegido). El primero se lleva el stock que ya estaba cargado por talle. */
+  const addColor = (hex: string, colorName: string) => {
+    setActiveColor(colorVariants.length);
     setColorVariants((prev) => [
       ...prev,
       {
@@ -428,6 +430,7 @@ export default function ProductForm({
         stock: prev.length === 0 ? { ...stockBySize } : {},
       },
     ]);
+  };
   /** Quita un color. Si era el último, su stock vuelve a ser el stock por talle. */
   const removeVariant = (i: number) => {
     if (colorVariants.length === 1) {
@@ -435,6 +438,7 @@ export default function ProductForm({
       setStockBySize(Object.fromEntries(sizes.map((s) => [s, variantStock(only, s)])));
     }
     setColorVariants((prev) => prev.filter((_, idx) => idx !== i));
+    setActiveColor((a) => (a > i ? a - 1 : a === i ? Math.max(0, i - 1) : a));
   };
   const setVariantStock = (i: number, size: string, value: number) =>
     setColorVariants((prev) =>
@@ -870,11 +874,11 @@ export default function ProductForm({
           {/* 2. Talles y stock */}
           <Card
             step={2}
-            title="Talles y stock"
+            title="Talles, colores y stock"
             description={
               perModel
-                ? "Tocá los talles que hay y cargá cuántos tenés de cada color"
-                : "Tocá los talles que hay y cargá cuántos tenés de cada uno"
+                ? "Elegí los talles, después cada color y cargá cuántos hay por talle"
+                : "Elegí los talles y los colores que hay, y cargá cuántos tenés"
             }
             aside={
               <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold tabular-nums text-zinc-700">
@@ -919,147 +923,145 @@ export default function ProductForm({
               </p>
             ) : null}
 
-            {sizes.length > 0 && !perModel ? (
-              <>
-                <div className="mt-5 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
-                  {sizes.map((s) => (
-                    <Stepper
-                      key={s}
-                      label={s}
-                      value={stockBySize[s] ?? 0}
-                      onChange={(next) =>
-                        setStockBySize((prev) => ({ ...prev, [s]: next }))
-                      }
-                    />
-                  ))}
-                </div>
-                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-black/5 bg-zinc-50/70 px-3 py-2.5">
-                  <p className="mr-auto text-xs text-zinc-600">
-                    ¿Viene en varios colores? Cargá el stock de cada color.
+            {/* Colores: se elige uno y se carga su stock por talle */}
+            {sizes.length > 0 ? (
+              <div className="mt-6 border-t border-black/5 pt-5">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <p className="mr-auto text-sm font-bold text-zinc-800">
+                    Colores
+                    <span className="ml-2 text-xs font-medium text-zinc-500">
+                      {perModel
+                        ? "Tocá un color para cargar su stock por talle"
+                        : "Agregá los colores que hay de este artículo"}
+                    </span>
                   </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {colorVariants.map((v, i) => {
+                    const active = i === activeColor;
+                    const subtotal = sizes.reduce((a, s) => a + variantStock(v, s), 0);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setActiveColor(i)}
+                        aria-pressed={active}
+                        className={cx(
+                          "inline-flex h-10 items-center gap-2 rounded-xl border pl-1.5 pr-3 text-sm font-semibold transition",
+                          active
+                            ? "border-tatan-primario4 bg-tatan-primario1/50 text-zinc-900 ring-2 ring-tatan-primario1"
+                            : "border-black/10 bg-white text-zinc-700 hover:bg-zinc-50",
+                        )}
+                      >
+                        <span
+                          className="h-7 w-7 shrink-0 rounded-lg border border-black/10 bg-cover bg-center"
+                          style={{
+                            backgroundColor: v.hex,
+                            backgroundImage: v.imageSrc ? `url("${v.imageSrc}")` : undefined,
+                          }}
+                          aria-hidden="true"
+                        />
+                        <span className={cx(!v.name.trim() && "italic text-zinc-400")}>
+                          {v.name.trim() || "Sin nombre"}
+                        </span>
+                        <span className="rounded-full bg-white/80 px-1.5 text-[11px] font-bold tabular-nums text-zinc-500">
+                          {subtotal} u.
+                        </span>
+                      </button>
+                    );
+                  })}
                   <AddColorButton
-                    label="Cargar por color"
-                    alignRight
+                    label={perModel ? "Agregar color" : "Elegir color"}
                     onAdd={addColor}
                     used={colorVariants.map((v) => v.hex)}
                   />
                 </div>
-              </>
-            ) : null}
 
-            {/* Con colores: tabla color × talle */}
-            {sizes.length > 0 && perModel ? (
-              <div className="mt-5 flex flex-col gap-3">
                 {stockMovedToFirst ? (
-                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                     El stock que tenía este producto quedó en el primer color.
                     Repartilo entre los colores y guardá.
                   </p>
                 ) : null}
-                <div className="overflow-x-auto rounded-xl border border-black/10">
-                  <table className="w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-zinc-50 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                        <th className="px-3 py-2 text-left">Color</th>
-                        {sizes.map((s) => (
-                          <th key={s} className="px-1 py-2 text-center normal-case tracking-normal text-xs text-zinc-700">
-                            {s}
-                          </th>
-                        ))}
-                        <th className="px-2 py-2 text-right">Total</th>
-                        <th className="w-8" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {colorVariants.map((v, i) => {
-                        const subtotal = sizes.reduce((a, s) => a + variantStock(v, s), 0);
-                        return (
-                          <tr key={i} className="border-t border-black/5">
-                            <td className="px-2 py-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <ColorPicker
-                                  compact
-                                  value={v.hex}
-                                  onChange={(hex, colorName) =>
-                                    updateVariant(
-                                      i,
-                                      !v.name.trim() || v.name.trim() === paletteName(v.hex)
-                                        ? { hex, name: colorName }
-                                        : { hex },
-                                    )
-                                  }
-                                  label={`Color ${i + 1}`}
-                                />
-                                <input
-                                  type="text"
-                                  value={v.name}
-                                  onChange={(e) => updateVariant(i, { name: e.target.value })}
-                                  placeholder="Nombre"
-                                  aria-label={`Nombre del color ${i + 1}`}
-                                  className="h-9 w-28 min-w-0 rounded-lg border border-black/10 bg-white px-2 text-sm font-semibold text-zinc-800 focus:border-tatan-primario4 focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60"
-                                />
-                              </div>
-                            </td>
-                            {sizes.map((s) => (
-                              <td key={s} className="px-1 py-1.5 text-center">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  inputMode="numeric"
-                                  value={variantStock(v, s) || ""}
-                                  placeholder="0"
-                                  onChange={(e) =>
-                                    setVariantStock(i, s, Math.max(0, Math.floor(Number(e.target.value)) || 0))
-                                  }
-                                  onFocus={(e) => e.currentTarget.select()}
-                                  aria-label={`Stock de ${v.name || `color ${i + 1}`} talle ${s}`}
-                                  className="h-9 w-12 rounded-lg border border-black/10 bg-white text-center text-sm font-bold tabular-nums text-zinc-900 placeholder:font-normal placeholder:text-zinc-300 focus:border-tatan-primario4 focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                />
-                              </td>
-                            ))}
-                            <td className="px-2 py-1.5 text-right text-sm font-extrabold tabular-nums text-zinc-700">
-                              {subtotal}
-                            </td>
-                            <td className="pr-1.5">
-                              <button
-                                type="button"
-                                onClick={() => removeVariant(i)}
-                                aria-label={`Quitar ${v.name || `color ${i + 1}`}`}
-                                title="Quitar color"
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-rose-50 hover:text-rose-500"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    {colorVariants.length > 1 ? (
-                      <tfoot>
-                        <tr className="border-t border-black/10 bg-zinc-50 text-xs font-bold tabular-nums text-zinc-600">
-                          <td className="px-3 py-2">Total por talle</td>
+
+                {perModel && colorVariants[activeColor] ? (
+                  (() => {
+                    const i = activeColor;
+                    const v = colorVariants[i];
+                    return (
+                      <div className="mt-4 rounded-2xl border border-tatan-primario4/50 bg-tatan-primario1/15 p-3 sm:p-4">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          <ColorPicker
+                            compact
+                            value={v.hex}
+                            onChange={(hex, colorName) =>
+                              updateVariant(
+                                i,
+                                !v.name.trim() || v.name.trim() === paletteName(v.hex)
+                                  ? { hex, name: colorName }
+                                  : { hex },
+                              )
+                            }
+                            label={`Color ${i + 1}`}
+                          />
+                          <input
+                            type="text"
+                            value={v.name}
+                            onChange={(e) => updateVariant(i, { name: e.target.value })}
+                            placeholder="Nombre del color"
+                            aria-label="Nombre del color"
+                            className="h-9 w-44 min-w-0 rounded-lg border border-black/10 bg-white px-2.5 text-sm font-semibold text-zinc-800 focus:border-tatan-primario4 focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeVariant(i)}
+                            className="ml-auto inline-flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-zinc-500 transition hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <X className="h-3.5 w-3.5" /> Quitar color
+                          </button>
+                        </div>
+                        <p className="mb-2 text-xs font-semibold text-zinc-600">
+                          Cantidad por talle en {v.name.trim() || "este color"}
+                        </p>
+                        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
                           {sizes.map((s) => (
-                            <td key={s} className="px-1 py-2 text-center">
-                              {colorVariants.reduce((a, v) => a + variantStock(v, s), 0)}
-                            </td>
+                            <Stepper
+                              key={s}
+                              label={s}
+                              value={variantStock(v, s)}
+                              onChange={(next) => setVariantStock(i, s, next)}
+                            />
                           ))}
-                          <td className="px-2 py-2 text-right text-zinc-900">{stockTotal}</td>
-                          <td />
-                        </tr>
-                      </tfoot>
-                    ) : null}
-                  </table>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <AddColorButton onAdd={addColor} used={colorVariants.map((v) => v.hex)} />
-                  <p className="text-xs text-zinc-500">
-                    La foto y el Nº de artículo de cada color se cargan en{" "}
-                    <span className="font-semibold">Más fotos y modelos</span>.
-                  </p>
-                </div>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : null}
+
+                {/* Sin colores: stock por talle (artículo de un solo color) */}
+                {!perModel ? (
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-semibold text-zinc-600">
+                      Sin colores elegidos: cantidad por talle
+                    </p>
+                    <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
+                      {sizes.map((s) => (
+                        <Stepper
+                          key={s}
+                          label={s}
+                          value={stockBySize[s] ?? 0}
+                          onChange={(next) =>
+                            setStockBySize((prev) => ({ ...prev, [s]: next }))
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 {showErr(errors.models) ? (
-                  <p className="text-xs font-medium text-rose-600">{errors.models}</p>
+                  <p className="mt-2 text-xs font-medium text-rose-600">{errors.models}</p>
                 ) : null}
               </div>
             ) : null}
