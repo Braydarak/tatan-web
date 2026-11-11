@@ -122,18 +122,15 @@ export default function CardQuickAdd({
                     onModelChange?.(c.imageSrc);
                   }}
                   className={cx(
-                    "rounded-full border border-zinc-300/80 shadow-inner transition-all bg-cover bg-center",
-                    c.imageSrc ? "w-6 h-6 sm:w-7 sm:h-7" : "w-4 h-4 sm:w-[18px] sm:h-[18px]",
+                    "w-4 h-4 sm:w-[18px] sm:h-[18px] rounded-full border border-zinc-300/80 shadow-inner transition-all",
                     active
                       ? "ring-2 ring-tatan-primario4 ring-offset-1 ring-offset-white scale-110"
                       : colorOut
                         ? "opacity-30 cursor-not-allowed"
                         : "hover:scale-110",
                   )}
-                  style={{
-                    backgroundColor: c.hex,
-                    backgroundImage: c.imageSrc ? `url("${c.imageSrc}")` : undefined,
-                  }}
+                  // Muestra el color; la foto del modelo cambia en la foto de la card
+                  style={{ backgroundColor: c.hex }}
                 />
               );
             })}

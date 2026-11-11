@@ -187,15 +187,10 @@ export default function ProductBuyBox({
                           ),
                   )}
                 >
+                  {/* Muestra el color; la foto del modelo cambia en la galería */}
                   <span
-                    className={cx(
-                      "shrink-0 border border-white shadow-inner bg-cover bg-center",
-                      c.imageSrc ? "h-10 w-10 rounded-lg" : "h-6 w-6 rounded-full",
-                    )}
-                    style={{
-                      backgroundColor: c.hex,
-                      backgroundImage: c.imageSrc ? `url("${c.imageSrc}")` : undefined,
-                    }}
+                    className="h-6 w-6 shrink-0 rounded-full border border-zinc-300/80 shadow-inner"
+                    style={{ backgroundColor: c.hex }}
                     aria-hidden="true"
                   />
                   <span className="min-w-0 leading-tight">
