@@ -303,18 +303,14 @@ export default function Checkout() {
               {quote?.mode === "domicilio" && (
                 <div className="grid gap-3 border-t border-tatan-secundario1/50 pt-4 sm:grid-cols-6">
                   <p className="text-sm font-bold text-zinc-800 sm:col-span-6">¿A dónde lo enviamos?</p>
-                  {/* Primero el código postal (ya elegido arriba): provincia y
+                  {/* El código postal ya se eligió arriba (para el envío): provincia y
                       localidad se completan solas a partir de él */}
-                  <Field label="Código postal" name="postalCode" className="sm:col-span-2"
-                    hint="Para cambiarlo, tocá «Cambiar» arriba">
-                    <input value={ship.postalCode} readOnly className={cx(inputCls(), "bg-zinc-50 text-zinc-500")} />
-                  </Field>
-                  <Field label="Provincia" error={errors.province} name="province" className="sm:col-span-4"
+                  <Field label="Provincia" error={errors.province} name="province" className="sm:col-span-3"
                     hint={
                       postalInfo && form.province === auto.province
                         ? postalInfo.provinces.length > 1
-                          ? "Según tu código postal (puede ser otra: revisala)"
-                          : "Según tu código postal"
+                          ? `Según tu código postal (${ship.postalCode}). Puede ser otra: revisala`
+                          : `Según tu código postal (${ship.postalCode})`
                         : undefined
                     }>
                     <select autoComplete="address-level1" value={form.province} onChange={set("province")} className={inputCls(errors.province)}>
@@ -324,11 +320,11 @@ export default function Checkout() {
                       ))}
                     </select>
                   </Field>
-                  <Field label="Localidad" error={errors.city} name="city" className="sm:col-span-6"
+                  <Field label="Localidad" error={errors.city} name="city" className="sm:col-span-3"
                     hint={
                       postalInfo && form.city === auto.city
                         ? postalInfo.localities.length > 1
-                          ? "Según tu código postal. Si no es la tuya, elegí otra de la lista o escribila"
+                          ? "Si no es la tuya, elegí otra de la lista o escribila"
                           : "Según tu código postal"
                         : undefined
                     }>
