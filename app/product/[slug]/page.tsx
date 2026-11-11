@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { productHref, productSlug, slugify } from "@/lib/product-url";
 import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
 import { fetchHomeContentSSR } from "@/lib/home-content";
 import {
@@ -27,7 +28,8 @@ import {
 } from "lucide-react";
 
 type ProductPageProps = {
-  params: Promise<{ id: string }>;
+  /** Nombre del producto en la URL (o el ID, en links viejos) */
+  params: Promise<{ slug: string }>;
 };
 
 type FullProduct = {
@@ -137,16 +139,28 @@ function mapApiToFullProduct(api: ApiProduct): FullProduct {
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const { id } = await params;
+  const { slug: rawSlug } = await params;
+  let slug = rawSlug;
+  try {
+    slug = decodeURIComponent(rawSlug);
+  } catch {}
 
-  const fromApi = await fetchProductByIdSSR(id);
+  // La URL lleva el nombre del producto: /product/body-manga-larga
+  const allProducts = await fetchAllProductsSSR();
+  const wanted = slugify(slug);
+  const match = allProducts.find((p) => productSlug(p) === wanted);
+  const fromApi = await fetchProductByIdSSR(match?.id ?? slug);
   if (!fromApi) {
     notFound();
   }
+  // Links viejos con el ID (/product/b-001) o escritos distinto: a la URL con el nombre
+  if (productSlug(fromApi) !== rawSlug) {
+    permanentRedirect(productHref(fromApi));
+  }
   const product: FullProduct = mapApiToFullProduct(fromApi);
+  const id = product.id;
 
-  const [allProducts, content, combos, categories] = await Promise.all([
-    fetchAllProductsSSR(),
+  const [content, combos, categories] = await Promise.all([
     fetchHomeContentSSR(),
     fetchCombosSSR([id], 4),
     fetchCategoriesSSR(),

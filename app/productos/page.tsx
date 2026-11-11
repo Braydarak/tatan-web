@@ -18,6 +18,7 @@ import {
   Tag,
 } from "lucide-react";
 import type { Product as ApiProduct } from "@/lib/tatan-api";
+import { productHref } from "@/lib/product-url";
 
 export const metadata = {
   title: "Productos Tatan — Toda la colección de ropa infantil",
@@ -439,7 +440,7 @@ export default async function ProductosPage({
                   type="search"
                   name="q"
                   defaultValue={state.q}
-                  placeholder="Buscar producto o Nº de artículo"
+                  placeholder="Buscar producto"
                   aria-label="Buscar productos"
                   className="h-12 w-full rounded-2xl border border-tatan-secundario1/70 bg-white/90 pl-10 pr-24 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/70"
                 />
@@ -621,7 +622,7 @@ export default async function ProductosPage({
                       images={p.images}
                       taxFreePrice={Math.round(p.price * 0.79)}
                       colorHex={p.colorHex}
-                      productUrl={`/product/${p.id}`}
+                      productUrl={productHref(p)}
                       loading={idx < 4 ? "eager" : "lazy"}
                       priority={idx === 0}
                       badge={

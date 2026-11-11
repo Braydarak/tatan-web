@@ -2,6 +2,7 @@ import type { ProductCardProps } from "@/components/ui/productCard/types";
 import { buyOptionsFromApi } from "@/lib/buy-options";
 import { wholesaleOf } from "@/lib/wholesale";
 import type { Product as ApiProduct } from "@/lib/tatan-api";
+import { productHref } from "@/lib/product-url";
 
 /** Datos de la card a partir del producto de la API (mismo criterio en toda la tienda). */
 export function apiToCardProps(
@@ -28,7 +29,7 @@ export function apiToCardProps(
     taxFreePrice: Math.round(price * 0.79),
     colorHex: api.colorHex || "#F5E6D3",
     tagline: api.tagline?.trim() || undefined,
-    productUrl: `/product/${api.id}`,
+    productUrl: productHref(api),
     ctaLabel: "Ver producto",
     buy: opts.quickAdd === false ? undefined : buyOptionsFromApi(api),
     wholesale: wholesaleOf(api),
