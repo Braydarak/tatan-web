@@ -235,6 +235,36 @@ function slug_taken(string $slug, ?string $exceptId = null): bool {
     return (int)$stmt->fetchColumn() > 0;
 }
 
+/**
+ * URL del producto en la tienda (/product/<esto>): el nombre en minúsculas,
+ * sin acentos y con guiones. Misma regla que slugify() en lib/product-url.ts.
+ */
+function name_url(string $name): string {
+    $s = mb_strtolower(trim($name), 'UTF-8');
+    $s = strtr($s, [
+        'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a', 'ã' => 'a',
+        'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
+        'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
+        'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o', 'õ' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
+        'ñ' => 'n', 'ç' => 'c',
+    ]);
+    $s = preg_replace('/[^a-z0-9]+/', '-', $s);
+    return trim((string)$s, '-');
+}
+
+/** ¿Otro producto ya tiene un nombre que da la misma URL? */
+function name_url_taken(string $name, ?string $exceptId = null): bool {
+    $url = name_url($name);
+    if ($url === '') return false;
+    $stmt = pdo()->prepare("SELECT name FROM products WHERE id <> ?");
+    $stmt->execute([$exceptId ?? '']);
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $other) {
+        if (name_url((string)$other) === $url) return true;
+    }
+    return false;
+}
+
 /** Strings a la medida de la columna (evita "Data too long" en modo estricto). */
 function str_or_null(mixed $v, int $max): ?string {
     if ($v === null || is_array($v)) return null;
@@ -273,6 +303,11 @@ function validate_product_body(array $body, ?string $exceptId = null): array {
                 'message' => 'Las imágenes deben ser una URL (máx. 500 caracteres), no un archivo embebido',
             ], 400);
         }
+    }
+
+    // El nombre arma la URL del producto: no puede repetirse
+    if (name_url_taken($name, $exceptId)) {
+        send_json(['ok' => false, 'error' => 'DUPLICATE_NAME', 'message' => "Ya hay otro producto llamado \"{$name}\" (o casi igual). Cambiá el nombre: se usa para la dirección del producto en la tienda"], 409);
     }
 
     $slug = str_or_null($body['slug'] ?? null, 150);

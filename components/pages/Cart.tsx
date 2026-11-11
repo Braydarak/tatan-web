@@ -19,6 +19,7 @@ import {
   setQuantity,
   useCart,
 } from "@/lib/cart";
+import { productHref } from "@/lib/product-url";
 
 export default function Cart({
   catalog = [],
@@ -114,7 +115,7 @@ export default function Cart({
                 >
                   <div className="flex items-start gap-4">
                     <Link
-                      href={`/product/${item.productId}`}
+                      href={productHref({ id: item.productId, name: item.name })}
                       className="relative h-24 w-20 shrink-0 overflow-hidden rounded-2xl border border-tatan-secundario1/50"
                       style={{ backgroundColor: item.colorHex ?? "#fff" }}
                     >
@@ -128,7 +129,7 @@ export default function Cart({
                     </Link>
                     <div className="min-w-0">
                       <Link
-                        href={`/product/${item.productId}`}
+                        href={productHref({ id: item.productId, name: item.name })}
                         className="text-sm font-bold text-zinc-800 hover:underline"
                       >
                         {item.name}
@@ -144,11 +145,6 @@ export default function Cart({
                               style={{ backgroundColor: item.colorHex }}
                             />
                             {item.colorName}
-                          </span>
-                        )}
-                        {item.sku && (
-                          <span className="inline-flex items-center rounded-full border border-tatan-secundario1/60 bg-white px-2.5 py-1 font-mono">
-                            Art. {item.sku}
                           </span>
                         )}
                       </div>

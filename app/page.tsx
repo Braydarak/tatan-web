@@ -40,6 +40,7 @@ import {
   Check,
   ArrowRight,
 } from "lucide-react";
+import { productHref } from "@/lib/product-url";
 
 const PHP_API_BASE = "https://tatankids.com.ar/api";
 
@@ -223,7 +224,7 @@ function productCardProps(p: HomeProductCard) {
     ctaLabel: "Ver producto",
     buy: p.buy,
     images: p.images,
-    productUrl: `/product/${p.id}`,
+    productUrl: productHref(p),
   };
 }
 
