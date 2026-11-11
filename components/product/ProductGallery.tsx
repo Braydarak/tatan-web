@@ -30,8 +30,13 @@ function toRect(r: DOMRect): Rect {
 
 /** Aire de la foto en la galería (p-[7%] de ProductPhoto framed) */
 const GALLERY_PAD = 0.07;
-const ZOOM_MS = 320;
-const ZOOM_EASE = "cubic-bezier(0.2, 0.8, 0.2, 1)";
+/** Abrir: arranca decidido y frena largo y suave. Cerrar: un poco más corto. */
+const ZOOM = {
+  open: { ms: 460, ease: "cubic-bezier(0.22, 1, 0.36, 1)" },
+  close: { ms: 380, ease: "cubic-bezier(0.32, 0.72, 0, 1)" },
+};
+/** Fundido de la foto real y los controles sobre la copia al terminar de abrir */
+const FADE_MS = 200;
 
 function reducedMotion() {
   return (
@@ -238,6 +243,8 @@ function Lightbox({
   );
   // Foto que muestra la copia y de dónde a dónde viaja al cerrar
   const [ghostSrc, setGhostSrc] = useState(origin?.src ?? "");
+  // La copia sigue un momento debajo mientras la foto real aparece encima
+  const [ghostOn, setGhostOn] = useState(phase === "opening");
   const closing = useRef<{ from: Rect; to: Rect; src: string } | null>(null);
 
   /** Lugar de la foto `i` en pantalla completa (sin el aire del costado) */
@@ -259,9 +266,17 @@ function Lightbox({
       width: `${to.w}px`,
       height: `${to.h}px`,
     });
-    const startT = `translate(${from.x - to.x}px, ${from.y - to.y}px) scale(${from.w / to.w}, ${from.h / to.h})`;
-    const opts = { duration: ZOOM_MS, easing: ZOOM_EASE, fill: "both" as const };
-    bd.animate([{ opacity: opening ? 0 : 1 }, { opacity: opening ? 1 : 0 }], opts);
+    // Misma proporción en los dos lugares: una sola escala, sin deformar
+    const k = from.w / to.w;
+    const startT = `translate3d(${from.x - to.x}px, ${from.y - to.y}px, 0) scale(${k})`;
+    const z = opening ? ZOOM.open : ZOOM.close;
+    const opts = { duration: z.ms, easing: z.ease, fill: "both" as const };
+    // El fondo acompaña un poco más rápido (al abrir) o más lento (al cerrar)
+    bd.animate([{ opacity: opening ? 0 : 1 }, { opacity: opening ? 1 : 0 }], {
+      duration: opening ? z.ms * 0.7 : z.ms,
+      easing: opening ? "ease-out" : "ease-in",
+      fill: "both",
+    });
     // Una sola vez: al terminar, o de respaldo si la animación se corta
     let called = false;
     const once = () => {
@@ -269,8 +284,8 @@ function Lightbox({
       called = true;
       done();
     };
-    g.animate([{ transform: startT }, { transform: "none" }], opts).onfinish = once;
-    setTimeout(once, ZOOM_MS + 250);
+    g.animate([{ transform: startT }, { transform: "translate3d(0, 0, 0) scale(1)" }], opts).onfinish = once;
+    setTimeout(once, z.ms + 250);
   };
 
   const close = () => {
@@ -286,6 +301,7 @@ function Lightbox({
     }
     closing.current = { from: fitRect(box, ratio), to, src };
     setGhostSrc(img.currentSrc || img.src);
+    setGhostOn(true);
     setPhase("closing");
   };
 
@@ -308,7 +324,11 @@ function Lightbox({
       // La copia queda hasta que carga la foto grande, así no parpadea
       const img = slideImg(index);
       // Solo pasa de "abriendo" a "abierto" (si ya se está cerrando, no toca nada)
-      const show = () => setPhase((p) => (p === "opening" ? "open" : p));
+      const show = () => {
+        setPhase((p) => (p === "opening" ? "open" : p));
+        // Cuando terminó el fundido, se saca la copia (si no se está cerrando)
+        setTimeout(() => setGhostOn((on) => (on && closing.current ? on : false)), FADE_MS + 40);
+      };
       if (!img || img.complete) show();
       else {
         img.addEventListener("load", show, { once: true });
@@ -337,12 +357,17 @@ function Lightbox({
   useEffect(() => {
     const prevFocus = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
+    const prevPad = document.body.style.paddingRight;
+    // Sin la barra de scroll la página se correría de costado: se compensa
+    const bar = window.innerWidth - document.documentElement.clientWidth;
+    if (bar > 0) document.body.style.paddingRight = `${bar}px`;
     document.body.style.overflow = "hidden";
     closeBtn.current?.focus();
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPad;
       prevFocus?.focus?.();
     };
   }, []);
@@ -358,19 +383,24 @@ function Lightbox({
       className="fixed inset-0 z-[200]"
     >
       <div ref={backdrop} className="absolute inset-0 bg-black/90" aria-hidden="true" />
-      {phase !== "open" && ghostSrc && (
+      {ghostOn && ghostSrc && (
         // eslint-disable-next-line @next/next/no-img-element -- copia de la foto ya cargada, solo para la animación
         <img
           ref={ghost}
           src={ghostSrc}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none fixed z-10 origin-top-left object-contain"
+          className="pointer-events-none fixed z-10 origin-top-left object-contain will-change-transform"
         />
       )}
       <div
-        className="absolute inset-0"
-        style={{ visibility: phase === "open" ? "visible" : "hidden" }}
+        className="absolute inset-0 z-20"
+        style={{
+          // Al abrir aparece con un fundido sobre la copia; al cerrar se va al instante
+          opacity: phase === "open" ? 1 : 0,
+          transition: phase === "open" ? `opacity ${FADE_MS}ms ease-out` : "none",
+          pointerEvents: phase === "open" ? "auto" : "none",
+        }}
       >
       <div
         ref={track}

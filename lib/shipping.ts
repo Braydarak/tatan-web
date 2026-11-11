@@ -44,10 +44,10 @@ export type Branch = {
 
 /**
  * Retiro sin cargo coordinado con Tatan. Se ofrece como una tarifa más.
- * Poner `enabled: false` para no mostrarlo.
+ * Desactivado (Tatan no ofrece retiro). Poner `enabled: true` para mostrarlo.
  */
 export const STORE_PICKUP = {
-  enabled: true,
+  enabled: false,
   label: "Retiro sin cargo",
   detail: "Coordinamos día y lugar por WhatsApp",
 };

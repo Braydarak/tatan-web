@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+/* Todo lo que se puede tocar muestra la mano (Tailwind 4 deja la flecha en
+   los botones). En la capa base: las clases cursor-* de cada elemento ganan. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="radio"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="option"],
+  a[href],
+  summary,
+  label:has(input[type="checkbox"], input[type="radio"], input[type="file"]),
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
+}
+
 @theme {
   --color-tatan-primario1: #fcd1b1;
   --color-tatan-primario2: #c7e2d6;
