@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { matchesProduct } from "@/lib/product-search";
 import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
@@ -20,11 +21,24 @@ import {
 import type { Product as ApiProduct } from "@/lib/tatan-api";
 import { productHref } from "@/lib/product-url";
 
-export const metadata = {
-  title: "Productos Tatan — Toda la colección de ropa infantil",
-  description:
-    "Bodys, remeras, pijamas y accesorios para bebés y niños. Filtra por categoría, talle y precio. 100% algodón.",
-};
+const PRODUCTS_DESCRIPTION =
+  "Bodys, remeras, pijamas y accesorios para bebés y niños. Filtra por categoría, talle y precio. 100% algodón.";
+
+/** "Productos", o el nombre de la categoría elegida ("Bodys") */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}): Promise<Metadata> {
+  const { c } = await searchParams;
+  let title = "Productos";
+  if (typeof c === "string" && c && c !== "todos") {
+    const categories = await fetchCategoriesSSR();
+    const cat = categories.find((x) => x.key === c);
+    if (cat) title = cat.label;
+  }
+  return { title, description: PRODUCTS_DESCRIPTION };
+}
 
 const PHP_API_BASE = "https://tatankids.com.ar/api";
 
