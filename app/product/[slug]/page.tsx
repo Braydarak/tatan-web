@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { productHref, productSlug, slugify } from "@/lib/product-url";
 import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
 import { fetchHomeContentSSR } from "@/lib/home-content";
 import {
@@ -27,7 +29,8 @@ import {
 } from "lucide-react";
 
 type ProductPageProps = {
-  params: Promise<{ id: string }>;
+  /** Nombre del producto en la URL (o el ID, en links viejos) */
+  params: Promise<{ slug: string }>;
 };
 
 type FullProduct = {
@@ -136,17 +139,65 @@ function mapApiToFullProduct(api: ApiProduct): FullProduct {
   };
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
-  const { id } = await params;
+/**
+ * Producto de la URL: /product/<nombre> (o el ID, en links viejos).
+ * Los fetch quedan cacheados, así que llamarla desde la página y desde
+ * generateMetadata no repite pedidos a la API.
+ */
+async function findProduct(rawSlug: string): Promise<ApiProduct | null> {
+  let slug = rawSlug;
+  try {
+    slug = decodeURIComponent(rawSlug);
+  } catch {}
+  const allProducts = await fetchAllProductsSSR();
+  const wanted = slugify(slug);
+  const match = allProducts.find((p) => productSlug(p) === wanted);
+  return fetchProductByIdSSR(match?.id ?? slug);
+}
 
-  const fromApi = await fetchProductByIdSSR(id);
+/** Título de la pestaña: el nombre del producto (+ " · Tatan" del layout) */
+export async function generateMetadata({
+  params,
+}: ProductPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const p = await findProduct(slug);
+  if (!p) return { title: "Producto no encontrado" };
+  const text = (p.tagline ?? "").trim() ||
+    sanitizeHtml(p.description).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const description = text ? text.slice(0, 160) : undefined;
+  return {
+    title: p.name,
+    description,
+    openGraph: {
+      title: p.name,
+      description,
+      images: p.imageSrc ? [{ url: p.imageSrc }] : undefined,
+    },
+  };
+}
+
+export default async function ProductPage({ params }: ProductPageProps) {
+  const { slug: rawSlug } = await params;
+  // La URL lleva el nombre del producto: /product/body-manga-larga
+  const [fromApi, allProducts] = await Promise.all([
+    findProduct(rawSlug),
+    fetchAllProductsSSR(),
+  ]);
   if (!fromApi) {
     notFound();
   }
+  // Links viejos con el ID (/product/b-001) o escritos distinto: a la URL con el nombre.
+  // La URL se arma con la lista de productos (la misma que usan los links de
+  // la tienda): si el nombre cambió hace poco, la lista y el pedido por ID
+  // pueden estar cacheados con nombres distintos y no se tiene que rebotar.
+  const listed = allProducts.find((p) => p.id === fromApi.id) ?? fromApi;
+  if (productSlug(listed) !== rawSlug) {
+    permanentRedirect(productHref(listed));
+  }
   const product: FullProduct = mapApiToFullProduct(fromApi);
+  const id = product.id;
 
-  const [allProducts, content, combos, categories] = await Promise.all([
-    fetchAllProductsSSR(),
+  const [content, combos, categories] = await Promise.all([
     fetchHomeContentSSR(),
     fetchCombosSSR([id], 4),
     fetchCategoriesSSR(),

@@ -13,9 +13,10 @@ import {
   Shield,
   Check,
 } from "lucide-react";
+import { productHref } from "@/lib/product-url";
 
 export const metadata = {
-  title: "Ofertas Tatan — Ropa infantil con descuentos",
+  title: "Ofertas",
   description:
     "Ofertas en bodys, remeras, pijamas y accesorios para bebés y niños. Hasta 40% OFF. Envío gratis a partir de $25.000.",
 };
@@ -286,7 +287,7 @@ export default async function OfertasPage({
                       images={p.images}
                       taxFreePrice={Math.round(p.offerPrice * 0.79)}
                       colorHex={p.colorHex}
-                      productUrl={`/product/${p.id}`}
+                      productUrl={productHref(p)}
                       loading={idx === 0 ? "eager" : "lazy"}
                       priority={idx === 0}
                     />

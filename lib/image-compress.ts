@@ -6,7 +6,12 @@
  *  - genera una versión "de respaldo" (JPEG, o PNG si tiene transparencia),
  *  - y una versión WebP, mucho más liviana, si el navegador sabe crearla.
  * Si algo falla, devuelve el archivo original tal cual.
+ *
+ * Con `square` (fotos de producto) además la deja cuadrada, con la prenda
+ * centrada y aire del color del fondo (ver lib/square-photo.ts).
  */
+
+import { squareProductPhoto } from "@/lib/square-photo";
 
 const MAX_SIDE = 1600;
 const JPEG_QUALITY = 0.82;
@@ -34,7 +39,15 @@ function hasTransparency(ctx: CanvasRenderingContext2D, w: number, h: number) {
   return false;
 }
 
-export async function compressImage(file: File): Promise<CompressedImage> {
+export type CompressOptions = {
+  /** Foto de producto: cuadrada, con la prenda centrada y aire alrededor */
+  square?: boolean;
+};
+
+export async function compressImage(
+  file: File,
+  opts: CompressOptions = {},
+): Promise<CompressedImage> {
   const base = file.name.replace(/\.[^.]+$/, "") || "imagen";
   const original: CompressedImage = { fallback: file, fallbackName: file.name };
   // GIF (puede estar animado) y SVG se suben tal cual
@@ -42,16 +55,25 @@ export async function compressImage(file: File): Promise<CompressedImage> {
 
   try {
     const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
-    const w = Math.round(bitmap.width * scale);
-    const h = Math.round(bitmap.height * scale);
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
+    // Foto de producto: cuadrada y encuadrada. Si no, solo se achica.
+    const squared = opts.square ? squareProductPhoto(bitmap, MAX_SIDE) : null;
+    const scale = squared
+      ? 1
+      : Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+    let canvas: HTMLCanvasElement;
+    if (squared) {
+      canvas = squared;
+    } else {
+      canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    }
+    bitmap.close?.();
+    const w = canvas.width;
+    const h = canvas.height;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return original;
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    bitmap.close?.();
 
     const transparent = file.type !== "image/jpeg" && hasTransparency(ctx, w, h);
     let fallback: Blob | null;
@@ -74,7 +96,7 @@ export async function compressImage(file: File): Promise<CompressedImage> {
     }
     if (!fallback) return original;
     // Si comprimida pesa más que la original (ya venía optimizada), queda la original
-    if (fallback.size >= file.size && scale === 1 && file.type !== "image/webp") {
+    if (!squared && fallback.size >= file.size && scale === 1 && file.type !== "image/webp") {
       fallback = file;
       fallbackName = file.name;
     }

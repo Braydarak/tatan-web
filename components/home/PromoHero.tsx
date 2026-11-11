@@ -8,6 +8,7 @@ import type {
 } from "@/components/sections/HomeHeroEditor";
 import PromoCountdown from "./PromoCountdown";
 import { Cloud, HeartDoodle, Sparkle, Squiggle, StarDoodle } from "./Doodles";
+import { productHref } from "@/lib/product-url";
 
 export type PromoProduct = {
   id: string;
@@ -42,7 +43,7 @@ export default function PromoHero({
             100,
         )
       : 0;
-  const href = `/product/${product.id}`;
+  const href = productHref(product);
   const title = promo.title.trim() || product.name;
   // Solo el texto propio de la promo (corto, así el botón queda a la vista)
   const text = promo.text.trim();

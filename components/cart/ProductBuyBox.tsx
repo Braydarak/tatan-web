@@ -35,7 +35,6 @@ export default function ProductBuyBox({
     options,
   );
   const isModels = options.colors.some((c) => c.imageSrc || c.sku);
-  const shownSku = sel.color?.sku || sku;
   const [qty, setQty] = useState(1);
   const max = sel.size ? sel.remaining(sel.size) : 0;
   const needSize = sel.status === "need-size";
@@ -200,23 +199,12 @@ export default function ProductBuyBox({
                     {colorOut && (
                       <span className="block text-[10px] font-semibold">Sin stock</span>
                     )}
-                    {c.sku && (
-                      <span className="block truncate font-mono text-[10px] font-semibold opacity-70">
-                        Art. {c.sku}
-                      </span>
-                    )}
                   </span>
                 </button>
               );
             })}
           </div>
         </div>
-      )}
-
-      {shownSku && (
-        <p className="-mt-2 text-xs font-semibold text-zinc-500">
-          Art. <span className="font-mono text-zinc-700">{shownSku}</span>
-        </p>
       )}
 
       {!sel.soldOut && (

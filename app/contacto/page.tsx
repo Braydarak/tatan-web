@@ -14,7 +14,7 @@ import {
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Contacto Tatan — Atención al cliente",
+  title: "Contacto",
   description:
     "Contactanos por WhatsApp, mail o teléfono. Respuesta en menos de 24h hábiles. Atención al cliente Tatan ropa infantil.",
 };

@@ -18,8 +18,11 @@ import {
   Plus,
   Upload,
   X,
+  Crop,
 } from "lucide-react";
 import { apiUploadImage } from "@/lib/tatan-api";
+import { fetchPhotoFile, isSquarePhoto } from "@/lib/square-photo";
+import { isPlaceholderImage } from "@/lib/is-placeholder";
 import ColorPicker, { AddColorButton, paletteName } from "@/components/ui/ColorPicker";
 import { BABY_SIZES, sizeHint } from "@/lib/sizes";
 import { colorKey, hasColorStock, totalsBySize, type StockByColor } from "@/lib/stock";
@@ -496,13 +499,19 @@ export default function ProductForm({
   const [uploading, setUploading] = React.useState(0);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
 
-  /** Sube los archivos a la API y devuelve sus URLs (las que fallen se descartan). */
-  const uploadFiles = async (files: File[]): Promise<string[]> => {
+  /**
+   * Sube los archivos a la API y devuelve sus URLs (las que fallen se descartan).
+   * Fotos de producto (`square`): se suben cuadradas, con la prenda centrada.
+   */
+  const uploadFiles = async (
+    files: File[],
+    opts: { square?: boolean } = {},
+  ): Promise<string[]> => {
     setUploadError(null);
     setUploading((n) => n + files.length);
     const results = await Promise.allSettled(
       files.map((f) =>
-        apiUploadImage(f).finally(() => setUploading((n) => n - 1)),
+        apiUploadImage(f, opts).finally(() => setUploading((n) => n - 1)),
       ),
     );
     const failed = results.find(
@@ -520,6 +529,67 @@ export default function ProductForm({
         (r): r is PromiseFulfilledResult<string> => r.status === "fulfilled",
       )
       .map((r) => r.value);
+  };
+
+  // Fotos subidas antes del encuadre automático (no son cuadradas): se
+  // ofrece encuadrarlas. Incluye galería y fotos de los modelos.
+  const productPhotos = Array.from(
+    new Set(
+      [imageSrc, ...gallery, ...colorVariants.map((v) => v.imageSrc ?? "")].filter(
+        (s) => s && !isPlaceholderImage(s),
+      ),
+    ),
+  );
+  const photosKey = productPhotos.join("|");
+  const [unframed, setUnframed] = React.useState<string[]>([]);
+  const [reframing, setReframing] = React.useState(false);
+  React.useEffect(() => {
+    let cancelled = false;
+    const urls = photosKey ? photosKey.split("|") : [];
+    void Promise.all(
+      urls.map(async (u) => ((await isSquarePhoto(u)) === false ? u : null)),
+    ).then((res) => {
+      if (!cancelled) setUnframed(res.filter((u): u is string => !!u));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [photosKey]);
+
+  /** Encuadra las fotos que no son cuadradas: las sube de nuevo y las reemplaza en el formulario. */
+  const reframePhotos = async () => {
+    const todo = unframed;
+    if (!todo.length || reframing) return;
+    setReframing(true);
+    setUploadError(null);
+    setUploading((n) => n + todo.length);
+    const done = new Map<string, string>();
+    let failed = 0;
+    // De a una, para no saturar el servidor
+    for (const url of todo) {
+      try {
+        const file = await fetchPhotoFile(url);
+        done.set(url, await apiUploadImage(file, { square: true }));
+      } catch {
+        failed++;
+      } finally {
+        setUploading((n) => n - 1);
+      }
+    }
+    const swap = (s: string) => done.get(s) ?? s;
+    setImageSrc((s) => swap(s));
+    setGallery((g) => g.map(swap));
+    setColorVariants((vs) =>
+      vs.map((v) => (v.imageSrc ? { ...v, imageSrc: swap(v.imageSrc) } : v)),
+    );
+    if (failed) {
+      setUploadError(
+        failed === 1
+          ? "No se pudo encuadrar 1 foto. Probá de nuevo o volvé a subirla."
+          : `No se pudieron encuadrar ${failed} fotos. Probá de nuevo o volvé a subirlas.`,
+      );
+    }
+    setReframing(false);
   };
 
   const editorImageInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -566,7 +636,7 @@ export default function ProductForm({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    void uploadFiles([file]).then(([url]) => {
+    void uploadFiles([file], { square: true }).then(([url]) => {
       if (url) setImageSrc(url);
     });
   };
@@ -575,7 +645,7 @@ export default function ProductForm({
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (!files.length) return;
-    void uploadFiles(files).then((urls) => {
+    void uploadFiles(files, { square: true }).then((urls) => {
       if (urls.length) setGallery((prev) => [...prev, ...urls]);
     });
   };
@@ -763,8 +833,8 @@ export default function ProductForm({
                       <span className="text-sm font-semibold text-zinc-700">
                         Subir foto
                       </span>
-                      <span className="mt-0.5 text-xs text-zinc-400">
-                        JPG o PNG
+                      <span className="mt-0.5 text-center text-xs text-zinc-400">
+                        JPG o PNG · se deja cuadrada y centrada sola
                       </span>
                     </>
                   )}
@@ -797,6 +867,30 @@ export default function ProductForm({
                   >
                     o pegar un link
                   </button>
+                )}
+                {unframed.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
+                    <p className="font-semibold">
+                      {unframed.length === 1
+                        ? "1 foto sin encuadrar"
+                        : `${unframed.length} fotos sin encuadrar`}
+                    </p>
+                    <p className="mt-0.5 text-amber-800/80">
+                      Se subieron antes del encuadre automático (contando galería y modelos).
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void reframePhotos()}
+                      disabled={reframing}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 font-semibold text-zinc-800 shadow-sm ring-1 ring-black/10 transition hover:bg-zinc-50 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      <Crop className="h-3.5 w-3.5" aria-hidden="true" />
+                      {reframing ? "Encuadrando…" : "Encuadrar fotos"}
+                    </button>
+                    <p className="mt-1.5 text-amber-800/80">
+                      Revisalas y guardá el producto para aplicar el cambio.
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -1370,7 +1464,7 @@ export default function ProductForm({
                                       const f = e.target.files?.[0];
                                       e.target.value = "";
                                       if (!f) return;
-                                      void uploadFiles([f]).then((urls) => {
+                                      void uploadFiles([f], { square: true }).then((urls) => {
                                         if (urls[0]) setV({ imageSrc: urls[0] });
                                       });
                                     }}

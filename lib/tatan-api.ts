@@ -325,9 +325,16 @@ export async function apiProductSave(
  * el mismo nombre (…-w.jpg y …-w.webp). Devuelve la URL de la de respaldo; la
  * tienda la sirve optimizada (AVIF/WebP achicada) vía next/image en Vercel.
  */
-export async function apiUploadImage(file: File): Promise<string> {
+/**
+ * Sube una imagen. Con `square` (fotos de producto) se sube cuadrada, con la
+ * prenda centrada y aire del color del fondo.
+ */
+export async function apiUploadImage(
+  file: File,
+  opts: { square?: boolean } = {},
+): Promise<string> {
   const { compressImage } = await import("@/lib/image-compress");
-  const img = await compressImage(file);
+  const img = await compressImage(file, opts);
   const form = new FormData();
   form.append("file", img.fallback, img.fallbackName);
   if (img.webp) {

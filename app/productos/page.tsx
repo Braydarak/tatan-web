@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { matchesProduct } from "@/lib/product-search";
 import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
@@ -18,12 +19,26 @@ import {
   Tag,
 } from "lucide-react";
 import type { Product as ApiProduct } from "@/lib/tatan-api";
+import { productHref } from "@/lib/product-url";
 
-export const metadata = {
-  title: "Productos Tatan — Toda la colección de ropa infantil",
-  description:
-    "Bodys, remeras, pijamas y accesorios para bebés y niños. Filtra por categoría, talle y precio. 100% algodón.",
-};
+const PRODUCTS_DESCRIPTION =
+  "Bodys, remeras, pijamas y accesorios para bebés y niños. Filtra por categoría, talle y precio. 100% algodón.";
+
+/** "Productos", o el nombre de la categoría elegida ("Bodys") */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}): Promise<Metadata> {
+  const { c } = await searchParams;
+  let title = "Productos";
+  if (typeof c === "string" && c && c !== "todos") {
+    const categories = await fetchCategoriesSSR();
+    const cat = categories.find((x) => x.key === c);
+    if (cat) title = cat.label;
+  }
+  return { title, description: PRODUCTS_DESCRIPTION };
+}
 
 const PHP_API_BASE = "https://tatankids.com.ar/api";
 
@@ -439,7 +454,7 @@ export default async function ProductosPage({
                   type="search"
                   name="q"
                   defaultValue={state.q}
-                  placeholder="Buscar producto o Nº de artículo"
+                  placeholder="Buscar producto"
                   aria-label="Buscar productos"
                   className="h-12 w-full rounded-2xl border border-tatan-secundario1/70 bg-white/90 pl-10 pr-24 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/70"
                 />
@@ -621,7 +636,7 @@ export default async function ProductosPage({
                       images={p.images}
                       taxFreePrice={Math.round(p.price * 0.79)}
                       colorHex={p.colorHex}
-                      productUrl={`/product/${p.id}`}
+                      productUrl={productHref(p)}
                       loading={idx < 4 ? "eager" : "lazy"}
                       priority={idx === 0}
                       badge={
