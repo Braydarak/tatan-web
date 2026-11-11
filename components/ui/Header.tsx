@@ -580,6 +580,17 @@ export default function Header({
           aria-label="Carrito"
           aria-hidden={!cartOpen}
         >
+          {/* Fondo: tocar afuera del carrito lo cierra. Con tamaño explícito
+              (h-dvh w-screen): el header tiene backdrop-blur y eso hace que un
+              "fixed inset-0" adentro mida solo lo que mide el header. */}
+          <div
+            onClick={() => setCartOpen(false)}
+            aria-hidden="true"
+            className={cx(
+              "fixed left-0 top-0 z-[65] h-dvh w-screen bg-zinc-900/25 backdrop-blur-[2px] transition-opacity duration-300",
+              cartOpen ? "opacity-100" : "pointer-events-none opacity-0",
+            )}
+          />
           <div
             className={cx(
               "fixed right-0 z-[70] w-full bg-[#FFFDF7] shadow-2xl border-l border-tatan-secundario1/40",

@@ -16,6 +16,8 @@ import {
   User,
 } from "lucide-react";
 import ShippingOptions from "@/components/checkout/ShippingOptions";
+import MercadoPagoSvg from "@/assets/svg/mercadoPago";
+import { checkDni, checkEmail, checkPhoneAR } from "@/lib/contact-validation";
 import OrderSummary, { useOrderTotals } from "@/components/checkout/OrderSummary";
 import { formatArs, useCart } from "@/lib/cart";
 import { selectedQuote, useShipping } from "@/lib/checkout-state";
@@ -86,13 +88,29 @@ export default function Checkout() {
     } catch {}
   };
 
+  /** Error de un campo de datos personales (o undefined si está bien) */
+  const fieldError = (k: keyof Form, f: Form = form): string | undefined => {
+    if (k === "email") return checkEmail(f.email).error;
+    if (k === "phone") return checkPhoneAR(f.phone).error;
+    if (k === "dni") return checkDni(f.dni);
+    if (k === "firstName") return f.firstName.trim() ? undefined : "Ingresá tu nombre";
+    if (k === "lastName") return f.lastName.trim() ? undefined : "Ingresá tu apellido";
+    return undefined;
+  };
+  // "¿Quisiste decir …@gmail.com?" (no bloquea: puede ser un dominio real)
+  const emailSuggestion = form.email.includes("@") ? checkEmail(form.email).suggestion : undefined;
+  /** Al salir de un campo se valida (si tiene algo escrito) */
+  const blur = (k: keyof Form) => () => {
+    if (!String(form[k] ?? "").trim()) return;
+    setErrors((er) => ({ ...er, [k]: fieldError(k) }));
+  };
+
   const validate = (): Errors => {
     const e: Errors = {};
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "Ingresá un email válido";
-    if (!form.firstName.trim()) e.firstName = "Ingresá tu nombre";
-    if (!form.lastName.trim()) e.lastName = "Ingresá tu apellido";
-    if (form.phone.replace(/\D/g, "").length < 8) e.phone = "Ingresá un teléfono con código de área";
-    if (!/^\d{7,8}$/.test(form.dni.replace(/\D/g, ""))) e.dni = "Ingresá tu DNI (7 u 8 números)";
+    for (const k of ["email", "firstName", "lastName", "phone", "dni"] as const) {
+      const err = fieldError(k);
+      if (err) e[k] = err;
+    }
     if (!quote) e.shipping = "Elegí cómo querés recibir tu compra";
     if (quote?.mode === "domicilio") {
       if (!form.street.trim()) e.street = "Ingresá la calle";
@@ -195,22 +213,41 @@ export default function Checkout() {
           <Step n={1} title="Tus datos" icon={User}>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Email" error={errors.email} name="email" className="sm:col-span-2"
-                hint="Te mandamos ahí la confirmación y el seguimiento">
-                <input type="email" autoComplete="email" value={form.email} onChange={set("email")}
+                hint={emailSuggestion ? undefined : "Te mandamos ahí la confirmación y el seguimiento"}
+                extra={
+                  emailSuggestion && !errors.email ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = { ...form, email: emailSuggestion };
+                        setForm(next);
+                        try {
+                          sessionStorage.setItem(FORM_KEY, JSON.stringify(next));
+                        } catch {}
+                      }}
+                      className="w-fit rounded-lg bg-tatan-acento-amarillo/60 px-2.5 py-1 text-left text-xs font-semibold text-zinc-800 hover:bg-tatan-acento-amarillo"
+                    >
+                      ¿Quisiste decir <span className="font-extrabold">{emailSuggestion}</span>? Tocá para corregirlo
+                    </button>
+                  ) : null
+                }>
+                <input type="email" inputMode="email" autoComplete="email" autoCapitalize="off" spellCheck={false}
+                  value={form.email} onChange={set("email")} onBlur={blur("email")}
                   placeholder="tu@email.com" className={inputCls(errors.email)} />
               </Field>
               <Field label="Nombre" error={errors.firstName} name="firstName">
-                <input autoComplete="given-name" value={form.firstName} onChange={set("firstName")} className={inputCls(errors.firstName)} />
+                <input autoComplete="given-name" value={form.firstName} onChange={set("firstName")} onBlur={blur("firstName")} className={inputCls(errors.firstName)} />
               </Field>
               <Field label="Apellido" error={errors.lastName} name="lastName">
-                <input autoComplete="family-name" value={form.lastName} onChange={set("lastName")} className={inputCls(errors.lastName)} />
+                <input autoComplete="family-name" value={form.lastName} onChange={set("lastName")} onBlur={blur("lastName")} className={inputCls(errors.lastName)} />
               </Field>
-              <Field label="Teléfono" error={errors.phone} name="phone">
-                <input type="tel" autoComplete="tel" value={form.phone} onChange={set("phone")}
+              <Field label="Teléfono" error={errors.phone} name="phone" hint="Con código de área, sin 0 ni 15">
+                <input type="tel" autoComplete="tel" value={form.phone} onChange={set("phone")} onBlur={blur("phone")}
                   placeholder="11 2345 6789" className={inputCls(errors.phone)} />
               </Field>
               <Field label="DNI" error={errors.dni} name="dni" hint="Lo pide el correo para entregar">
-                <input inputMode="numeric" value={form.dni} onChange={set("dni")} className={inputCls(errors.dni)} />
+                <input inputMode="numeric" value={form.dni} onChange={set("dni")} onBlur={blur("dni")}
+                  placeholder="30111222" className={inputCls(errors.dni)} />
               </Field>
             </div>
           </Step>
@@ -262,8 +299,9 @@ export default function Checkout() {
           {/* 3. Pago */}
           <Step n={3} title="Pago" icon={CreditCard}>
             <div className="flex items-start gap-3 rounded-2xl border-2 border-sky-200 bg-sky-50/70 p-4">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#009ee3] text-xs font-black leading-none text-white">
-                MP
+              {/* El SVG trae mucho aire alrededor: se recorta con overflow-hidden */}
+              <span className="flex h-12 w-[128px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-sky-200">
+                <MercadoPagoSvg className="h-[58px] w-auto max-w-none" color="brand" title="Mercado Pago" />
               </span>
               <div className="min-w-0 text-sm">
                 <p className="font-bold text-zinc-800">Mercado Pago</p>
@@ -350,6 +388,7 @@ function Field({
   name,
   error,
   hint,
+  extra,
   className,
   children,
 }: {
@@ -357,15 +396,20 @@ function Field({
   name: string;
   error?: string;
   hint?: string;
+  /** Algo más debajo del campo (p. ej. la sugerencia del email) */
+  extra?: React.ReactNode;
   className?: string;
   children: React.ReactElement;
 }) {
   return (
-    <label data-field={name} className={cx("grid gap-1.5", className)}>
-      <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">{label}</span>
-      {children}
+    <div data-field={name} className={cx("grid content-start gap-1.5", className)}>
+      <label className="grid content-start gap-1.5">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">{label}</span>
+        {children}
+      </label>
       {error ? <FieldError>{error}</FieldError> : hint ? <span className="text-xs text-zinc-400">{hint}</span> : null}
-    </label>
+      {extra}
+    </div>
   );
 }
 
