@@ -18,8 +18,11 @@ import {
   Plus,
   Upload,
   X,
+  Crop,
 } from "lucide-react";
 import { apiUploadImage } from "@/lib/tatan-api";
+import { fetchPhotoFile, isSquarePhoto } from "@/lib/square-photo";
+import { isPlaceholderImage } from "@/lib/is-placeholder";
 import ColorPicker, { AddColorButton, paletteName } from "@/components/ui/ColorPicker";
 import { BABY_SIZES, sizeHint } from "@/lib/sizes";
 import { colorKey, hasColorStock, totalsBySize, type StockByColor } from "@/lib/stock";
@@ -528,6 +531,67 @@ export default function ProductForm({
       .map((r) => r.value);
   };
 
+  // Fotos subidas antes del encuadre automático (no son cuadradas): se
+  // ofrece encuadrarlas. Incluye galería y fotos de los modelos.
+  const productPhotos = Array.from(
+    new Set(
+      [imageSrc, ...gallery, ...colorVariants.map((v) => v.imageSrc ?? "")].filter(
+        (s) => s && !isPlaceholderImage(s),
+      ),
+    ),
+  );
+  const photosKey = productPhotos.join("|");
+  const [unframed, setUnframed] = React.useState<string[]>([]);
+  const [reframing, setReframing] = React.useState(false);
+  React.useEffect(() => {
+    let cancelled = false;
+    const urls = photosKey ? photosKey.split("|") : [];
+    void Promise.all(
+      urls.map(async (u) => ((await isSquarePhoto(u)) === false ? u : null)),
+    ).then((res) => {
+      if (!cancelled) setUnframed(res.filter((u): u is string => !!u));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [photosKey]);
+
+  /** Encuadra las fotos que no son cuadradas: las sube de nuevo y las reemplaza en el formulario. */
+  const reframePhotos = async () => {
+    const todo = unframed;
+    if (!todo.length || reframing) return;
+    setReframing(true);
+    setUploadError(null);
+    setUploading((n) => n + todo.length);
+    const done = new Map<string, string>();
+    let failed = 0;
+    // De a una, para no saturar el servidor
+    for (const url of todo) {
+      try {
+        const file = await fetchPhotoFile(url);
+        done.set(url, await apiUploadImage(file, { square: true }));
+      } catch {
+        failed++;
+      } finally {
+        setUploading((n) => n - 1);
+      }
+    }
+    const swap = (s: string) => done.get(s) ?? s;
+    setImageSrc((s) => swap(s));
+    setGallery((g) => g.map(swap));
+    setColorVariants((vs) =>
+      vs.map((v) => (v.imageSrc ? { ...v, imageSrc: swap(v.imageSrc) } : v)),
+    );
+    if (failed) {
+      setUploadError(
+        failed === 1
+          ? "No se pudo encuadrar 1 foto. Probá de nuevo o volvé a subirla."
+          : `No se pudieron encuadrar ${failed} fotos. Probá de nuevo o volvé a subirlas.`,
+      );
+    }
+    setReframing(false);
+  };
+
   const editorImageInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const editor = useEditor({
@@ -803,6 +867,30 @@ export default function ProductForm({
                   >
                     o pegar un link
                   </button>
+                )}
+                {unframed.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
+                    <p className="font-semibold">
+                      {unframed.length === 1
+                        ? "1 foto sin encuadrar"
+                        : `${unframed.length} fotos sin encuadrar`}
+                    </p>
+                    <p className="mt-0.5 text-amber-800/80">
+                      Se subieron antes del encuadre automático (contando galería y modelos).
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void reframePhotos()}
+                      disabled={reframing}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 font-semibold text-zinc-800 shadow-sm ring-1 ring-black/10 transition hover:bg-zinc-50 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      <Crop className="h-3.5 w-3.5" aria-hidden="true" />
+                      {reframing ? "Encuadrando…" : "Encuadrar fotos"}
+                    </button>
+                    <p className="mt-1.5 text-amber-800/80">
+                      Revisalas y guardá el producto para aplicar el cambio.
+                    </p>
+                  </div>
                 )}
               </div>
 
