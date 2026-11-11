@@ -496,13 +496,19 @@ export default function ProductForm({
   const [uploading, setUploading] = React.useState(0);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
 
-  /** Sube los archivos a la API y devuelve sus URLs (las que fallen se descartan). */
-  const uploadFiles = async (files: File[]): Promise<string[]> => {
+  /**
+   * Sube los archivos a la API y devuelve sus URLs (las que fallen se descartan).
+   * Fotos de producto (`square`): se suben cuadradas, con la prenda centrada.
+   */
+  const uploadFiles = async (
+    files: File[],
+    opts: { square?: boolean } = {},
+  ): Promise<string[]> => {
     setUploadError(null);
     setUploading((n) => n + files.length);
     const results = await Promise.allSettled(
       files.map((f) =>
-        apiUploadImage(f).finally(() => setUploading((n) => n - 1)),
+        apiUploadImage(f, opts).finally(() => setUploading((n) => n - 1)),
       ),
     );
     const failed = results.find(
@@ -566,7 +572,7 @@ export default function ProductForm({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    void uploadFiles([file]).then(([url]) => {
+    void uploadFiles([file], { square: true }).then(([url]) => {
       if (url) setImageSrc(url);
     });
   };
@@ -575,7 +581,7 @@ export default function ProductForm({
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (!files.length) return;
-    void uploadFiles(files).then((urls) => {
+    void uploadFiles(files, { square: true }).then((urls) => {
       if (urls.length) setGallery((prev) => [...prev, ...urls]);
     });
   };
@@ -763,8 +769,8 @@ export default function ProductForm({
                       <span className="text-sm font-semibold text-zinc-700">
                         Subir foto
                       </span>
-                      <span className="mt-0.5 text-xs text-zinc-400">
-                        JPG o PNG
+                      <span className="mt-0.5 text-center text-xs text-zinc-400">
+                        JPG o PNG · se deja cuadrada y centrada sola
                       </span>
                     </>
                   )}
@@ -1370,7 +1376,7 @@ export default function ProductForm({
                                       const f = e.target.files?.[0];
                                       e.target.value = "";
                                       if (!f) return;
-                                      void uploadFiles([f]).then((urls) => {
+                                      void uploadFiles([f], { square: true }).then((urls) => {
                                         if (urls[0]) setV({ imageSrc: urls[0] });
                                       });
                                     }}
