@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
 import ScrollToTop from "@/components/ui/ScrollToTop";
+import AnimatedFavicon from "@/components/AnimatedFavicon";
 import StoreChrome from "@/components/ui/StoreChrome";
 import { fetchHomeContentSSR } from "@/lib/home-content";
 import { fetchAllProductsSSR, offersInfo } from "@/lib/card-props";
@@ -66,6 +67,7 @@ export default async function RootLayout({
         <Suspense fallback={null}>
           <ScrollToTop />
         </Suspense>
+        <AnimatedFavicon />
         <StoreChrome
           header={header}
           store={store}
