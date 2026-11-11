@@ -153,9 +153,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
   if (!fromApi) {
     notFound();
   }
-  // Links viejos con el ID (/product/b-001) o escritos distinto: a la URL con el nombre
-  if (productSlug(fromApi) !== rawSlug) {
-    permanentRedirect(productHref(fromApi));
+  // Links viejos con el ID (/product/b-001) o escritos distinto: a la URL con el nombre.
+  // La URL se arma con la lista de productos (la misma que usan los links de
+  // la tienda): si el nombre cambió hace poco, la lista y el pedido por ID
+  // pueden estar cacheados con nombres distintos y no se tiene que rebotar.
+  const listed =
+    match ?? allProducts.find((p) => p.id === fromApi.id) ?? fromApi;
+  if (productSlug(listed) !== rawSlug) {
+    permanentRedirect(productHref(listed));
   }
   const product: FullProduct = mapApiToFullProduct(fromApi);
   const id = product.id;
