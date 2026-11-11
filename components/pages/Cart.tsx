@@ -2,15 +2,17 @@
 
 import ProductPhoto from "@/components/ui/ProductPhoto";
 import Link from "next/link";
-import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
-import CustomButton from "@/components/ui/CustomButton";
+import { ArrowRight, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import ShippingOptions from "@/components/checkout/ShippingOptions";
+import OrderSummary from "@/components/checkout/OrderSummary";
+import { selectedQuote, useShipping } from "@/lib/checkout-state";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import { apiToCardProps } from "@/lib/card-props";
 import { pickRelated } from "@/lib/related";
 import { useEffect, useState } from "react";
 import { useStoreSettings } from "@/components/StoreSettingsContext";
 import WholesaleLine from "@/components/cart/WholesaleLine";
-import { cartTotals, effectiveUnitPrice } from "@/lib/wholesale";
+import { effectiveUnitPrice } from "@/lib/wholesale";
 import { apiCombos, type Product as ApiProduct } from "@/lib/tatan-api";
 import {
   clearCart,
@@ -29,8 +31,8 @@ export default function Cart({
   quickAdd?: boolean;
 }) {
   const { items, count } = useCart();
+  const quote = selectedQuote(useShipping());
   const { wholesaleMode } = useStoreSettings();
-  const { subtotal, saved } = cartTotals(items, wholesaleMode);
   // Recomendados según lo que hay en el carrito (relacionados del CRM,
   // misma categoría, resto). Sin carrito: lo que hay en la tienda.
   const cartIds = Array.from(new Set(items.map((i) => i.productId)));
@@ -233,47 +235,25 @@ export default function Cart({
           <aside className="h-fit paper-card rounded-3xl p-5 sm:p-6 lg:sticky lg:top-28">
             <h2 className="text-lg font-bold text-zinc-800">Resumen</h2>
 
-            <div className="mt-4 grid gap-3 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-zinc-600">Subtotal</span>
-                <span className="font-semibold tabular-nums text-zinc-800">
-                  {formatArs(subtotal + saved)}
-                </span>
-              </div>
-              {saved > 0 && (
-                <div className="flex items-center justify-between gap-3 text-emerald-700">
-                  <span className="font-semibold">Ahorro por mayor</span>
-                  <span className="font-bold tabular-nums">
-                    -{formatArs(saved)}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-zinc-600">Envío</span>
-                <span className="font-semibold text-zinc-500">A calcular</span>
-              </div>
-              <div className="h-px w-full bg-tatan-secundario1/50" />
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-bold text-zinc-800">Total</span>
-                <span className="text-xl font-black tabular-nums text-zinc-800">
-                  {formatArs(subtotal)}
-                </span>
-              </div>
+            <div className="mt-4">
+              <ShippingOptions items={items} compact />
             </div>
+            <div className="my-5 h-px w-full bg-tatan-secundario1/50" />
 
-            <div className="mt-5 grid gap-2">
-              <CustomButton className="w-full" type="filled">
-                Pagar con tarjeta
-              </CustomButton>
-              <CustomButton className="w-full" type="outline">
-                Pagar con transferencia
-              </CustomButton>
-            </div>
-
-            <div className="mt-4 rounded-xl border border-tatan-primario1 bg-tatan-primario1/15 p-3 text-xs font-semibold text-zinc-700">
-              Pagos y envío todavía son de muestra. Más adelante se conecta con
-              Mercado Pago y cálculo de envío.
-            </div>
+            <OrderSummary items={items} quote={quote}>
+              <div className="grid gap-2">
+                <Link
+                  href="/checkout"
+                  className="btn-primary flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-extrabold"
+                >
+                  Continuar compra
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+                <p className="text-center text-xs text-zinc-500">
+                  Pagás con Mercado Pago: tarjeta, débito, dinero en cuenta o efectivo.
+                </p>
+              </div>
+            </OrderSummary>
           </aside>
         </div>
       )}
