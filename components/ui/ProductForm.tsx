@@ -132,9 +132,16 @@ function modelsError(variants: ColorVariant[]): string | null {
   if (variants.some((v) => !v.name.trim())) {
     return "Poné un nombre a cada color (el stock se guarda por color)";
   }
-  const names = variants.map((v) => colorKey(v.name).toLowerCase());
-  if (new Set(names).size !== names.length) {
-    return "Hay dos colores con el mismo nombre";
+  // El mismo color (hex) se puede repetir —p. ej. blanco liso y blanco con
+  // estampa—, pero cada uno con su nombre: el stock se guarda por nombre.
+  const seen = new Set<string>();
+  for (const v of variants) {
+    const key = colorKey(v.name).toLowerCase();
+    if (seen.has(key)) {
+      const n = v.name.trim();
+      return `Hay dos colores llamados "${n}". Cambiá el nombre de uno (por ejemplo "${n} con estampa")`;
+    }
+    seen.add(key);
   }
   return null;
 }
@@ -416,12 +423,28 @@ export default function ProductForm({
     );
   const [activeColor, setActiveColor] = React.useState(0);
   /** Agrega un color (y lo deja elegido). El primero se lleva el stock que ya estaba cargado por talle. */
+  // Al agregar un color repetido, el cursor va al nombre para distinguirlo
+  const nameInput = React.useRef<HTMLInputElement>(null);
+  const focusNameOf = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (focusNameOf.current === activeColor && nameInput.current) {
+      nameInput.current.focus();
+      nameInput.current.select();
+      focusNameOf.current = null;
+    }
+  }, [activeColor, colorVariants.length]);
   const addColor = (hex: string, colorName: string) => {
+    // Se puede repetir un color (liso y estampado): el nombre tiene que ser
+    // distinto, así que el repetido arranca como "Blanco 2"
+    const taken = new Set(colorVariants.map((v) => colorKey(v.name).toLowerCase()));
+    let name = colorName;
+    for (let n = 2; taken.has(colorKey(name).toLowerCase()); n++) name = `${colorName} ${n}`;
+    if (name !== colorName) focusNameOf.current = colorVariants.length;
     setActiveColor(colorVariants.length);
     setColorVariants((prev) => [
       ...prev,
       {
-        name: colorName,
+        name,
         hex,
         sku: "",
         imageSrc: "",
@@ -1077,7 +1100,6 @@ export default function ProductForm({
                   <AddColorButton
                     label={perModel ? "Agregar color" : "Elegir color"}
                     onAdd={addColor}
-                    used={colorVariants.map((v) => v.hex)}
                   />
                 </div>
 
@@ -1109,6 +1131,7 @@ export default function ProductForm({
                             label={`Color ${i + 1}`}
                           />
                           <input
+                            ref={nameInput}
                             type="text"
                             value={v.name}
                             onChange={(e) => updateVariant(i, { name: e.target.value })}
@@ -1124,6 +1147,16 @@ export default function ProductForm({
                             <X className="h-3.5 w-3.5" /> Quitar color
                           </button>
                         </div>
+                        {colorVariants.some(
+                          (o, j) => j !== i && o.hex.toUpperCase() === v.hex.toUpperCase(),
+                        ) && (
+                          <p className="mb-3 rounded-lg bg-white/80 px-2.5 py-1.5 text-xs text-zinc-600 ring-1 ring-black/5">
+                            Hay otro modelo con este mismo color. El nombre es lo que los
+                            distingue en la tienda: por ejemplo &quot;Blanco liso&quot; y
+                            &quot;Blanco con estampa&quot;. Si tiene foto, subila en
+                            &quot;Más fotos y modelos&quot;.
+                          </p>
+                        )}
                         <p className="mb-2 text-xs font-semibold text-zinc-600">
                           Cantidad por talle en {v.name.trim() || "este color"}
                         </p>
