@@ -186,6 +186,7 @@ export default function PromoHero({
                   }}
                 >
                   <ProductPhoto
+                    framed
                     src={product.imageSrc}
                     alt={product.name}
                     fill
@@ -195,7 +196,7 @@ export default function PromoHero({
                     className={
                       isPlaceholderImage(product.imageSrc)
                         ? "object-contain p-6 mix-blend-multiply drop-shadow-lg"
-                        : "object-cover"
+                        : "object-contain p-[7%]"
                     }
                   />
                 </div>

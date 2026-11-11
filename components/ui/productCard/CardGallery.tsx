@@ -42,13 +42,14 @@ export default function CardGallery({
     el.scrollTo({ left: next * el.clientWidth, behavior: "smooth" });
   };
 
-  // Foto real: llena el cuadro. Logo de relleno: centrado con aire.
+  // Foto real: entera, con aire del mismo color que su fondo (ver ProductPhoto
+  // framed), así no se corta. Logo de relleno: centrado con aire.
   const imgClass = (src: string) =>
     cx(
       "transition-transform duration-500 ease-out",
       isPlaceholderImage(src)
         ? "object-contain p-2 sm:p-4 mix-blend-multiply"
-        : "object-cover",
+        : "object-contain p-[7%]",
       !many && "group-hover:scale-[1.06]",
       dim && "opacity-55 grayscale-[35%]",
     );
@@ -62,6 +63,7 @@ export default function CardGallery({
         tabIndex={-1}
       >
         <ProductPhoto
+          framed
           src={images[0]}
           alt={title}
           fill
@@ -96,6 +98,7 @@ export default function CardGallery({
             tabIndex={i === 0 ? 0 : -1}
           >
             <ProductPhoto
+              framed
               src={src}
               alt={i === 0 ? title : `${title}, foto ${i + 1}`}
               fill
