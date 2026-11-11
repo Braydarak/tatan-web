@@ -18,6 +18,7 @@ import {
 import ShippingOptions from "@/components/checkout/ShippingOptions";
 import MercadoPagoSvg from "@/assets/svg/mercadoPago";
 import { checkDni, checkEmail, checkPhoneAR } from "@/lib/contact-validation";
+import { lookupPostalCode, type PostalInfo } from "@/lib/postal-codes";
 import OrderSummary, { useOrderTotals } from "@/components/checkout/OrderSummary";
 import { formatArs, useCart } from "@/lib/cart";
 import { selectedQuote, useShipping } from "@/lib/checkout-state";
@@ -78,6 +79,39 @@ export default function Checkout() {
       if (raw) setForm({ ...EMPTY_FORM, ...(JSON.parse(raw) as Partial<Form>) });
     } catch {}
   }, []);
+
+  // Provincia y localidad según el código postal del envío. `auto` guarda lo
+  // que se completó solo: si el comprador lo cambió a mano, no se pisa.
+  const [postal, setPostal] = useState<{ cp: string; info: PostalInfo | null } | null>(null);
+  const [auto, setAuto] = useState<{ province?: string; city?: string }>({});
+  useEffect(() => {
+    const cp = ship.postalCode;
+    if (!cp) return;
+    let alive = true;
+    void lookupPostalCode(cp).then((info) => {
+      if (!alive) return;
+      setPostal({ cp, info });
+      if (!info) return;
+      const province = info.provinces[0];
+      const city = info.localities[0];
+      setForm((prev) => {
+        const next = { ...prev };
+        if (!prev.province || prev.province === auto.province) next.province = province;
+        if (city && (!prev.city.trim() || prev.city === auto.city)) next.city = city;
+        try {
+          sessionStorage.setItem(FORM_KEY, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+      setAuto({ province, city });
+      setErrors((er) => ({ ...er, province: undefined, city: undefined }));
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando cambia el código postal
+  }, [ship.postalCode]);
+  const postalInfo = postal?.cp === ship.postalCode ? postal.info : null;
 
   const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const next = { ...form, [k]: e.target.value };
@@ -190,6 +224,7 @@ export default function Checkout() {
   const payLabel = `Pagar ${formatArs(totals.total)}`;
 
   return (
+    <>
     <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 pb-32 pt-6 sm:px-6 lg:px-8 lg:pb-12">
       <Link
         href="/cart"
@@ -268,6 +303,45 @@ export default function Checkout() {
               {quote?.mode === "domicilio" && (
                 <div className="grid gap-3 border-t border-tatan-secundario1/50 pt-4 sm:grid-cols-6">
                   <p className="text-sm font-bold text-zinc-800 sm:col-span-6">¿A dónde lo enviamos?</p>
+                  {/* Primero el código postal (ya elegido arriba): provincia y
+                      localidad se completan solas a partir de él */}
+                  <Field label="Código postal" name="postalCode" className="sm:col-span-2"
+                    hint="Para cambiarlo, tocá «Cambiar» arriba">
+                    <input value={ship.postalCode} readOnly className={cx(inputCls(), "bg-zinc-50 text-zinc-500")} />
+                  </Field>
+                  <Field label="Provincia" error={errors.province} name="province" className="sm:col-span-4"
+                    hint={
+                      postalInfo && form.province === auto.province
+                        ? postalInfo.provinces.length > 1
+                          ? "Según tu código postal (puede ser otra: revisala)"
+                          : "Según tu código postal"
+                        : undefined
+                    }>
+                    <select autoComplete="address-level1" value={form.province} onChange={set("province")} className={inputCls(errors.province)}>
+                      <option value="">Elegí la provincia</option>
+                      {PROVINCES.map((p) => (
+                        <option key={p}>{p}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Localidad" error={errors.city} name="city" className="sm:col-span-6"
+                    hint={
+                      postalInfo && form.city === auto.city
+                        ? postalInfo.localities.length > 1
+                          ? "Según tu código postal. Si no es la tuya, elegí otra de la lista o escribila"
+                          : "Según tu código postal"
+                        : undefined
+                    }>
+                    <input autoComplete="address-level2" list="cp-localities" value={form.city} onChange={set("city")} onBlur={blur("city")}
+                      className={inputCls(errors.city)} />
+                  </Field>
+                  {postalInfo && postalInfo.localities.length > 1 && (
+                    <datalist id="cp-localities">
+                      {postalInfo.localities.map((l) => (
+                        <option key={l} value={l} />
+                      ))}
+                    </datalist>
+                  )}
                   <Field label="Calle" error={errors.street} name="street" className="sm:col-span-4">
                     <input autoComplete="address-line1" value={form.street} onChange={set("street")} className={inputCls(errors.street)} />
                   </Field>
@@ -277,21 +351,7 @@ export default function Checkout() {
                   <Field label="Piso / Depto (opcional)" name="floor" className="sm:col-span-2">
                     <input autoComplete="address-line2" value={form.floor} onChange={set("floor")} className={inputCls()} />
                   </Field>
-                  <Field label="Localidad" error={errors.city} name="city" className="sm:col-span-4">
-                    <input autoComplete="address-level2" value={form.city} onChange={set("city")} className={inputCls(errors.city)} />
-                  </Field>
-                  <Field label="Provincia" error={errors.province} name="province" className="sm:col-span-4">
-                    <select autoComplete="address-level1" value={form.province} onChange={set("province")} className={inputCls(errors.province)}>
-                      <option value="">Elegí la provincia</option>
-                      {PROVINCES.map((p) => (
-                        <option key={p}>{p}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Código postal" name="postalCode" className="sm:col-span-2">
-                    <input value={ship.postalCode} readOnly className={cx(inputCls(), "bg-zinc-50 text-zinc-500")} />
-                  </Field>
-                  <Field label="Indicaciones para la entrega (opcional)" name="notes" className="sm:col-span-6">
+                  <Field label="Indicaciones para la entrega (opcional)" name="notes" className="sm:col-span-4">
                     <textarea rows={2} value={form.notes} onChange={set("notes")}
                       placeholder="Ej: timbre 3B, entre calles…" className={cx(inputCls(), "resize-none")} />
                   </Field>
@@ -303,9 +363,8 @@ export default function Checkout() {
           {/* 3. Pago */}
           <Step n={3} title="Pago" icon={CreditCard}>
             <div className="flex items-start gap-3 rounded-2xl border-2 border-sky-200 bg-sky-50/70 p-4">
-              {/* El SVG trae mucho aire alrededor: se recorta con overflow-hidden */}
-              <span className="flex h-12 w-[128px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-sky-200">
-                <MercadoPagoSvg className="h-[58px] w-auto max-w-none" color="brand" title="Mercado Pago" />
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white ring-1 ring-sky-200">
+                <MercadoPagoSvg iconOnly className="h-auto w-9" color="brand" title="Mercado Pago" />
               </span>
               <div className="min-w-0 text-sm">
                 <p className="font-bold text-zinc-800">Mercado Pago</p>
@@ -339,22 +398,20 @@ export default function Checkout() {
         </aside>
       </div>
 
-      {/* Celular: total y pagar siempre a mano */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-tatan-secundario1/60 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
-        {payError && <FieldError>{payError}</FieldError>}
-        <div className="flex items-center gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-zinc-500">
-              Total{quote ? "" : " (sin envío)"}
-            </p>
-            <p className="text-lg font-black tabular-nums text-zinc-800">{formatArs(totals.total)}</p>
-          </div>
-          <div className="flex-1">
-            <PayButton onClick={pay} paying={paying} label="Pagar" />
-          </div>
-        </div>
-      </div>
     </main>
+      {/* Celular: total y pagar siempre a mano. Va FUERA del <main>: el main
+        tiene z-10 (contexto propio) y el footer, también z-10, la tapaba. */}
+    <div className="fixed inset-x-0 bottom-0 z-[55] border-t border-tatan-secundario1/60 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
+{payError && <FieldError>{payError}</FieldError>}
+      {!quote && (
+        <p className="mb-1.5 text-center text-[11px] font-semibold text-zinc-500">
+          Falta elegir el envío
+        </p>
+      )}
+      {/* El total va dentro del botón: así el botón ocupa todo el ancho */}
+      <PayButton onClick={pay} paying={paying} label={payLabel} />
+    </div>
+    </>
   );
 }
 
