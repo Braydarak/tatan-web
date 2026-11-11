@@ -135,3 +135,48 @@ export function squareProductPhoto(
   ctx.drawImage(bitmap, dx, dy, W * scale, H * scale);
   return canvas;
 }
+
+/* ----------------------------------------------------------------
+ *  Fotos ya subidas (antes de que existiera el encuadre automático)
+ * -------------------------------------------------------------- */
+
+const squareCache = new Map<string, boolean | null>();
+
+/**
+ * ¿La foto ya es cuadrada (o sea, pasó por el encuadre)? null si no carga.
+ * Para saber el tamaño alcanza con cargarla como <img>: no hace falta CORS.
+ */
+export function isSquarePhoto(url: string): Promise<boolean | null> {
+  if (squareCache.has(url)) return Promise.resolve(squareCache.get(url)!);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const square = Math.abs(img.naturalWidth - img.naturalHeight) <= 2;
+      squareCache.set(url, square);
+      resolve(square);
+    };
+    img.onerror = () => {
+      squareCache.set(url, null);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * Trae una foto ya subida como archivo, para volver a encuadrarla y subirla.
+ * Las fotos de Ferozo no tienen CORS, así que se piden a través del
+ * optimizador de Next (/_next/image, mismo dominio), que devuelve la foto
+ * en su tamaño original y en el mismo formato (JPG/PNG).
+ */
+export async function fetchPhotoFile(url: string): Promise<File> {
+  const qs = new URLSearchParams({ url, w: "2048", q: "85" });
+  const res = await fetch(`/_next/image?${qs}`, {
+    headers: { Accept: "image/jpeg,image/png" },
+  });
+  if (!res.ok) throw new Error("No se pudo leer la foto");
+  const blob = await res.blob();
+  const type = blob.type === "image/png" ? "image/png" : "image/jpeg";
+  const name = (url.split("/").pop() || "foto").replace(/\.[^.]+$/, "");
+  return new File([blob], `${name}.${type === "image/png" ? "png" : "jpg"}`, { type });
+}
