@@ -202,8 +202,12 @@ export default function Checkout() {
 
       {(SHIPPING_DEMO || PAYMENTS_DEMO) && (
         <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-          Modo demostración: las tarifas de envío son de ejemplo y el pago se
-          simula, no se cobra nada.
+          Modo demostración:{" "}
+          {SHIPPING_DEMO && PAYMENTS_DEMO
+            ? "las tarifas de envío son de ejemplo y el pago se simula, no se cobra nada."
+            : SHIPPING_DEMO
+              ? "las tarifas de envío son de ejemplo."
+              : "el pago se simula, no se cobra nada."}
         </p>
       )}
 

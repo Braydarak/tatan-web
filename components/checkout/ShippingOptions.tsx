@@ -341,9 +341,13 @@ function BranchPicker({
   const [branches, setBranches] = useState<Branch[] | null>(null);
   useEffect(() => {
     let alive = true;
-    void listBranches(postalCode, carrierId).then((b) => {
-      if (alive) setBranches(b);
-    });
+    void listBranches(postalCode, carrierId)
+      .then((b) => {
+        if (alive) setBranches(b);
+      })
+      .catch(() => {
+        if (alive) setBranches([]);
+      });
     return () => {
       alive = false;
     };
