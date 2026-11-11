@@ -5,16 +5,37 @@
  * prioritario) + una modalidad (a domicilio o retiro en sucursal del correo),
  * con su precio y plazo. El comprador elige la que le convenga.
  *
- * ⚠️ Todavía NO está conectado: `quoteShipping` y `listBranches` devuelven
- * datos de demostración (SHIPPING_DEMO). Para conectarlo, reemplazar el
- * cuerpo de esas dos funciones por la llamada a la API (un endpoint PHP que
- * hable con Enviopack, para no exponer las credenciales en el navegador) y
- * mapear la respuesta a estos tipos. El resto de la UI no cambia.
+ * Las tarifas y sucursales son reales: salen de `php-api/shipping.php`, que
+ * habla con Enviopack con las claves de `php-api/secrets.php` (en el
+ * servidor, nunca en el navegador).
+ *
+ * Con NEXT_PUBLIC_SHIPPING_DEMO=1 se usan datos de ejemplo (para probar la
+ * pantalla sin la API).
  */
 
 import type { CartItem } from "@/lib/cart";
+import { apiBaseUrl } from "@/lib/tatan-api";
 
-export const SHIPPING_DEMO = true;
+export const SHIPPING_DEMO = process.env.NEXT_PUBLIC_SHIPPING_DEMO === "1";
+
+/** Pide algo a php-api/shipping.php y devuelve `data` (o un error legible). */
+async function shippingApi<T>(params: Record<string, string>): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${apiBaseUrl()}/shipping.php?${new URLSearchParams(params)}`, {
+      headers: { Accept: "application/json" },
+    });
+  } catch {
+    throw new Error("No pudimos calcular el envío. Revisá tu conexión y probá de nuevo.");
+  }
+  const json = (await res.json().catch(() => null)) as
+    | { ok?: boolean; data?: T; message?: string }
+    | null;
+  if (!res.ok || !json?.ok || json.data === undefined) {
+    throw new Error(json?.message || "No pudimos calcular el envío. Probá de nuevo en un momento.");
+  }
+  return json.data;
+}
 
 /** A domicilio, retiro en sucursal del correo o retiro sin cargo en Tatan */
 export type ShippingMode = "domicilio" | "sucursal" | "retiro";
@@ -75,7 +96,20 @@ export async function quoteShipping(
   const cp = normalizePostalCode(postalCode);
   if (!cp) throw new Error("Revisá el código postal");
 
-  // ---- DEMO: reemplazar por la API (Enviopack) --------------------------
+  if (!SHIPPING_DEMO) {
+    const units = items.reduce((a, i) => a + i.quantity, 0);
+    const quotes = await shippingApi<ShippingQuote[]>({
+      action: "quote",
+      cp,
+      units: String(Math.max(1, units)),
+    });
+    if (!quotes.length) {
+      throw new Error("No hay envíos disponibles para ese código postal");
+    }
+    return quotes;
+  }
+
+  // ---- Datos de ejemplo (NEXT_PUBLIC_SHIPPING_DEMO=1) --------------------
   await wait(700);
   const n = Number(cp);
   // AMBA más barato y rápido; el resto según lo lejos
@@ -141,7 +175,11 @@ export async function listBranches(
   const cp = normalizePostalCode(postalCode);
   if (!cp) return [];
 
-  // ---- DEMO: reemplazar por la API (Enviopack) --------------------------
+  if (!SHIPPING_DEMO) {
+    return shippingApi<Branch[]>({ action: "branches", cp, carrier: carrierId });
+  }
+
+  // ---- Datos de ejemplo (NEXT_PUBLIC_SHIPPING_DEMO=1) --------------------
   await wait(500);
   const names: Record<string, string> = {
     "correo-argentino": "Correo Argentino",
