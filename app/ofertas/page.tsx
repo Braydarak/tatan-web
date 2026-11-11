@@ -16,7 +16,7 @@ import {
 import { productHref } from "@/lib/product-url";
 
 export const metadata = {
-  title: "Ofertas Tatan — Ropa infantil con descuentos",
+  title: "Ofertas",
   description:
     "Ofertas en bodys, remeras, pijamas y accesorios para bebés y niños. Hasta 40% OFF. Envío gratis a partir de $25.000.",
 };

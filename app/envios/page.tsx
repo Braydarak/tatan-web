@@ -22,7 +22,7 @@ import type {
 import { ENVIOS_DEFAULT } from "@/lib/site-content-defaults";
 
 export const metadata: Metadata = {
-  title: "Envíos y entregas — Cómo funciona | Tatan",
+  title: "Envíos y entregas",
   description:
     "Cómo funcionan los envíos de prendas Tatan: zonas, tiempos de entrega, costo, seguimiento, retiro sin cargo, cambios y devoluciones gratis.",
 };

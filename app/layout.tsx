@@ -25,7 +25,12 @@ const fredoka = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Tatan - Ropa para bebés y niños",
+  // Cada página define su título corto ("Productos", "Body manga larga"…)
+  // y se le agrega " · Tatan". La home usa el default.
+  title: {
+    default: "Tatan · Ropa para bebés y niños",
+    template: "%s · Tatan",
+  },
   description:
     "Ropa cómoda y bonita para los más pequeños. Bodys, remeras y más.",
 };

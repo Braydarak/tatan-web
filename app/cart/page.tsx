@@ -3,7 +3,7 @@ import { fetchAllProductsSSR } from "@/lib/card-props";
 import { fetchHomeContentSSR } from "@/lib/home-content";
 
 export const metadata = {
-  title: "Tu carrito · Tatan",
+  title: "Tu carrito",
 };
 
 export default async function CartPage() {
