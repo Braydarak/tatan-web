@@ -5,7 +5,8 @@
  * tarjeta. Según cómo sale, salta contento (aprobado), espera con un reloj
  * (pendiente, p. ej. efectivo) o se pone triste (rechazado).
  *
- * Con "reducir movimiento" activado en el dispositivo, se muestra quieto.
+ * Se anima siempre, aunque el dispositivo tenga "reducir movimiento"
+ * activado (son movimientos chicos, a pedido de Tatan).
  */
 
 import { useEffect, useRef } from "react";
@@ -217,9 +218,4 @@ const STYLES = `
 .tb-rejected .tb-tear { animation: tb-drop 1.6s ease-in infinite; }
 @keyframes tb-shake { 0%, 100% { transform: rotate(0) } 25% { transform: rotate(-7deg) } 75% { transform: rotate(7deg) } }
 @keyframes tb-drop { 0% { transform: translateY(0); opacity: 1 } 100% { transform: translateY(12px); opacity: 0 } }
-
-@media (prefers-reduced-motion: reduce) {
-  .tb-root *, .tb-dots span { animation: none !important; }
-  .tb-dots span { opacity: 1; }
-}
 `;
