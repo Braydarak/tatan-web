@@ -263,7 +263,7 @@ export default function Checkout() {
    * Si la promesa se rechaza, el Brick vuelve a habilitar el formulario
    * sin borrar lo que cargó.
    */
-  const submitPayment = async (formData: unknown) => {
+  const submitPayment = async (paymentType: string, formData: unknown) => {
     setPayError(null);
     if (!checkForm()) throw new Error("FORM_INVALID");
     let order: CreatedOrder | null;
@@ -281,7 +281,7 @@ export default function Checkout() {
       throw new Error("AMOUNT_CHANGED");
     }
     try {
-      const r = await payOrder(order.orderNumber, formData);
+      const r = await payOrder(order.orderNumber, formData, paymentType);
       if (r.status === "rejected") {
         setPayError(r.message ?? "El pago fue rechazado. Probá con otro medio de pago.");
         // El token de la tarjeta ya se usó: el formulario se vuelve a cargar

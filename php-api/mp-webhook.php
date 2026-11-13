@@ -1,20 +1,23 @@
 <?php
 /**
  * ============================================================
- *   TATAN API PHP · mp-webhook.php  (avisos de pago de Mercado Pago)
+ *   TATAN API PHP · mp-webhook.php  (avisos de Mercado Pago)
  * ============================================================
  *
- *   Mercado Pago llama acá cada vez que cambia un pago:
- *     POST mp-webhook.php?type=payment&data.id=123   (Webhooks)
- *     POST mp-webhook.php?topic=payment&id=123       (IPN, formato viejo)
+ *   Mercado Pago llama acá cada vez que cambia una order (Orders API):
+ *     POST mp-webhook.php?type=order&data.id=ORD01...
+ *     body: { "type": "order", "action": "order.processed", "data": { "id": "ORD01..." } }
  *
- *   No se confía en lo que trae el aviso: se consulta el pago a la API de
+ *   Se configura en Mercado Pago → Tus integraciones → (la aplicación) →
+ *   Webhooks: esta URL y el evento "Order (Mercado Pago)".
+ *
+ *   No se confía en lo que trae el aviso: se consulta la order a la API de
  *   Mercado Pago y se actualiza el pedido (external_reference = número de
  *   pedido). Es idempotente: si el mismo aviso llega varias veces, el stock
  *   se descuenta una sola vez.
  *
- *   También sirve para que la página de resultado confirme el estado:
- *     GET mp-webhook.php?action=status&ref=TTN-2026-XXXX&payment_id=123
+ *   También responde el estado para la página de resultado:
+ *     GET mp-webhook.php?action=status&ref=TTN-2026-XXXXXXXX
  */
 
 declare(strict_types=1);
@@ -39,54 +42,50 @@ function mp_signature_ok(string $dataId): bool
         if ($k === 'v1') $v1 = $v;
     }
     if ($ts === '' || $v1 === '') return false;
+    // Mercado Pago firma el id en minúsculas
     $manifest = 'id:' . strtolower($dataId) . ';';
     if ($requestId !== '') $manifest .= "request-id:{$requestId};";
     $manifest .= "ts:{$ts};";
     return hash_equals(hash_hmac('sha256', $manifest, MP_WEBHOOK_SECRET), $v1);
 }
 
-/**
- * Consulta el pago a Mercado Pago y actualiza el pedido.
- * @return array{orderNumber:string,status:string}|null
- */
-function sync_payment(string $paymentId): ?array
+/** Consulta la order a Mercado Pago y actualiza el pedido. */
+function sync_order(string $mpOrderId): ?array
 {
-    [$status, $pay] = mp_http('GET', '/v1/payments/' . rawurlencode($paymentId));
-    if ($status !== 200 || !is_array($pay)) {
-        error_log("[mp-webhook] no se pudo leer el pago {$paymentId} (HTTP {$status})");
+    [$status, $o] = mp_http('GET', '/v1/orders/' . rawurlencode($mpOrderId));
+    if ($status !== 200 || !is_array($o)) {
+        error_log("[mp-webhook] no se pudo leer la order {$mpOrderId} (HTTP {$status})");
         return null;
     }
-    return apply_payment($pay);
+    return apply_order($o);
 }
 
 // ---------------------------------------------------------------- estado (página de resultado)
 if (method() === 'GET' && ($_GET['action'] ?? '') === 'status') {
     $ref = trim((string)($_GET['ref'] ?? ''));
     if (!preg_match('/^TTN-\d{4}-[A-F0-9]{8}$/', $ref)) send_json(['ok' => false, 'error' => 'INVALID_REF'], 400);
-    // Si vuelve con el id del pago, se sincroniza (por si el webhook todavía no llegó,
-    // p. ej. en desarrollo sin dirección pública)
-    $paymentId = preg_replace('/\D/', '', (string)($_GET['payment_id'] ?? ''));
-    if ($paymentId !== '') {
-        try {
-            sync_payment($paymentId);
-        } catch (Throwable) {
-        }
-    }
-    $st = pdo()->prepare('SELECT status, total FROM orders WHERE order_number = ?');
+    $st = pdo()->prepare('SELECT status, total, payment_id FROM orders WHERE order_number = ?');
     $st->execute([$ref]);
     $o = $st->fetch();
     if (!$o) send_json(['ok' => false, 'error' => 'NOT_FOUND'], 404);
+    // Pendiente: se pregunta a Mercado Pago por si el aviso todavía no llegó
+    if ($o['status'] === 'pending' && is_string($o['payment_id']) && str_starts_with($o['payment_id'], 'ORD')) {
+        try {
+            if ($res = sync_order($o['payment_id'])) $o['status'] = $res['status'];
+        } catch (Throwable) {
+        }
+    }
     send_json(['ok' => true, 'data' => ['orderNumber' => $ref, 'status' => $o['status'], 'total' => (float)$o['total']]]);
 }
 
 // ---------------------------------------------------------------- aviso de Mercado Pago
-$type = (string)($_GET['type'] ?? $_GET['topic'] ?? '');
 $body = read_json_body();
-if ($type === '') $type = (string)($body['type'] ?? $body['topic'] ?? '');
-$dataId = (string)($_GET['data_id'] ?? $_GET['data.id'] ?? $_GET['id'] ?? ($body['data']['id'] ?? ''));
+$type = (string)($_GET['type'] ?? $_GET['topic'] ?? $body['type'] ?? $body['topic'] ?? '');
+// PHP convierte "data.id" del query string en "data_id"
+$dataId = (string)($_GET['data_id'] ?? $body['data']['id'] ?? $_GET['id'] ?? '');
 
-// Avisos que no son de pagos (merchant_order, etc.): se responde OK y listo
-if ($type !== 'payment' || !preg_match('/^\d+$/', $dataId)) {
+// Avisos que no son de orders: se responde OK y listo (si no, Mercado Pago reintenta)
+if ($type !== 'order' || !preg_match('/^[A-Za-z0-9]{8,64}$/', $dataId)) {
     send_json(['ok' => true, 'ignored' => true]);
 }
 if (!mp_signature_ok($dataId)) {
@@ -94,7 +93,7 @@ if (!mp_signature_ok($dataId)) {
 }
 
 try {
-    $res = sync_payment($dataId);
+    $res = sync_order($dataId);
 } catch (Throwable) {
     // 500: Mercado Pago reintenta el aviso más tarde
     send_json(['ok' => false, 'error' => 'SYNC_FAILED'], 500);

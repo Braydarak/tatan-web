@@ -36,8 +36,11 @@ export default function PaymentBrick({
 }: {
   amount: number;
   payer: BrickPayer;
-  /** Recibe los datos del Brick (token, medio de pago, cuotas…) */
-  onSubmit: (formData: unknown) => Promise<void>;
+  /**
+   * Recibe el tipo de medio (credit_card, debit_card, ticket…) y los datos
+   * del Brick (token, medio de pago, cuotas…)
+   */
+  onSubmit: (paymentType: string, formData: unknown) => Promise<void>;
   onError: (message: string) => void;
 }) {
   ensureInit();
@@ -89,7 +92,9 @@ export default function PaymentBrick({
             onError("No pudimos cargar los medios de pago. Recargá la página y probá de nuevo.");
           }
         }}
-        onSubmit={({ formData }) => onSubmit(formData)}
+        onSubmit={({ paymentType, selectedPaymentMethod, formData }) =>
+          onSubmit(String(paymentType || selectedPaymentMethod || ""), formData)
+        }
       />
     </div>
   );

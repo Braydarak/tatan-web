@@ -10,8 +10,8 @@
  *     maneja Mercado Pago (nunca pasan por nuestro servidor): el Brick
  *     devuelve un token.
  *  3. `payOrder`: el navegador manda el token a `checkout.php?action=pay`,
- *     que cobra con el Access Token (secreto, solo en el servidor) por el
- *     total guardado en el pedido.
+ *     que cobra con la API de Orders de Mercado Pago y el Access Token
+ *     (secreto, solo en el servidor) por el total guardado en el pedido.
  *  4. `php-api/mp-webhook.php` confirma los cambios posteriores (p. ej. un
  *     pago en efectivo que se acredita días después).
  *
@@ -144,7 +144,12 @@ export async function createOrder(order: CheckoutOrder): Promise<CreatedOrder> {
 }
 
 /** Cobra el pedido con los datos del Payment Brick (token de la tarjeta, etc.). */
-export async function payOrder(orderNumber: string, formData: unknown): Promise<PayResult> {
+export async function payOrder(
+  orderNumber: string,
+  formData: unknown,
+  /** credit_card, debit_card, ticket… (lo da el Brick) */
+  paymentType = "",
+): Promise<PayResult> {
   if (PAYMENTS_DEMO) {
     await wait(900);
     return { orderNumber, status: "approved", statusDetail: "accredited" };
@@ -153,6 +158,7 @@ export async function payOrder(orderNumber: string, formData: unknown): Promise<
     "pay",
     {
       orderNumber,
+      paymentType,
       formData,
       // Si el navegador reenvía el mismo intento, no se cobra dos veces
       attemptId: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()),

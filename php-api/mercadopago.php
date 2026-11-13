@@ -133,18 +133,44 @@ function order_discount_stock(int $orderId): array
     return $short;
 }
 
+/** Primer pago de una order de Mercado Pago (Orders API), o [] */
+function mp_order_payment(array $o): array
+{
+    $p = $o['transactions']['payments'][0] ?? null;
+    return is_array($p) ? $p : [];
+}
+
 /**
- * Actualiza el pedido según un pago de Mercado Pago (lo que devuelve
- * /v1/payments). Idempotente: el stock se descuenta una sola vez.
+ * Estado de una order de Mercado Pago → qué le pasó al pago:
+ * 'approved' | 'pending' | 'rejected' | 'cancelled' | 'refunded'
+ */
+function mp_order_outcome(array $o): string
+{
+    $status = (string)($o['status'] ?? '');
+    return match (true) {
+        $status === 'processed'                                       => 'approved',
+        in_array($status, ['processing', 'action_required', 'created'], true) => 'pending',
+        $status === 'failed'                                          => 'rejected',
+        $status === 'canceled' || $status === 'cancelled'             => 'cancelled',
+        in_array($status, ['refunded', 'charged_back'], true)         => 'refunded',
+        default                                                       => 'pending',
+    };
+}
+
+/**
+ * Actualiza el pedido según una order de Mercado Pago (lo que devuelve
+ * /v1/orders). Idempotente: el stock se descuenta una sola vez.
  * @return array{orderNumber:string,status:string}|null
  */
-function apply_payment(array $pay): ?array
+function apply_order(array $o): ?array
 {
-    $paymentId = (string)($pay['id'] ?? '');
-    $ref = (string)($pay['external_reference'] ?? '');
-    $mpStatus = (string)($pay['status'] ?? '');
-    $detail = (string)($pay['status_detail'] ?? '');
-    if ($ref === '') return null;
+    $mpOrderId = (string)($o['id'] ?? '');
+    $ref = (string)($o['external_reference'] ?? '');
+    if ($ref === '' || $mpOrderId === '') return null;
+    $outcome = mp_order_outcome($o);
+    $pay = mp_order_payment($o);
+    $detail = (string)($pay['status_detail'] ?? $o['status_detail'] ?? '');
+    $method = (string)($pay['payment_method']['id'] ?? '');
 
     $pdo = pdo();
     $pdo->beginTransaction();
@@ -154,42 +180,43 @@ function apply_payment(array $pay): ?array
         $order = $st->fetch();
         if (!$order) {
             $pdo->rollBack();
-            error_log("[mp] pago {$paymentId} de un pedido que no existe: {$ref}");
+            error_log("[mp] order {$mpOrderId} de un pedido que no existe: {$ref}");
             return null;
         }
         $orderId = (int)$order['id'];
         $current = (string)$order['status'];
-        $note = "Mercado Pago: pago {$paymentId} {$mpStatus}" . ($detail !== '' ? " ({$detail})" : '');
+        $note = "Mercado Pago: order {$mpOrderId} {$o['status']}" . ($detail !== '' ? " ({$detail})" : '') . ($method !== '' ? " · {$method}" : '');
 
-        if ($mpStatus === 'approved') {
+        if ($outcome === 'approved') {
             if (!in_array($current, ['paid', 'shipped', 'delivered', 'refunded'], true)) {
-                $paid = (float)($pay['transaction_amount'] ?? 0);
-                if (abs($paid - (float)$order['total']) > 1) {
+                // Monto cobrado sin los intereses de las cuotas (esos los paga el comprador)
+                $paid = (float)($o['total_amount'] ?? $pay['amount'] ?? 0);
+                if ($paid > 0 && abs($paid - (float)$order['total']) > 1) {
                     $note .= sprintf(' · ⚠️ pagó $%.2f y el pedido es de $%.2f', $paid, (float)$order['total']);
                 }
                 $pdo->prepare("UPDATE orders SET status = 'paid', payment_id = ?, paid_at = NOW(), cancelled_at = NULL WHERE id = ?")
-                    ->execute([$paymentId, $orderId]);
+                    ->execute([$mpOrderId, $orderId]);
                 $short = order_discount_stock($orderId);
                 if ($short) $note .= ' · ⚠️ sin stock suficiente: ' . implode('; ', $short);
                 order_event($orderId, 'paid', $note);
                 $current = 'paid';
             }
-        } elseif (in_array($mpStatus, ['pending', 'in_process', 'authorized'], true)) {
-            if ($current === 'pending' || $current === 'draft' || $current === 'cancelled') {
+        } elseif ($outcome === 'pending') {
+            if (in_array($current, ['pending', 'draft', 'cancelled'], true)) {
                 $pdo->prepare("UPDATE orders SET status = 'pending', payment_id = ?, cancelled_at = NULL WHERE id = ?")
-                    ->execute([$paymentId, $orderId]);
+                    ->execute([$mpOrderId, $orderId]);
                 order_event($orderId, 'pending', $note);
                 $current = 'pending';
             }
-        } elseif (in_array($mpStatus, ['rejected', 'cancelled'], true)) {
-            // Un pago rechazado no cancela el pedido si después paga con otro medio
+        } elseif ($outcome === 'rejected' || $outcome === 'cancelled') {
+            // Un pago rechazado no cierra el pedido para siempre: se puede reintentar
             if ($current === 'pending' || $current === 'draft') {
                 $pdo->prepare("UPDATE orders SET status = 'cancelled', payment_id = ?, cancelled_at = NOW() WHERE id = ?")
-                    ->execute([$paymentId, $orderId]);
+                    ->execute([$mpOrderId, $orderId]);
                 order_event($orderId, 'cancelled', $note);
                 $current = 'cancelled';
             }
-        } elseif (in_array($mpStatus, ['refunded', 'charged_back'], true)) {
+        } elseif ($outcome === 'refunded') {
             if ($current !== 'refunded') {
                 $pdo->prepare("UPDATE orders SET status = 'refunded' WHERE id = ?")->execute([$orderId]);
                 order_event($orderId, 'refunded', $note . ' · revisar el stock a mano');
