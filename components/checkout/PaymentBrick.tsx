@@ -54,9 +54,12 @@ export default function PaymentBrick({
     const el = wrapRef.current;
     if (!el || !ready) return;
     const check = () => {
-      const radios = el.querySelectorAll('input[type="radio"]');
+      const options = el.querySelectorAll('input[type="radio"], [role="radio"]');
+      const chosen = el.querySelector(
+        'input[type="radio"]:checked, [role="radio"][aria-checked="true"], [aria-selected="true"]',
+      );
       // Si no hay lista para elegir (un solo medio), ya está elegido
-      onSelectedChange(radios.length === 0 || !!el.querySelector('input[type="radio"]:checked'));
+      onSelectedChange(options.length === 0 || !!chosen);
     };
     check();
     const obs = new MutationObserver(check);
