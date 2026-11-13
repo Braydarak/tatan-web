@@ -36,7 +36,7 @@ require_once __DIR__ . '/mercadopago.php';
 require_once __DIR__ . '/enviopack.php';
 
 // Para comprobar qué versión está subida: GET checkout.php?action=version
-const CHECKOUT_VERSION = '2026-11-13-brick';
+const CHECKOUT_VERSION = '2026-11-13-brick-2';
 if (method() === 'GET' && ($_GET['action'] ?? '') === 'version') {
     send_json(['ok' => true, 'version' => CHECKOUT_VERSION]);
 }
@@ -332,7 +332,8 @@ function pay_order(array $body): never
     if ($token !== '') {
         $payment['token'] = $token;
         $payment['installments'] = max(1, (int)($form['installments'] ?? 1));
-        if (!empty($form['issuer_id'])) $payment['issuer_id'] = (string)$form['issuer_id'];
+        // Mercado Pago espera un número
+        if (!empty($form['issuer_id']) && ctype_digit((string)$form['issuer_id'])) $payment['issuer_id'] = (int)$form['issuer_id'];
     }
     $notify = api_url() . '/mp-webhook.php';
     if (str_starts_with($notify, 'https://')) $payment['notification_url'] = $notify;
@@ -343,8 +344,21 @@ function pay_order(array $body): never
     if ($status < 200 || $status >= 300 || !is_array($pay) || empty($pay['id'])) {
         error_log('[checkout] /v1/payments ' . $status . ': ' . json_encode($pay));
         $msg = is_array($pay) ? (string)($pay['message'] ?? '') : '';
-        order_event((int)$order['id'], (string)$order['status'], 'Mercado Pago no aceptó el pago (HTTP ' . $status . ') ' . mb_substr($msg, 0, 200));
-        bad('PAYMENT_ERROR', 'No pudimos procesar el pago. Revisá los datos o probá con otro medio de pago.', 502);
+        $causes = is_array($pay['cause'] ?? null) ? $pay['cause'] : [];
+        $codes = array_values(array_filter(array_map(fn($c) => is_array($c) ? (string)($c['code'] ?? '') : '', $causes)));
+        order_event((int)$order['id'], (string)$order['status'], 'Mercado Pago no aceptó el pago (HTTP ' . $status . ') ' . mb_substr($msg . ' ' . implode(',', $codes), 0, 200));
+        $userMsg = 'No pudimos procesar el pago. Revisá los datos o probá con otro medio de pago.';
+        // Credenciales de prueba + email de una cuenta real (o de la vendedora)
+        if (stripos($msg, 'live credentials') !== false || in_array('7', $codes, true)) {
+            $userMsg = 'Pago de prueba rechazado: con las credenciales de prueba, el email del comprador tiene que ser el de una cuenta COMPRADORA de prueba de Mercado Pago.';
+        }
+        send_json([
+            'ok'      => false,
+            'error'   => 'PAYMENT_ERROR',
+            'message' => $userMsg,
+            // Motivo que da Mercado Pago (para diagnosticar; no tiene datos de la tarjeta)
+            'mp'      => ['status' => $status, 'message' => $msg, 'codes' => $codes],
+        ], 502);
     }
 
     $res = apply_payment($pay);
