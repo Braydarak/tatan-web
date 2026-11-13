@@ -50,6 +50,9 @@ export default function CheckoutResult({
 }) {
   // Lo que dice la URL se puede tocar a mano: se confirma con el servidor
   const [status, setStatus] = useState<PaymentStatus>(urlStatus);
+  // Lo que dice la URL ya lo confirmó el checkout (el modal del osito): se
+  // muestra al toque y se verifica con el servidor sin hacer esperar.
+  // `checked` = ya respondió el servidor (recién ahí se vacía el carrito).
   const [checked, setChecked] = useState(demo || !reference);
   useEffect(() => {
     if (demo || !reference) return;
@@ -79,11 +82,11 @@ export default function CheckoutResult({
     <main className="relative z-10 mx-auto w-full max-w-xl flex-1 px-4 py-12">
       <div className="paper-card flex flex-col items-center gap-4 rounded-3xl px-6 pb-12 pt-8 text-center">
         {/* Mientras se confirma con el servidor, el osito sigue "pasando la tarjeta" */}
-        <Bear phase={checked ? c.bear : "processing"} loop className="h-48 w-48" />
+        <Bear phase={c.bear} loop className="h-48 w-48" />
         <h1 className="text-2xl font-extrabold text-zinc-800" aria-live="polite">
-          {checked ? c.title : "Confirmando tu pago…"}
+          {c.title}
         </h1>
-        {checked && <p className="text-sm leading-relaxed text-zinc-600">{c.text}</p>}
+        <p className="text-sm leading-relaxed text-zinc-600">{c.text}</p>
         {reference && (
           <p className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-zinc-500 ring-1 ring-tatan-secundario1/60">
             Pedido <span className="font-mono text-zinc-700">{reference}</span>
