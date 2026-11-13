@@ -248,9 +248,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </span>
           </nav>
 
-          <div className="grid lg:grid-cols-2 gap-6 lg:gap-12 items-start">
+          {/* minmax(0,1fr) y min-w-0: la fila de miniaturas (que se desliza) no
+              ensancha la columna en el celular cuando hay muchas fotos */}
+          <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-2 gap-6 lg:gap-12 items-start">
             {/* Fotos */}
-            <div className="lg:sticky lg:top-[calc(var(--header-h,101px)+1.5rem)]">
+            <div className="min-w-0 lg:sticky lg:top-[calc(var(--header-h,101px)+1.5rem)]">
               <ProductGallery
                 images={Array.from(
                   new Set(
@@ -274,7 +276,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </div>
 
             {/* Compra */}
-            <div className="space-y-5">
+            <div className="min-w-0 space-y-5">
               <div className="paper-card rounded-3xl p-5 sm:p-8 space-y-5">
                 <div>
                   <div className="mb-2 flex flex-wrap items-center gap-2">

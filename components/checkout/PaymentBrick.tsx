@@ -13,10 +13,35 @@
  * Se carga solo en el navegador (next/dynamic con ssr: false).
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { initMercadoPago, Payment } from "@mercadopago/sdk-react";
 import { Loader2 } from "lucide-react";
 import { MP_PUBLIC_KEY } from "@/lib/payments";
+
+/**
+ * Opciones fijas del Brick. Van fuera del componente a propósito: el SDK
+ * vuelve a crear el formulario cada vez que cambia la referencia de
+ * `initialization`, `customization` o de los callbacks (si se crean en cada
+ * render, el formulario se recarga sin parar).
+ */
+const CUSTOMIZATION = {
+  paymentMethods: {
+    creditCard: "all",
+    debitCard: "all",
+    ticket: "all",
+    maxInstallments: 12,
+  },
+  visual: {
+    style: { theme: "default" },
+    // Se paga con el botón de la tienda
+    hidePaymentButton: true,
+    // Que no aparezca el panel de "te vamos a redirigir"
+    hideRedirectionPanel: true,
+  },
+} as const;
+
+/** Con el botón oculto no se usa, pero el SDK lo pide */
+const noopSubmit = async () => {};
 
 let initialized = false;
 function ensureInit() {
@@ -48,6 +73,38 @@ export default function PaymentBrick({
   const [ready, setReady] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
+  // Datos del comprador: se toman al crear el formulario. Si cambian después
+  // (escribe en "Tus datos"), no se recarga el formulario por eso.
+  const [initialPayer] = useState(payer);
+  // Solo un total nuevo crea el formulario de nuevo
+  const initialization = useMemo(
+    () => ({
+      amount,
+      payer: {
+        email: initialPayer.email,
+        firstName: initialPayer.firstName,
+        lastName: initialPayer.lastName,
+        identification: { type: "DNI", number: initialPayer.dni },
+      },
+    }),
+    [amount, initialPayer],
+  );
+
+  // Callbacks estables (las funciones del padre pueden cambiar en cada render)
+  const onErrorRef = useRef(onError);
+  const onSelectedRef = useRef(onSelectedChange);
+  useEffect(() => {
+    onErrorRef.current = onError;
+    onSelectedRef.current = onSelectedChange;
+  });
+  const handleReady = useCallback(() => setReady(true), []);
+  const handleError = useCallback((e: { type: string }) => {
+    console.error("[PaymentBrick]", e);
+    if (e.type === "critical") {
+      onErrorRef.current("No pudimos cargar los medios de pago. Recargá la página y probá de nuevo.");
+    }
+  }, []);
+
   // El Brick dibuja la lista de medios de pago en la página (solo los campos
   // de la tarjeta van en iframes): se mira qué opción quedó marcada.
   useEffect(() => {
@@ -55,11 +112,15 @@ export default function PaymentBrick({
     if (!el || !ready) return;
     const check = () => {
       const options = el.querySelectorAll('input[type="radio"], [role="radio"]');
-      const chosen = el.querySelector(
-        'input[type="radio"]:checked, [role="radio"][aria-checked="true"], [aria-selected="true"]',
-      );
+      const chosen =
+        // El Brick marca la opción elegida con una clase "checked-xxxx" (no con :checked)
+        el.querySelector('input[type="radio"][class*="checked"], input[type="radio"]:checked') ||
+        el.querySelector('[role="radio"][aria-checked="true"], [aria-selected="true"]') ||
+        // Respaldo: aparecieron los campos de la tarjeta (iframes de Mercado Pago)
+        // o los datos para el pago en efectivo
+        el.querySelector('iframe[src*="mercadopago"], iframe[name*="cardNumber"], input[name*="docNumber"], input[name*="email"]');
       // Si no hay lista para elegir (un solo medio), ya está elegido
-      onSelectedChange(options.length === 0 || !!chosen);
+      onSelectedRef.current(options.length === 0 || !!chosen);
     };
     check();
     const obs = new MutationObserver(check);
@@ -70,9 +131,9 @@ export default function PaymentBrick({
       obs.disconnect();
       el.removeEventListener("change", check);
       el.removeEventListener("click", check);
-      onSelectedChange(false);
+      onSelectedRef.current(false);
     };
-  }, [ready, onSelectedChange]);
+  }, [ready]);
 
   if (!MP_PUBLIC_KEY) {
     return (
@@ -91,39 +152,11 @@ export default function PaymentBrick({
         </div>
       )}
       <Payment
-        initialization={{
-          amount,
-          payer: {
-            email: payer.email,
-            firstName: payer.firstName,
-            lastName: payer.lastName,
-            identification: { type: "DNI", number: payer.dni },
-          },
-        }}
-        customization={{
-          paymentMethods: {
-            creditCard: "all",
-            debitCard: "all",
-            ticket: "all",
-            maxInstallments: 12,
-          },
-          visual: {
-            style: { theme: "default" },
-            // Se paga con el botón de la tienda
-            hidePaymentButton: true,
-            // Que no aparezca el panel de "te vamos a redirigir"
-            hideRedirectionPanel: true,
-          },
-        }}
-        onReady={() => setReady(true)}
-        onError={(e) => {
-          console.error("[PaymentBrick]", e);
-          if (e.type === "critical") {
-            onError("No pudimos cargar los medios de pago. Recargá la página y probá de nuevo.");
-          }
-        }}
-        // Con el botón oculto no se usa, pero el SDK lo pide
-        onSubmit={async () => {}}
+        initialization={initialization}
+        customization={CUSTOMIZATION}
+        onReady={handleReady}
+        onError={handleError}
+        onSubmit={noopSubmit}
       />
     </div>
   );
