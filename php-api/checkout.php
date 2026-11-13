@@ -23,7 +23,7 @@
  *        body: { orderNumber, formData }   (formData = lo que da el Brick)
  *        → { ok: true, data: { orderNumber, status, statusDetail, ticketUrl? } }
  *
- *      Cobra con /v1/payments por el total guardado en el pedido (no por lo
+ *      Cobra con /v1/orders (Orders API) por el total guardado en el pedido (no por lo
  *      que diga el navegador). Si el pago se aprueba, el pedido pasa a
  *      "paid" y se descuenta el stock. mp-webhook.php confirma los cambios
  *      posteriores (p. ej. un pago en efectivo que se acredita después).
@@ -36,7 +36,7 @@ require_once __DIR__ . '/mercadopago.php';
 require_once __DIR__ . '/enviopack.php';
 
 // Para comprobar qué versión está subida: GET checkout.php?action=version
-const CHECKOUT_VERSION = '2026-11-13-brick-2';
+const CHECKOUT_VERSION = '2026-11-13-orders';
 if (method() === 'GET' && ($_GET['action'] ?? '') === 'version') {
     send_json(['ok' => true, 'version' => CHECKOUT_VERSION]);
 }
@@ -265,24 +265,28 @@ send_json(['ok' => true, 'data' => [
 /** Mensaje para el comprador según por qué Mercado Pago rechazó el pago. */
 function rejection_message(string $detail): string
 {
-    return match ($detail) {
-        'cc_rejected_insufficient_amount'      => 'La tarjeta no tiene saldo suficiente. Probá con otra.',
-        'cc_rejected_bad_filled_security_code' => 'Revisá el código de seguridad de la tarjeta.',
-        'cc_rejected_bad_filled_date'          => 'Revisá la fecha de vencimiento de la tarjeta.',
-        'cc_rejected_bad_filled_card_number',
-        'cc_rejected_bad_filled_other'         => 'Revisá los datos de la tarjeta.',
-        'cc_rejected_call_for_authorize'       => 'Tu banco tiene que autorizar el pago: llamalo y volvé a intentar, o usá otra tarjeta.',
-        'cc_rejected_card_disabled'            => 'La tarjeta está deshabilitada: activala con tu banco o usá otra.',
-        'cc_rejected_duplicated_payment'       => 'Ya hiciste un pago por este monto. Si necesitás pagar de nuevo, usá otra tarjeta.',
-        'cc_rejected_high_risk',
-        'rejected_high_risk'                   => 'Mercado Pago rechazó el pago por seguridad. Probá con otro medio de pago.',
-        'cc_rejected_max_attempts'             => 'Llegaste al límite de intentos con esta tarjeta. Probá con otra.',
-        'cc_rejected_invalid_installments'     => 'La tarjeta no acepta esa cantidad de cuotas.',
-        default                                 => 'El pago fue rechazado. Probá con otra tarjeta u otro medio de pago.',
+    // Orders usa nombres sin "cc_rejected_" (p. ej. insufficient_amount); se aceptan los dos
+    $d = preg_replace('/^cc_rejected_/', '', $detail);
+    return match ($d) {
+        'insufficient_amount'      => 'La tarjeta no tiene saldo suficiente. Probá con otra.',
+        'bad_filled_security_code' => 'Revisá el código de seguridad de la tarjeta.',
+        'bad_filled_date'          => 'Revisá la fecha de vencimiento de la tarjeta.',
+        'bad_filled_card_number',
+        'bad_filled_other',
+        'invalid_card_data'        => 'Revisá los datos de la tarjeta.',
+        'call_for_authorize'       => 'Tu banco tiene que autorizar el pago: llamalo y volvé a intentar, o usá otra tarjeta.',
+        'card_disabled'            => 'La tarjeta está deshabilitada: activala con tu banco o usá otra.',
+        'duplicated_payment'       => 'Ya hiciste un pago por este monto. Si necesitás pagar de nuevo, usá otra tarjeta.',
+        'high_risk',
+        'rejected_high_risk',
+        'blacklist'                => 'Mercado Pago rechazó el pago por seguridad. Probá con otro medio de pago.',
+        'max_attempts'             => 'Llegaste al límite de intentos con esta tarjeta. Probá con otra.',
+        'invalid_installments'     => 'La tarjeta no acepta esa cantidad de cuotas.',
+        default                    => 'El pago fue rechazado. Probá con otra tarjeta u otro medio de pago.',
     };
 }
 
-/** Cobra un pedido "pending" con los datos del Payment Brick. */
+/** Cobra un pedido "pending" con los datos del Payment Brick (Orders API). */
 function pay_order(array $body): never
 {
     $orderNumber = trim((string)($body['orderNumber'] ?? ''));
@@ -302,77 +306,80 @@ function pay_order(array $body): never
     }
 
     $methodId = preg_replace('/[^a-z0-9_]/i', '', (string)($form['payment_method_id'] ?? ''));
+    // Tipo de medio que eligió en el Brick: credit_card, debit_card, ticket…
+    // El Brick lo da en camelCase (creditCard) y Orders lo pide en snake_case (credit_card)
+    $rawType = (string)($body['paymentType'] ?? $form['payment_type_id'] ?? '');
+    $methodType = preg_replace('/[^a-z_]/', '', strtolower((string)preg_replace('/(?<=[a-z])([A-Z])/', '_$1', $rawType)));
     if ($methodId === '') bad('INVALID_PAYMENT', 'Elegí un medio de pago');
     // Sin "dinero en cuenta": ese medio lleva a la página de Mercado Pago
-    if ($methodId === 'account_money') bad('INVALID_PAYMENT', 'Ese medio de pago no está disponible');
+    if ($methodId === 'account_money' || $methodType === 'wallet_purchase') bad('INVALID_PAYMENT', 'Ese medio de pago no está disponible');
+    $token = (string)($form['token'] ?? '');
+    if ($methodType === '') $methodType = $token !== '' ? 'credit_card' : 'ticket';
 
     $snapshot = json_decode((string)($order['shipping_snapshot'] ?? ''), true) ?: [];
     $formPayer = is_array($form['payer'] ?? null) ? $form['payer'] : [];
     $idType = preg_replace('/[^A-Z]/', '', strtoupper((string)($formPayer['identification']['type'] ?? 'DNI'))) ?: 'DNI';
     $idNumber = preg_replace('/\D/', '', (string)($formPayer['identification']['number'] ?? '')) ?: (string)($snapshot['buyer']['dni'] ?? '');
     $names = explode(' ', (string)$order['guest_name'], 2);
+    $amount = number_format((float)$order['total'], 2, '.', '');
 
-    $payment = [
-        // El monto sale del pedido guardado, no del navegador
-        'transaction_amount' => round((float)$order['total'], 2),
-        'payment_method_id'  => $methodId,
-        'description'        => "Pedido {$orderNumber} · Tatan Kids",
-        'external_reference' => $orderNumber,
-        'statement_descriptor' => 'TATAN KIDS',
-        'payer' => [
-            // El email lo puede cambiar en el Brick (p. ej. para el cupón); si no, el del pedido
-            'email' => filter_var($formPayer['email'] ?? '', FILTER_VALIDATE_EMAIL) ?: (string)$order['guest_email'],
-            'first_name' => (string)($formPayer['first_name'] ?? $names[0] ?? ''),
-            'last_name'  => (string)($formPayer['last_name'] ?? $names[1] ?? ''),
-            'identification' => ['type' => $idType, 'number' => $idNumber],
-        ],
-        'metadata' => ['order_number' => $orderNumber],
-    ];
-    $token = (string)($form['token'] ?? '');
+    $paymentMethod = ['id' => $methodId, 'type' => $methodType];
     if ($token !== '') {
-        $payment['token'] = $token;
-        $payment['installments'] = max(1, (int)($form['installments'] ?? 1));
-        // Mercado Pago espera un número
-        if (!empty($form['issuer_id']) && ctype_digit((string)$form['issuer_id'])) $payment['issuer_id'] = (int)$form['issuer_id'];
+        $paymentMethod['token'] = $token;
+        $paymentMethod['installments'] = max(1, (int)($form['installments'] ?? 1));
     }
-    $notify = api_url() . '/mp-webhook.php';
-    if (str_starts_with($notify, 'https://')) $payment['notification_url'] = $notify;
+    $request = [
+        'type'               => 'online',
+        'processing_mode'    => 'automatic',
+        // El monto sale del pedido guardado, no del navegador
+        'total_amount'       => $amount,
+        'external_reference' => $orderNumber,
+        'payer' => array_filter([
+            // El email lo puede cambiar en el Brick (p. ej. para el cupón); si no, el del pedido
+            'email'          => filter_var($formPayer['email'] ?? '', FILTER_VALIDATE_EMAIL) ?: (string)$order['guest_email'],
+            'first_name'     => (string)($formPayer['first_name'] ?? $names[0] ?? ''),
+            'last_name'      => (string)($formPayer['last_name'] ?? $names[1] ?? ''),
+            'identification' => $idNumber !== '' ? ['type' => $idType, 'number' => $idNumber] : null,
+        ], fn($v) => $v !== null && $v !== ''),
+        'transactions' => ['payments' => [[
+            'amount'         => $amount,
+            'payment_method' => $paymentMethod,
+        ]]],
+    ];
 
     // Una clave por intento: si el navegador reintenta el mismo envío, no se cobra dos veces
     $attempt = preg_replace('/[^a-zA-Z0-9-]/', '', (string)($body['attemptId'] ?? '')) ?: bin2hex(random_bytes(8));
-    [$status, $pay] = mp_http('POST', '/v1/payments', $payment, "{$orderNumber}-{$attempt}");
-    if ($status < 200 || $status >= 300 || !is_array($pay) || empty($pay['id'])) {
-        error_log('[checkout] /v1/payments ' . $status . ': ' . json_encode($pay));
-        $msg = is_array($pay) ? (string)($pay['message'] ?? '') : '';
-        $causes = is_array($pay['cause'] ?? null) ? $pay['cause'] : [];
-        $codes = array_values(array_filter(array_map(fn($c) => is_array($c) ? (string)($c['code'] ?? '') : '', $causes)));
-        order_event((int)$order['id'], (string)$order['status'], 'Mercado Pago no aceptó el pago (HTTP ' . $status . ') ' . mb_substr($msg . ' ' . implode(',', $codes), 0, 200));
-        $userMsg = 'No pudimos procesar el pago. Revisá los datos o probá con otro medio de pago.';
-        // Credenciales de prueba + email de una cuenta real (o de la vendedora)
-        if (stripos($msg, 'live credentials') !== false || in_array('7', $codes, true)) {
-            $userMsg = 'Pago de prueba rechazado: con las credenciales de prueba, el email del comprador tiene que ser el de una cuenta COMPRADORA de prueba de Mercado Pago.';
-        }
+    [$status, $res] = mp_http('POST', '/v1/orders', $request, "{$orderNumber}-{$attempt}");
+    // Si el pago se rechaza, Mercado Pago responde 402 con la order en "data"
+    $mpOrder = is_array($res) ? (is_array($res['data'] ?? null) ? $res['data'] : $res) : null;
+    if (!is_array($mpOrder) || empty($mpOrder['id'])) {
+        error_log('[checkout] /v1/orders ' . $status . ': ' . json_encode($res));
+        $errs = is_array($res['errors'] ?? null) ? $res['errors'] : [];
+        $msg = trim(implode(' · ', array_map(fn($e) => is_array($e) ? trim(($e['code'] ?? '') . ' ' . ($e['message'] ?? '') . ' ' . implode(',', (array)($e['details'] ?? []))) : '', $errs)))
+            ?: (is_array($res) ? (string)($res['message'] ?? '') : '');
+        order_event((int)$order['id'], (string)$order['status'], 'Mercado Pago no aceptó el pago (HTTP ' . $status . ') ' . mb_substr($msg, 0, 200));
         send_json([
             'ok'      => false,
             'error'   => 'PAYMENT_ERROR',
-            'message' => $userMsg,
+            'message' => 'No pudimos procesar el pago. Revisá los datos o probá con otro medio de pago.',
             // Motivo que da Mercado Pago (para diagnosticar; no tiene datos de la tarjeta)
-            'mp'      => ['status' => $status, 'message' => $msg, 'codes' => $codes],
+            'mp'      => ['status' => $status, 'message' => $msg],
         ], 502);
     }
 
-    $res = apply_payment($pay);
-    $mpStatus = (string)($pay['status'] ?? '');
-    $detail = (string)($pay['status_detail'] ?? '');
+    $applied = apply_order($mpOrder);
+    $outcome = mp_order_outcome($mpOrder);
+    $pay = mp_order_payment($mpOrder);
+    $detail = (string)($pay['status_detail'] ?? $mpOrder['status_detail'] ?? '');
     $out = [
         'orderNumber'  => $orderNumber,
-        'status'       => $mpStatus === 'approved' ? 'approved' : (in_array($mpStatus, ['pending', 'in_process', 'authorized'], true) ? 'pending' : 'rejected'),
+        'status'       => $outcome === 'approved' ? 'approved' : ($outcome === 'pending' ? 'pending' : 'rejected'),
         'statusDetail' => $detail,
-        'orderStatus'  => $res['status'] ?? null,
+        'orderStatus'  => $applied['status'] ?? null,
     ];
     if ($out['status'] === 'rejected') $out['message'] = rejection_message($detail);
     // Efectivo (Rapipago / Pago Fácil): link al cupón para imprimir o mostrar
-    $ticket = (string)($pay['transaction_details']['external_resource_url'] ?? '');
+    $ticket = (string)($pay['payment_method']['ticket_url'] ?? '');
     if ($ticket !== '') $out['ticketUrl'] = $ticket;
     send_json(['ok' => true, 'data' => $out]);
 }
