@@ -17,6 +17,8 @@ import {
   User,
 } from "lucide-react";
 import ShippingOptions from "@/components/checkout/ShippingOptions";
+import PaymentFeedback, { type FeedbackPhase } from "@/components/checkout/PaymentFeedback";
+import { getBrickFormData } from "@/lib/payment-brick";
 import MercadoPagoSvg from "@/assets/svg/mercadoPago";
 import { checkDni, checkEmail, checkPhoneAR } from "@/lib/contact-validation";
 import { lookupPostalCode, type PostalInfo } from "@/lib/postal-codes";
@@ -91,6 +93,10 @@ export default function Checkout() {
   const [prepared, setPrepared] = useState<{ key: string; order: CreatedOrder } | null>(null);
   /** Cambia para volver a montar el formulario de pago (después de un rechazo) */
   const [brickKey, setBrickKey] = useState(0);
+  /** Ya eligió un medio de pago en el formulario de Mercado Pago */
+  const [brickSelected, setBrickSelected] = useState(false);
+  /** Osito mientras se procesa el pago (null = no se muestra) */
+  const [feedback, setFeedback] = useState<{ phase: FeedbackPhase; message?: string } | null>(null);
 
   // Recupera lo que ya había escrito en esta pestaña
   useEffect(() => {
@@ -257,41 +263,57 @@ export default function Checkout() {
     }
   };
 
-  /**
-   * El comprador tocó "Pagar" en el formulario de Mercado Pago (el botón
-   * aparece recién cuando eligió el medio de pago y lo valida el Brick).
-   * Si la promesa se rechaza, el Brick vuelve a habilitar el formulario
-   * sin borrar lo que cargó.
-   */
-  const submitPayment = async (paymentType: string, formData: unknown) => {
+  /** Muestra el resultado con el osito y, si salió bien, va a la página del pedido */
+  const finish = (phase: FeedbackPhase, url: string) => {
+    setFeedback({ phase });
+    window.setTimeout(() => router.push(url), phase === "approved" ? 1700 : 2000);
+  };
+
+  /** Rechazo o error: osito triste y el formulario de pago se vuelve a cargar */
+  const fail = (message: string) => {
+    setFeedback({ phase: "rejected", message });
+    // El token de la tarjeta ya se usó (o puede haberse usado)
+    setBrickKey((k) => k + 1);
+    setPaying(false);
+  };
+
+  /** Botón "Pagar" de la tienda (el del formulario de Mercado Pago está oculto) */
+  const payNow = async () => {
+    if (paying) return;
     setPayError(null);
-    if (!checkForm()) throw new Error("FORM_INVALID");
+    if (!checkForm()) return;
+    // Pide los datos al formulario de Mercado Pago (si falta algo, los marca)
+    const brick = await getBrickFormData();
+    if (!brick) {
+      setPayError("Completá los datos del medio de pago para continuar.");
+      scrollToPayment();
+      return;
+    }
+    setPaying(true);
+    setFeedback({ phase: "processing" });
+
     let order: CreatedOrder | null;
     try {
       order = await ensureOrder();
     } catch (err) {
-      setPayError(err instanceof CheckoutError ? err.message : "No pudimos preparar tu pedido. Probá de nuevo en un momento.");
-      throw err;
+      return fail(err instanceof CheckoutError ? err.message : "No pudimos preparar tu pedido. Probá de nuevo en un momento.");
     }
-    if (!order) throw new Error("NO_ORDER");
+    if (!order) return fail("No pudimos preparar tu pedido. Probá de nuevo en un momento.");
     // El servidor recalculó el total y no coincide con el que se mostró: no se cobra
     if (Math.round(order.total) !== Math.round(brickAmount)) {
+      setFeedback(null);
+      setPaying(false);
       setPayError(`El total se actualizó a ${formatArs(order.total)} (cambió un precio o la tarifa del envío). Revisalo y volvé a tocar Pagar.`);
       setBrickKey((k) => k + 1);
-      throw new Error("AMOUNT_CHANGED");
+      scrollToPayment();
+      return;
     }
     try {
-      const r = await payOrder(order.orderNumber, formData, paymentType);
-      if (r.status === "rejected") {
-        setPayError(r.message ?? "El pago fue rechazado. Probá con otro medio de pago.");
-        // El token de la tarjeta ya se usó: el formulario se vuelve a cargar
-        setBrickKey((k) => k + 1);
-        return;
-      }
-      router.push(resultUrl(r));
+      const r = await payOrder(order.orderNumber, brick.formData, brick.paymentType);
+      if (r.status === "rejected") return fail(r.message ?? "El pago fue rechazado. Probá con otro medio de pago.");
+      finish(r.status === "approved" ? "approved" : "pending", resultUrl(r));
     } catch (err) {
-      setPayError(err instanceof CheckoutError ? err.message : "No pudimos procesar el pago. Probá de nuevo en un momento.");
-      setBrickKey((k) => k + 1);
+      fail(err instanceof CheckoutError ? err.message : "No pudimos procesar el pago. Probá de nuevo en un momento.");
     }
   };
 
@@ -314,7 +336,9 @@ export default function Checkout() {
     );
   }
 
-  const payLabel = `Pagar ${formatArs(totals.total)}`;
+  const payLabel = `Pagar ${formatArs(PAYMENTS_DEMO ? totals.total : brickAmount)}`;
+  /** Se puede pagar: hay envío y ya eligió un medio de pago */
+  const canPay = !!quote && brickSelected;
 
   return (
     <>
@@ -477,7 +501,7 @@ export default function Checkout() {
                     lastName: form.lastName.trim(),
                     dni: form.dni.replace(/\D/g, ""),
                   }}
-                  onSubmit={submitPayment}
+                  onSelectedChange={setBrickSelected}
                   onError={setPayError}
                 />
                 <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-500">
@@ -500,13 +524,11 @@ export default function Checkout() {
                   {payError && <FieldError>{payError}</FieldError>}
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={scrollToPayment}
-                  className="rounded-2xl bg-sky-50 px-4 py-3 text-center text-sm font-semibold text-sky-900 ring-1 ring-sky-200 hover:bg-sky-100"
-                >
-                  {quote ? "Elegí cómo pagar en el paso 3" : "Elegí el envío y después cómo pagar"}
-                </button>
+                <>
+                  <PayButton onClick={payNow} paying={paying} label={payLabel} disabled={!canPay} />
+                  {!canPay && <PayHint quote={!!quote} />}
+                  {payError && <FieldError>{payError}</FieldError>}
+                </>
               )}
               <SecureNote />
             </div>
@@ -527,16 +549,32 @@ export default function Checkout() {
       {PAYMENTS_DEMO ? (
         <PayButton onClick={payDemo} paying={paying} label={payLabel} />
       ) : (
-        <button
-          type="button"
-          onClick={scrollToPayment}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#009ee3] px-5 py-3.5 text-sm font-extrabold text-white shadow-md"
-        >
-          <CreditCard className="h-4 w-4" aria-hidden="true" />
-          Ir al pago · {formatArs(brickAmount)}
-        </button>
+        <>
+          {payError && <FieldError>{payError}</FieldError>}
+          {!canPay && quote && (
+            // Todavía sin medio de pago: el botón queda bloqueado y esto lleva al formulario
+            <button
+              type="button"
+              onClick={scrollToPayment}
+              className="mb-1.5 w-full text-center text-[11px] font-semibold text-sky-700 underline underline-offset-2"
+            >
+              Elegí un medio de pago para continuar ↑
+            </button>
+          )}
+          <PayButton onClick={payNow} paying={paying} label={payLabel} disabled={!canPay} />
+        </>
       )}
     </div>
+    {feedback && (
+      <PaymentFeedback
+        phase={feedback.phase}
+        message={feedback.message}
+        onRetry={() => {
+          setFeedback(null);
+          scrollToPayment();
+        }}
+      />
+    )}
     </>
   );
 }
@@ -608,13 +646,29 @@ function FieldError({ children }: { children: React.ReactNode }) {
   );
 }
 
-function PayButton({ onClick, paying, label }: { onClick: () => void; paying: boolean; label: string }) {
+function PayButton({
+  onClick,
+  paying,
+  label,
+  disabled = false,
+}: {
+  onClick: () => void;
+  paying: boolean;
+  label: string;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={paying}
-      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#009ee3] px-5 py-3.5 text-sm font-extrabold text-white shadow-md transition hover:bg-[#0089c7] disabled:cursor-wait disabled:opacity-70"
+      disabled={paying || disabled}
+      aria-busy={paying}
+      className={cx(
+        "flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-extrabold shadow-md transition",
+        "bg-[#009ee3] text-white hover:bg-[#0089c7]",
+        disabled && "cursor-not-allowed bg-zinc-200 text-zinc-400 shadow-none ring-0 hover:bg-zinc-200",
+        paying && "cursor-wait opacity-80",
+      )}
     >
       {paying ? (
         <>
@@ -628,6 +682,15 @@ function PayButton({ onClick, paying, label }: { onClick: () => void; paying: bo
         </>
       )}
     </button>
+  );
+}
+
+/** Por qué el botón "Pagar" todavía está deshabilitado */
+function PayHint({ quote }: { quote: boolean }) {
+  return (
+    <p className="text-center text-xs font-semibold text-zinc-500">
+      {quote ? "Elegí un medio de pago en el paso 3 para continuar" : "Elegí el envío y después cómo pagar"}
+    </p>
   );
 }
 
