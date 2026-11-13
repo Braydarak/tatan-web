@@ -27,6 +27,7 @@ import {
   PAYMENT_METHODS,
   PAYMENTS_DEMO,
   PROVINCES,
+  CheckoutError,
   startCheckout,
   type Buyer,
   type ShippingAddress,
@@ -181,6 +182,7 @@ export default function Checkout() {
         items,
         shipping: {
           quote,
+          postalCode: ship.postalCode,
           address:
             quote.mode === "domicilio"
               ? {
@@ -199,8 +201,12 @@ export default function Checkout() {
       });
       if (redirectUrl.startsWith("/")) router.push(redirectUrl);
       else window.location.href = redirectUrl;
-    } catch {
-      setPayError("No pudimos iniciar el pago. Probá de nuevo en un momento.");
+    } catch (err) {
+      setPayError(
+        err instanceof CheckoutError
+          ? err.message
+          : "No pudimos iniciar el pago. Probá de nuevo en un momento.",
+      );
       setPaying(false);
     }
   };
