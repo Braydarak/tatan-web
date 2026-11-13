@@ -22,5 +22,7 @@ export default async function CheckoutResultPage({
   const status: PaymentStatus =
     raw === "approved" ? "approved" : raw === "pending" || raw === "in_process" ? "pending" : "failure";
   const ref = typeof sp.ref === "string" ? sp.ref : typeof sp.external_reference === "string" ? sp.external_reference : undefined;
-  return <CheckoutResult status={status} reference={ref} demo={sp.demo === "1"} />;
+  const paymentId =
+    typeof sp.payment_id === "string" ? sp.payment_id : typeof sp.collection_id === "string" ? sp.collection_id : undefined;
+  return <CheckoutResult status={status} reference={ref} paymentId={paymentId} demo={sp.demo === "1"} />;
 }

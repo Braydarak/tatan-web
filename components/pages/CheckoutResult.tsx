@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { clearCart } from "@/lib/cart";
 import { clearShipping } from "@/lib/checkout-state";
-import type { PaymentStatus } from "@/lib/payments";
+import { fetchOrderStatus, type PaymentStatus } from "@/lib/payments";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -35,22 +35,51 @@ const COPY: Record<
   },
 };
 
+/** Estado del pedido en la base → qué mostrarle al comprador */
+function fromOrderStatus(s: string): PaymentStatus | null {
+  if (s === "paid" || s === "shipped" || s === "delivered") return "approved";
+  if (s === "pending") return "pending";
+  if (s === "cancelled" || s === "refunded") return "failure";
+  return null;
+}
+
 export default function CheckoutResult({
-  status,
+  status: urlStatus,
   reference,
+  paymentId,
   demo,
 }: {
   status: PaymentStatus;
   reference?: string;
+  /** Id del pago que manda Mercado Pago al volver */
+  paymentId?: string;
   demo?: boolean;
 }) {
+  // Lo que dice la URL se puede tocar a mano: se confirma con el servidor
+  const [status, setStatus] = useState<PaymentStatus>(urlStatus);
+  const [checked, setChecked] = useState(demo || !reference);
+  useEffect(() => {
+    if (demo || !reference) return;
+    let alive = true;
+    void fetchOrderStatus(reference, paymentId).then((res) => {
+      if (!alive) return;
+      const s = res ? fromOrderStatus(res.status) : null;
+      // Si el pago no se rechazó pero el aviso todavía no llegó, queda "pendiente"
+      if (s) setStatus(s === "pending" && urlStatus === "failure" ? "failure" : s);
+      setChecked(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [demo, reference, paymentId, urlStatus]);
+
   // Pago aprobado o pendiente: el pedido ya está hecho, se vacía el carrito
   useEffect(() => {
-    if (status !== "failure") {
+    if (checked && status !== "failure") {
       clearCart();
       clearShipping();
     }
-  }, [status]);
+  }, [checked, status]);
 
   const c = COPY[status];
   const Icon = c.icon;
