@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -28,10 +29,25 @@ import {
   PAYMENTS_DEMO,
   PROVINCES,
   CheckoutError,
-  startCheckout,
+  createOrder,
+  payOrder,
+  resultUrl,
   type Buyer,
+  type CheckoutOrder,
+  type CreatedOrder,
   type ShippingAddress,
 } from "@/lib/payments";
+
+// El formulario de Mercado Pago solo existe en el navegador
+const PaymentBrick = dynamic(() => import("@/components/checkout/PaymentBrick"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex min-h-40 items-center justify-center gap-2 text-sm font-semibold text-zinc-500">
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+      Cargando medios de pago…
+    </div>
+  ),
+});
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -71,6 +87,10 @@ export default function Checkout() {
   const [errors, setErrors] = useState<Errors>({});
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  /** Pedido ya guardado en el servidor (para pagar) y con qué datos se armó */
+  const [prepared, setPrepared] = useState<{ key: string; order: CreatedOrder } | null>(null);
+  /** Cambia para volver a montar el formulario de pago (después de un rechazo) */
+  const [brickKey, setBrickKey] = useState(0);
 
   // Recupera lo que ya había escrito en esta pestaña
   useEffect(() => {
@@ -157,7 +177,48 @@ export default function Checkout() {
     return e;
   };
 
-  const pay = async () => {
+  /** Datos del pedido tal como están ahora en la pantalla */
+  const buildOrder = (): CheckoutOrder | null => {
+    if (!quote) return null;
+    return {
+      buyer: {
+        email: form.email.trim(),
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        phone: form.phone.trim(),
+        dni: form.dni.replace(/\D/g, ""),
+      },
+      items,
+      shipping: {
+        quote,
+        postalCode: ship.postalCode,
+        address:
+          quote.mode === "domicilio"
+            ? {
+                street: form.street.trim(),
+                number: form.number.trim(),
+                floor: form.floor?.trim() || undefined,
+                city: form.city.trim(),
+                province: form.province,
+                postalCode: ship.postalCode,
+                notes: form.notes?.trim() || undefined,
+              }
+            : undefined,
+        branch: quote.mode === "sucursal" ? (ship.branch ?? undefined) : undefined,
+      },
+      totals: { subtotal: totals.subtotal, shipping: totals.shipping ?? 0, total: totals.total },
+    };
+  };
+  // Si cambia algo (datos, carrito o envío) después de preparar el pedido,
+  // hay que volver a prepararlo: el pedido guardado ya no coincide.
+  const current = buildOrder();
+  const orderKey = current
+    ? JSON.stringify([current.buyer, current.shipping.address, current.shipping.quote.id, current.shipping.postalCode, current.shipping.branch?.id, items.map((i) => [i.key, i.quantity])])
+    : "";
+  const ready = prepared && prepared.key === orderKey ? prepared.order : null;
+
+  /** Valida, guarda el pedido en el servidor y muestra el formulario de pago */
+  const goToPayment = async () => {
     const e = validate();
     setErrors(e);
     setPayError(null);
@@ -168,46 +229,50 @@ export default function Checkout() {
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    if (!quote) return;
+    if (!current) return;
     setPaying(true);
     try {
-      const { redirectUrl } = await startCheckout({
-        buyer: {
-          email: form.email.trim(),
-          firstName: form.firstName.trim(),
-          lastName: form.lastName.trim(),
-          phone: form.phone.trim(),
-          dni: form.dni.replace(/\D/g, ""),
-        },
-        items,
-        shipping: {
-          quote,
-          postalCode: ship.postalCode,
-          address:
-            quote.mode === "domicilio"
-              ? {
-                  street: form.street.trim(),
-                  number: form.number.trim(),
-                  floor: form.floor?.trim() || undefined,
-                  city: form.city.trim(),
-                  province: form.province,
-                  postalCode: ship.postalCode,
-                  notes: form.notes?.trim() || undefined,
-                }
-              : undefined,
-          branch: quote.mode === "sucursal" ? (ship.branch ?? undefined) : undefined,
-        },
-        totals: { subtotal: totals.subtotal, shipping: totals.shipping ?? 0, total: totals.total },
-      });
-      if (redirectUrl.startsWith("/")) router.push(redirectUrl);
-      else window.location.href = redirectUrl;
+      const order = await createOrder(current);
+      if (PAYMENTS_DEMO) {
+        // Demo: sin formulario de Mercado Pago, se simula el pago
+        router.push(resultUrl(await payOrder(order.orderNumber, null), true));
+        return;
+      }
+      setPrepared({ key: orderKey, order });
+      setBrickKey((k) => k + 1);
+      setPaying(false);
+      requestAnimationFrame(() =>
+        document.getElementById("step-3")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
     } catch (err) {
       setPayError(
         err instanceof CheckoutError
           ? err.message
-          : "No pudimos iniciar el pago. Probá de nuevo en un momento.",
+          : "No pudimos preparar tu pedido. Probá de nuevo en un momento.",
       );
       setPaying(false);
+    }
+  };
+
+  /** El comprador tocó "Pagar" en el formulario de Mercado Pago */
+  const submitPayment = async (formData: unknown) => {
+    if (!ready) return;
+    setPayError(null);
+    try {
+      const r = await payOrder(ready.orderNumber, formData);
+      if (r.status === "rejected") {
+        setPayError(r.message ?? "El pago fue rechazado. Probá con otro medio de pago.");
+        setBrickKey((k) => k + 1);
+        return;
+      }
+      router.push(resultUrl(r));
+    } catch (err) {
+      setPayError(
+        err instanceof CheckoutError
+          ? err.message
+          : "No pudimos procesar el pago. Probá de nuevo en un momento.",
+      );
+      setBrickKey((k) => k + 1);
     }
   };
 
@@ -227,7 +292,7 @@ export default function Checkout() {
     );
   }
 
-  const payLabel = `Pagar ${formatArs(totals.total)}`;
+  const payLabel = PAYMENTS_DEMO ? `Pagar ${formatArs(totals.total)}` : `Continuar al pago · ${formatArs(totals.total)}`;
 
   return (
     <>
@@ -364,26 +429,52 @@ export default function Checkout() {
 
           {/* 3. Pago */}
           <Step n={3} title="Pago" icon={CreditCard}>
-            <div className="flex items-start gap-3 rounded-2xl border-2 border-sky-200 bg-sky-50/70 p-4">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white ring-1 ring-sky-200">
-                <MercadoPagoSvg iconOnly className="h-auto w-9" color="brand" title="Mercado Pago" />
-              </span>
-              <div className="min-w-0 text-sm">
-                <p className="font-bold text-zinc-800">Mercado Pago</p>
-                <p className="mt-0.5 text-zinc-600">
-                  Al tocar &quot;Pagar&quot; te llevamos a Mercado Pago para pagar de forma
-                  segura. Cuando termines, volvés acá.
+            {ready ? (
+              <div className="grid gap-3">
+                {Math.round(ready.total) !== Math.round(totals.total) && (
+                  <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                    El total se actualizó a {formatArs(ready.total)} (cambió un precio o la tarifa del envío).
+                  </p>
+                )}
+                {payError && <FieldError>{payError}</FieldError>}
+                <PaymentBrick
+                  key={brickKey}
+                  amount={ready.total}
+                  payer={{
+                    email: form.email.trim(),
+                    firstName: form.firstName.trim(),
+                    lastName: form.lastName.trim(),
+                    dni: form.dni.replace(/\D/g, ""),
+                  }}
+                  onSubmit={submitPayment}
+                  onError={setPayError}
+                />
+                <p className="text-center text-xs text-zinc-500">
+                  Pedido <span className="font-mono">{ready.orderNumber}</span>
                 </p>
-                <ul className="mt-2 grid gap-1 text-xs text-zinc-600 sm:grid-cols-2">
-                  {PAYMENT_METHODS.map((m) => (
-                    <li key={m} className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#009ee3]" aria-hidden="true" />
-                      {m}
-                    </li>
-                  ))}
-                </ul>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-start gap-3 rounded-2xl border-2 border-sky-200 bg-sky-50/70 p-4">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white ring-1 ring-sky-200">
+                  <MercadoPagoSvg iconOnly className="h-auto w-9" color="brand" title="Mercado Pago" />
+                </span>
+                <div className="min-w-0 text-sm">
+                  <p className="font-bold text-zinc-800">Pagá acá mismo con Mercado Pago</p>
+                  <p className="mt-0.5 text-zinc-600">
+                    Al tocar &quot;Continuar al pago&quot; aparece el formulario de pago en esta
+                    página. Los datos de tu tarjeta los procesa Mercado Pago de forma segura.
+                  </p>
+                  <ul className="mt-2 grid gap-1 text-xs text-zinc-600 sm:grid-cols-2">
+                    {PAYMENT_METHODS.map((m) => (
+                      <li key={m} className="flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#009ee3]" aria-hidden="true" />
+                        {m}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
           </Step>
         </div>
 
@@ -392,8 +483,16 @@ export default function Checkout() {
           <h2 className="mb-4 text-lg font-bold text-zinc-800">Tu pedido</h2>
           <OrderSummary items={items} quote={quote} showItems shippingHint="Elegí el envío">
             <div className="hidden lg:grid lg:gap-2">
-              <PayButton onClick={pay} paying={paying} label={payLabel} />
-              {payError && <FieldError>{payError}</FieldError>}
+              {ready ? (
+                <p className="rounded-2xl bg-sky-50 px-4 py-3 text-center text-sm font-semibold text-sky-900 ring-1 ring-sky-200">
+                  Completá el pago en el paso 3
+                </p>
+              ) : (
+                <>
+                  <PayButton onClick={goToPayment} paying={paying} label={payLabel} />
+                  {payError && <FieldError>{payError}</FieldError>}
+                </>
+              )}
               <SecureNote />
             </div>
           </OrderSummary>
@@ -404,14 +503,25 @@ export default function Checkout() {
       {/* Celular: total y pagar siempre a mano. Va FUERA del <main>: el main
         tiene z-10 (contexto propio) y el footer, también z-10, la tapaba. */}
     <div className="fixed inset-x-0 bottom-0 z-[55] border-t border-tatan-secundario1/60 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
-{payError && <FieldError>{payError}</FieldError>}
+{payError && !ready && <FieldError>{payError}</FieldError>}
       {!quote && (
         <p className="mb-1.5 text-center text-[11px] font-semibold text-zinc-500">
           Falta elegir el envío
         </p>
       )}
       {/* El total va dentro del botón: así el botón ocupa todo el ancho */}
-      <PayButton onClick={pay} paying={paying} label={payLabel} />
+      {ready ? (
+        <button
+          type="button"
+          onClick={() => document.getElementById("step-3")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#009ee3] px-5 py-3.5 text-sm font-extrabold text-white shadow-md"
+        >
+          <CreditCard className="h-4 w-4" aria-hidden="true" />
+          Ir al pago · {formatArs(ready.total)}
+        </button>
+      ) : (
+        <PayButton onClick={goToPayment} paying={paying} label={payLabel} />
+      )}
     </div>
     </>
   );
@@ -495,7 +605,7 @@ function PayButton({ onClick, paying, label }: { onClick: () => void; paying: bo
       {paying ? (
         <>
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          Yendo a Mercado Pago…
+          Preparando tu pedido…
         </>
       ) : (
         <>

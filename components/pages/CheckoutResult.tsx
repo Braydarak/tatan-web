@@ -47,12 +47,15 @@ export default function CheckoutResult({
   status: urlStatus,
   reference,
   paymentId,
+  ticketUrl,
   demo,
 }: {
   status: PaymentStatus;
   reference?: string;
   /** Id del pago que manda Mercado Pago al volver */
   paymentId?: string;
+  /** Pago en efectivo: cupón para pagar en Rapipago / Pago Fácil */
+  ticketUrl?: string;
   demo?: boolean;
 }) {
   // Lo que dice la URL se puede tocar a mano: se confirma con el servidor
@@ -95,6 +98,16 @@ export default function CheckoutResult({
           <p className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-zinc-500 ring-1 ring-tatan-secundario1/60">
             Pedido <span className="font-mono text-zinc-700">{reference}</span>
           </p>
+        )}
+        {ticketUrl && status === "pending" && (
+          <a
+            href={ticketUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-2xl bg-[#009ee3] px-6 py-3 text-sm font-extrabold text-white shadow-md hover:bg-[#0089c7]"
+          >
+            Ver el cupón para pagar
+          </a>
         )}
         {demo && (
           <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">

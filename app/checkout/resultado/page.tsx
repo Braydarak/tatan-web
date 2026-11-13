@@ -24,5 +24,10 @@ export default async function CheckoutResultPage({
   const ref = typeof sp.ref === "string" ? sp.ref : typeof sp.external_reference === "string" ? sp.external_reference : undefined;
   const paymentId =
     typeof sp.payment_id === "string" ? sp.payment_id : typeof sp.collection_id === "string" ? sp.collection_id : undefined;
-  return <CheckoutResult status={status} reference={ref} paymentId={paymentId} demo={sp.demo === "1"} />;
+  // Cupón de pago en efectivo (solo de Mercado Pago)
+  const rawTicket = typeof sp.ticket === "string" ? sp.ticket : "";
+  const ticketUrl = /^https:\/\/([a-z0-9-]+\.)*mercadopago\.com(\.ar)?\//i.test(rawTicket) ? rawTicket : undefined;
+  return (
+    <CheckoutResult status={status} reference={ref} paymentId={paymentId} ticketUrl={ticketUrl} demo={sp.demo === "1"} />
+  );
 }
