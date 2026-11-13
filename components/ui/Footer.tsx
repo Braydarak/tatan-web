@@ -89,7 +89,7 @@ export default function Footer({
                   href="/envios#zonas"
                   className="hover:text-zinc-700 transition-colors"
                 >
-                  Envíos y entregas
+                  Envíos y pagos
                 </Link>
               </li>
               <li>

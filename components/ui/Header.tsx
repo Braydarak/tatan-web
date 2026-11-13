@@ -45,7 +45,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Ofertas", href: "/ofertas", Icon: Gift },
   { label: "Productos", href: "/productos", Icon: LayoutGrid },
   { label: "Bebés", href: "/productos?t=bebe", Icon: Baby },
-  { label: "Envíos", href: "/envios", Icon: Truck },
+  { label: "Envíos y pagos", href: "/envios", Icon: Truck },
   { label: "Contacto", href: "/contacto", Icon: Mail },
 ];
 

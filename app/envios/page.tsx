@@ -12,6 +12,7 @@ import {
   Mail,
   Gift,
   ChevronDown,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import type {
@@ -19,12 +20,12 @@ import type {
   ZoneIconKey,
   StepIconKey,
 } from "@/components/sections/EnviosEditor";
-import { ENVIOS_DEFAULT } from "@/lib/site-content-defaults";
+import { ENVIOS_CONTENT_VERSION, ENVIOS_DEFAULT } from "@/lib/site-content-defaults";
 
 export const metadata: Metadata = {
-  title: "Envíos y entregas",
+  title: "Envíos y pagos",
   description:
-    "Cómo funcionan los envíos de prendas Tatan: zonas, tiempos de entrega, costo, seguimiento, retiro sin cargo, cambios y devoluciones gratis.",
+    "Cómo funcionan los envíos y los pagos en Tatan: envíos a todo el país a domicilio o a sucursal, y pagos con Mercado Pago en cuotas, débito o efectivo.",
 };
 
 const PHP_API_BASE = "https://tatankids.com.ar/api";
@@ -40,9 +41,10 @@ const STEP_ICONS: Record<StepIconKey, typeof CreditCard> = {
   Gift,
   Truck,
   RotateCcw,
+  Package,
 };
 
-const SEGUIMIENTO_ICONS = { Clock, Package } as const;
+const SEGUIMIENTO_ICONS = { Clock, Package, ShieldCheck } as const;
 
 const STAT_ICONS = { Truck, Sparkles, RotateCcw } as const;
 type StatIconKey = keyof typeof STAT_ICONS;
@@ -66,7 +68,11 @@ function cx(...classes: Array<string | undefined | null | false>) {
 }
 
 export default async function EnviosPage() {
-  const data = (await fetchEnviosSSR()) ?? ENVIOS_DEFAULT;
+  const stored = await fetchEnviosSSR();
+  // Lo guardado en la BD es de una versión vieja del contenido (el texto de
+  // ejemplo original): se muestran los textos nuevos hasta que se guarde desde el CRM
+  const data =
+    stored && (stored.contentVersion ?? 1) >= ENVIOS_CONTENT_VERSION ? stored : ENVIOS_DEFAULT;
   const { sections, hero } = data;
   const zones = data.zones.filter((z) => z.show);
   const costos = data.costos.filter((c) => c.show);
@@ -376,6 +382,8 @@ export default async function EnviosPage() {
                         </li>
                       ))}
                     </ul>
+                    {/* Sin texto de botón (p. ej. medios de pago), no hay botón */}
+                    {c.ctaText.trim() && (
                     <div className="mt-6 pt-4 border-t border-black/5">
                       <Link
                         href={c.ctaHref || "/productos"}
@@ -389,6 +397,7 @@ export default async function EnviosPage() {
                         {c.ctaText}
                       </Link>
                     </div>
+                    )}
                   </article>
                 ))}
               </div>
