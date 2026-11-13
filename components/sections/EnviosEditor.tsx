@@ -7,6 +7,7 @@ import {
   CreditCard,
   Clock,
   Shield,
+  ShieldCheck,
   Check,
   RotateCcw,
   Sparkles,
@@ -24,7 +25,10 @@ import {
   apiSiteContentSave,
   apiRevalidateTag,
 } from "@/lib/tatan-api";
-import { ENVIOS_DEFAULT as DEFAULT_ENVios } from "@/lib/site-content-defaults";
+import {
+  ENVIOS_CONTENT_VERSION,
+  ENVIOS_DEFAULT as DEFAULT_ENVios,
+} from "@/lib/site-content-defaults";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -33,7 +37,7 @@ function cx(...classes: Array<string | undefined | null | false>) {
 /* ---------- Types ---------- */
 
 export type ZoneIconKey = "MapPin" | "Truck" | "Package";
-export type StepIconKey = "CreditCard" | "Gift" | "Truck" | "RotateCcw";
+export type StepIconKey = "CreditCard" | "Gift" | "Truck" | "RotateCcw" | "Package";
 export type BenefitBadgeTone = "green" | "pink" | "orange";
 
 export type EnviosHeroSummaryStat = {
@@ -102,7 +106,7 @@ export type EnviosStep = {
 export type EnviosSeguimientoCard = {
   show: boolean;
   showIcon: boolean;
-  iconKey: "Clock" | "Package";
+  iconKey: "Clock" | "Package" | "ShieldCheck";
   iconBg: string;
   iconColor: string;
   title: string;
@@ -143,6 +147,8 @@ export type EnviosSectionHeader = {
 };
 
 export type EnviosData = {
+  /** Versión del contenido (ver ENVIOS_CONTENT_VERSION) */
+  contentVersion?: number;
   sections: {
     zones: EnviosSectionHeader & { show: boolean };
     costos: EnviosSectionHeader & { show: boolean };
@@ -180,6 +186,8 @@ function mergeEnvios(defaults: EnviosData, raw: unknown): EnviosData {
   const p = (
     typeof raw === "string" ? JSON.parse(raw) : (raw ?? {})
   ) as Partial<EnviosData>;
+  // Lo guardado es de una versión anterior del contenido: se usan los textos nuevos
+  if ((p.contentVersion ?? 1) < ENVIOS_CONTENT_VERSION) return defaults;
   return {
     ...defaults,
     ...p,
@@ -229,6 +237,7 @@ function initialEnviosData(): EnviosData {
     if (!raw) return DEFAULT_ENVios;
     const p = JSON.parse(raw) as Partial<EnviosData>;
     const defaults = DEFAULT_ENVios;
+    if ((p.contentVersion ?? 1) < ENVIOS_CONTENT_VERSION) return defaults;
     return {
       ...defaults,
       ...p,
@@ -2460,7 +2469,9 @@ export default function EnviosEditor() {
                               ? Gift
                               : s.iconKey === "RotateCcw"
                                 ? RotateCcw
-                                : CreditCard;
+                                : s.iconKey === "Package"
+                                  ? Package
+                                  : CreditCard;
                         return (
                           <article
                             key={`s-prev-${i}-${s.title}`}
@@ -2508,7 +2519,8 @@ export default function EnviosEditor() {
                   {(data.seguimiento as Array<EnviosSeguimientoCard>)
                     .filter((c) => c.show)
                     .map((c, i) => {
-                      const IconCmp = c.iconKey === "Clock" ? Clock : Package;
+                      const IconCmp =
+                        c.iconKey === "Clock" ? Clock : c.iconKey === "ShieldCheck" ? ShieldCheck : Package;
                       return (
                         <article
                           key={`sg-prev-${i}-${c.title}`}

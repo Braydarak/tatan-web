@@ -55,7 +55,7 @@ const NAV_GROUPS: Array<{ title: string; items: CrmNavItem[] }> = [
     title: "Contenido del sitio",
     items: [
       { id: "hero", label: "Inicio y tienda", href: "/crm#hero", Icon: Home },
-      { id: "envios", label: "Envíos", href: "/crm#envios", Icon: Truck },
+      { id: "envios", label: "Envíos y pagos", href: "/crm#envios", Icon: Truck },
     ],
   },
 ];
