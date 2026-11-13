@@ -35,8 +35,14 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/mercadopago.php';
 require_once __DIR__ . '/enviopack.php';
 
+// Para comprobar qué versión está subida: GET checkout.php?action=version
+const CHECKOUT_VERSION = '2026-11-13-brick';
+if (method() === 'GET' && ($_GET['action'] ?? '') === 'version') {
+    send_json(['ok' => true, 'version' => CHECKOUT_VERSION]);
+}
+
 if (method() !== 'POST') {
-    send_json(['ok' => false, 'error' => 'METHOD_NOT_ALLOWED'], 405);
+    send_json(['ok' => false, 'error' => 'METHOD_NOT_ALLOWED', 'message' => 'checkout.php solo acepta POST'], 405);
 }
 if (!mp_configured()) {
     send_json(['ok' => false, 'error' => 'NOT_CONFIGURED', 'message' => 'Los pagos todavía no están configurados'], 503);

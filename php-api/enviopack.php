@@ -28,13 +28,6 @@ const EP_BOX_LARGE = '40x30x15';
 /** A partir de cuántas prendas se usa la caja grande */
 const EP_LARGE_FROM = 8;
 
-if (!defined('ENVIOPACK_API_KEY') || ENVIOPACK_API_KEY === '' || !defined('ENVIOPACK_SECRET_KEY')) {
-    send_json(['ok' => false, 'error' => 'NOT_CONFIGURED', 'message' => 'Los envíos todavía no están configurados'], 503);
-}
-if (method() !== 'GET') {
-    send_json(['ok' => false, 'error' => 'METHOD_NOT_ALLOWED'], 405);
-}
-
 // ---------------------------------------------------------------- helpers
 
 function ep_cache_path(string $name): string
