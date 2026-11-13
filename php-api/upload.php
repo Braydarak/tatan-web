@@ -102,36 +102,7 @@ if ($ext !== 'webp' && $webpFile && is_array($webpFile) && !is_array($webpFile['
     if ($wt === IMAGETYPE_WEBP) $webpTmp = $webpFile['tmp_name'];
 }
 
-/**
- * Nombre original del archivo, en minúsculas, sin acentos ni símbolos y sin
- * extensión. Si ya es un nombre de esta API (al re-encuadrar una foto ya
- * subida), se toma el nombre original que tenía guardado.
- */
-function original_name_slug(string $name): string
-{
-    $name = preg_replace('/\.[a-z0-9]{2,5}$/i', '', basename($name)) ?? '';
-    if (preg_match('/^\d{8}-[0-9a-f]{16}(?:--(.+?))?(?:-w)?$/i', $name, $m)) {
-        $name = $m[1] ?? '';
-    }
-    $name = strtr($name, [
-        'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n',
-        'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ü' => 'U', 'Ñ' => 'N',
-    ]);
-    $slug = strtolower((string)preg_replace('/[^a-z0-9]+/i', '-', $name));
-    $slug = trim((string)preg_replace('/-+/', '-', $slug), '-');
-    // Sin el "-w" final (lo usa la API para avisar que hay WebP)
-    $slug = (string)preg_replace('/-w$/', '', $slug);
-    // Nombres genéricos (los pone el navegador): no sirven para reconocer la foto
-    if (in_array($slug, ['image', 'imagen', 'foto', 'photo', 'blob', 'file', 'archivo'], true)) return '';
-    return substr($slug, 0, 60);
-}
-
 $base = gmdate('Ymd') . '-' . bin2hex(random_bytes(8));
-// Se guarda también el nombre original del archivo (limpio): la tienda lo usa
-// para no mostrar dos veces la misma foto (p. ej. en la galería y en un color).
-//   body-celeste.jpg  →  20261113-a1b2c3d4e5f6a7b8--body-celeste-w.jpg
-$origName = original_name_slug((string)($file['name'] ?? ''));
-if ($origName !== '') $base .= '--' . $origName;
 $canWebp = $ext !== 'webp' && ($webpTmp !== null || (function_exists('imagewebp') && ($ext === 'jpg' || $ext === 'png')));
 if ($canWebp) $base .= '-w';
 

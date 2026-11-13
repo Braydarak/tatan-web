@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
+
 import Link from "next/link";
 import { ProductCardProps } from "./types";
 import CardQuickAdd from "@/components/cart/CardQuickAdd";
 import CardGallery from "./CardGallery";
 import { useStoreSettings } from "@/components/StoreSettingsContext";
-import { galleryImages } from "@/lib/gallery-images";
 
 function cx(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(" ");
@@ -55,8 +55,10 @@ export default function ProductCard({
   const { wholesaleMode } = useStoreSettings();
   // Foto del modelo elegido (si el modelo tiene foto propia)
   const [modelImage, setModelImage] = useState<string | null>(null);
-  // Foto principal + galería, sin repetidas (mismo nombre de archivo = misma foto)
-  const gallery = galleryImages([imageSrc, ...(images ?? [])]);
+  // Foto principal + galería, sin repetidas
+  const gallery = Array.from(
+    new Set([imageSrc, ...(images ?? [])].filter(Boolean)),
+  );
   // Sin talles cargados no se puede agregar directo: queda el link al producto
   const buy = buyProp && buyProp.sizes.length > 0 ? buyProp : undefined;
   const ws = wholesale ?? buyProp?.wholesale;

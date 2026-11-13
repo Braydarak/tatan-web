@@ -15,7 +15,6 @@ import { pickRelated } from "@/lib/related";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import ProductBuyBox from "@/components/cart/ProductBuyBox";
 import ProductGallery from "@/components/product/ProductGallery";
-import { galleryImages } from "@/lib/gallery-images";
 import { hasText, sanitizeHtml } from "@/lib/sanitize-html";
 import type { Product as ApiProduct } from "@/lib/tatan-api";
 import {
@@ -255,11 +254,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
             {/* Fotos */}
             <div className="min-w-0 lg:sticky lg:top-[calc(var(--header-h,101px)+1.5rem)]">
               <ProductGallery
-                images={galleryImages(
-                  [product.imageSrc, ...product.images],
-                  // fotos de los modelos: al final, o en lugar de la misma foto
-                  // si ya estaba en la galería (mismo nombre de archivo)
-                  product.buy.colors.map((c) => c.imageSrc),
+                images={Array.from(
+                  new Set(
+                    [
+                      product.imageSrc,
+                      ...product.images,
+                      // fotos de los modelos, al final de la galería
+                      ...product.buy.colors.map((c) => c.imageSrc ?? ""),
+                    ].filter(Boolean),
+                  ),
                 )}
                 name={product.name}
                 colorHex={product.colorHex}
