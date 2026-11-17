@@ -4,6 +4,7 @@ import { matchesProduct } from "@/lib/product-search";
 import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import SortSelect from "@/components/ui/SortSelect";
+import LinkPending from "@/components/ui/LinkPending";
 import { fetchHomeContentSSR } from "@/lib/home-content";
 import { fetchCategoriesSSR, type Category } from "@/lib/categories";
 import {
@@ -314,6 +315,7 @@ function Chip({
       }`}
     >
       {children}
+      <LinkPending />
     </Link>
   );
 }
@@ -526,14 +528,11 @@ export default async function ProductosPage({
                 </Link>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4 justify-items-center">
+              <div className="products-grid grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4 justify-items-center">
                 {items.map((p, idx) => (
                   <div
                     key={`prod-${p.id}`}
-                    className="anim-rise w-full flex justify-center"
-                    style={
-                      { "--d": `${Math.min(idx, 8) * 0.05}s` } as React.CSSProperties
-                    }
+                    className="w-full flex justify-center"
                   >
                     <ProductCard
                       id={p.id}

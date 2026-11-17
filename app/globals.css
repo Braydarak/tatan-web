@@ -668,7 +668,79 @@ h3 {
   animation: quick-shake 0.4s ease-in-out;
 }
 
+/* ───────── Carga: esqueletos con brillo ───────── */
+/* Base cálida (no blanca) con un brillo que se desliza: se usa en las
+   tarjetas fantasma y detrás de cada foto mientras baja. */
+@keyframes skeleton-shine {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+.skeleton {
+  background-color: #f3ebe1;
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.65) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shine 1.4s ease-in-out infinite;
+}
+
+/* La foto aparece suave sobre el esqueleto cuando termina de bajar */
+@keyframes photo-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.photo-in {
+  animation: photo-in 0.35s ease-out;
+}
+
+/* Al tocar un filtro u orden (mientras llegan los productos nuevos):
+   la grilla se atenúa con brillo y el filtro tocado late. La marca
+   [data-link-pending] la pone LinkPending. */
+.products-grid {
+  transition: opacity 0.2s ease-out;
+}
+
+main:has([data-link-pending]) .products-grid {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+main:has([data-link-pending]) .products-grid .product-card {
+  animation: pending-pulse 1.1s ease-in-out infinite;
+}
+
+a:has(> [data-link-pending]),
+label:has(> [data-link-pending]) {
+  animation: pending-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes pending-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .photo-in,
   .anim-rise,
   .anim-pop,
   .doodle,
