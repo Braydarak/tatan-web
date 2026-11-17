@@ -32,9 +32,16 @@ export default function ProductCardSkeleton() {
 }
 
 /** Grilla de tarjetas fantasma (mismas columnas que la de productos) */
-export function ProductsGridSkeleton({ count = 8 }: { count?: number }) {
+export function ProductsGridSkeleton({
+  count = 8,
+  className = "grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4 justify-items-center",
+}: {
+  count?: number;
+  /** Clases de la grilla, para copiar las columnas de cada página */
+  className?: string;
+}) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4 justify-items-center">
+    <div className={className}>
       {Array.from({ length: count }, (_, i) => (
         <ProductCardSkeleton key={i} />
       ))}

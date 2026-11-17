@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import LinkPending from "@/components/ui/LinkPending";
 import {
   Filter,
   Check,
@@ -209,6 +210,7 @@ export default function FilterPanel({
                       )}
                     >
                       {s.label}
+                      <LinkPending />
                     </Link>
                   );
                 })}
@@ -223,6 +225,7 @@ export default function FilterPanel({
             >
               <X className="w-3 h-3" strokeWidth={2.4} />
               Limpiar
+              <LinkPending />
             </Link>
           )}
         </div>
@@ -363,6 +366,7 @@ export default function FilterPanel({
                                 {o.count}
                               </span>
                             )}
+                            <LinkPending />
                           </Link>
                         );
                       })}
@@ -397,6 +401,7 @@ export default function FilterPanel({
                               />
                             )}
                             {o.label}
+                            <LinkPending />
                           </Link>
                         );
                       })}
