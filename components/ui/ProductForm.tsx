@@ -19,8 +19,11 @@ import {
   Upload,
   X,
   Crop,
+  Sparkles,
+  Check,
 } from "lucide-react";
 import { apiUploadImage } from "@/lib/tatan-api";
+import { suggestProductTitle } from "@/lib/product-title";
 import { fetchPhotoFile, isSquarePhoto } from "@/lib/square-photo";
 import { isPlaceholderImage } from "@/lib/is-placeholder";
 import ColorPicker, { AddColorButton, paletteName } from "@/components/ui/ColorPicker";
@@ -164,6 +167,70 @@ function formatArs(value: number) {
 
 const inputClass =
   "block w-full min-w-0 rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 transition focus:border-tatan-primario4 focus:outline-none focus:ring-2 focus:ring-tatan-primario1/60";
+
+/**
+ * "Mejorar título": propone el nombre con ortografía corregida y en el
+ * formato "Prenda y detalles - Material" (lib/product-title.ts). No cambia
+ * nada hasta que se toca "Usar".
+ */
+function TitleHelper({
+  name,
+  tip,
+  onSuggest,
+  onAccept,
+  onDismiss,
+}: {
+  name: string;
+  tip: string | null;
+  onSuggest: () => void;
+  onAccept: () => void;
+  onDismiss: () => void;
+}) {
+  if (tip === null) {
+    return (
+      <button
+        type="button"
+        onClick={onSuggest}
+        disabled={!name.trim()}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-tatan-secundario2 transition hover:bg-tatan-primario1/40 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+        Mejorar título
+      </button>
+    );
+  }
+  if (tip === name.trim().replace(/\s+/g, " ")) {
+    return (
+      <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-700" role="status">
+        <Check className="h-3.5 w-3.5" aria-hidden="true" />
+        El título ya está bien escrito
+      </p>
+    );
+  }
+  return (
+    <div className="mt-2 rounded-xl border border-tatan-primario4/50 bg-tatan-primario1/25 p-3" role="status">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Sugerencia</p>
+      <p className="mt-1 text-sm font-semibold text-zinc-900">{tip}</p>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onAccept}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800"
+        >
+          <Check className="h-3.5 w-3.5" aria-hidden="true" />
+          Usar
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded-lg px-3 py-1.5 text-xs font-semibold text-zinc-600 ring-1 ring-black/10 transition hover:bg-white"
+        >
+          Dejar como está
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Field({
   label,
@@ -374,6 +441,8 @@ export default function ProductForm({
   const isEditing = Boolean(initialData?.id);
 
   const [name, setName] = React.useState(initialData?.name ?? "");
+  /** Título sugerido por "Mejorar título" (null = no se pidió o se descartó) */
+  const [titleTip, setTitleTip] = React.useState<string | null>(null);
   const [tagline, setTagline] = React.useState(initialData?.tagline ?? "");
   const [slug, setSlug] = React.useState(initialData?.slug ?? "");
   const [imageSrc, setImageSrc] = React.useState(initialData?.imageSrc ?? "");
@@ -830,9 +899,22 @@ export default function ProductForm({
                   <input
                     id="pf-name"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej: Body Osito Amor"
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setTitleTip(null);
+                    }}
+                    placeholder="Ej: Body manga larga - Algodón Pima Premium"
                     className={inputClass}
+                  />
+                  <TitleHelper
+                    name={name}
+                    tip={titleTip}
+                    onSuggest={() => setTitleTip(suggestProductTitle(name))}
+                    onAccept={() => {
+                      if (titleTip) setName(titleTip);
+                      setTitleTip(null);
+                    }}
+                    onDismiss={() => setTitleTip(null)}
                   />
                 </Field>
 
