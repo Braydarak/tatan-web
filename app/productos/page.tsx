@@ -388,7 +388,7 @@ export default async function ProductosPage({
         <h1 className="sr-only">{categoryLabel ?? page.title}</h1>
 
         {/* ───────── Filtros ───────── */}
-        <div className="sticky top-[var(--header-h,101px)] z-30 border-y border-tatan-secundario1/50 bg-[#FBF7F0]/90 backdrop-blur-md">
+        <div className="sticky top-[calc(var(--header-h,101px)-1px)] z-30 border-b border-tatan-secundario1/50 bg-[#FBF7F0]/90 backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div
               className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 py-3 sm:mx-0 sm:px-0"

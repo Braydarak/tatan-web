@@ -254,8 +254,12 @@ export default function Header({
     }
     function measure() {
       if (cancelled || !el) return;
-      const total = Math.ceil(el.getBoundingClientRect().height);
+      const exact = el.getBoundingClientRect().height;
+      const total = Math.ceil(exact);
       setHeaderTotalHeight(total);
+      // Alto real del header para lo que se pega debajo (barra de filtros, etc.):
+      // sin redondear, así no queda una rendija entre el header y lo pegado.
+      document.documentElement.style.setProperty("--header-h", `${exact}px`);
       if (bannerRef.current) {
         setBannerHeight(
           Math.ceil(bannerRef.current.getBoundingClientRect().height),
