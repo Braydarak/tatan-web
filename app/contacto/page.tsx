@@ -2,9 +2,7 @@ import { Metadata } from "next";
 import ContactForm from "./ContactForm";
 import {
   Mail,
-  Smartphone,
   MapPin,
-  Clock,
   Shield,
   Send,
   Sparkles,
@@ -16,23 +14,16 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Contacto",
   description:
-    "Contactanos por WhatsApp, mail o teléfono. Respuesta en menos de 24h hábiles. Atención al cliente Tatan ropa infantil.",
+    "Escribinos por mail o por el formulario de contacto. Atención al cliente de Tatan Kids, ropa para bebés y niños.",
 };
 
 const INFO_CARDS = [
   {
     title: "E-mail",
-    content: "hola@tatan.com",
-    href: "mailto:hola@tatan.com",
+    content: "contacto@tatankids.com.ar",
+    href: "mailto:contacto@tatankids.com.ar",
     Icon: Mail,
     tone: "from-tatan-acento-rosa/40 to-tatan-primario1/50 text-tatan-secundario2",
-  },
-  {
-    title: "WhatsApp",
-    content: "+54 9 11 1234-5678",
-    href: "https://wa.me/5491112345678",
-    Icon: Smartphone,
-    tone: "from-tatan-acento-verde/40 to-tatan-primario2/50 text-tatan-secundario2",
   },
   {
     title: "Ubicación",
@@ -41,27 +32,20 @@ const INFO_CARDS = [
     Icon: MapPin,
     tone: "from-tatan-acento-azul/40 to-tatan-primario1/50 text-tatan-secundario2",
   },
-  {
-    title: "Horarios",
-    content: "Lun–Vie 9–18hs · Sáb 10–13hs",
-    href: undefined,
-    Icon: Clock,
-    tone: "from-tatan-acento-amarillo/40 to-tatan-primario3/50 text-tatan-secundario2",
-  },
 ];
 
 const FAQS = [
   {
     q: "¿Cuánto tarda en llegar mi pedido?",
-    a: "Despachamos en 24hs hábiles. Envíos a CABA en 24–48hs, resto del país 3–7 días hábiles.",
-  },
-  {
-    q: "¿Puedo cambiar o devolver una prenda?",
-    a: "Sí. Tenés 30 días después de recibirlo para cambiar o devolver sin costo.",
+    a: "Depende del envío que elijas: cada opción muestra su plazo antes de pagar. Cuando lo despachamos, te llega por correo el código de seguimiento.",
   },
   {
     q: "¿Qué medios de pago aceptan?",
-    a: "Mercado Pago, tarjetas hasta 12 cuotas, transferencia bancaria y efectivo puntos de retiro.",
+    a: "Pagás con Mercado Pago sin salir de la tienda: tarjeta de crédito hasta 12 cuotas, débito o efectivo en Rapipago y Pago Fácil.",
+  },
+  {
+    q: "¿Hacen envíos a todo el país?",
+    a: "Sí, a domicilio o a una sucursal del correo. El costo lo calculás con tu código postal en el carrito.",
   },
 ];
 

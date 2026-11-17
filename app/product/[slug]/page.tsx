@@ -23,10 +23,10 @@ import {
   ChevronDown,
   Truck,
   Check,
-  RotateCcw,
   Shield,
-  Gift,
   Tag,
+  CreditCard,
+  Package,
 } from "lucide-react";
 
 type ProductPageProps = {
@@ -365,10 +365,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 {/* Por qué comprar tranquilo */}
                 <ul className="grid grid-cols-2 gap-2 pt-1">
                   {[
-                    { Icon: Gift, t: "Envío gratis +$25k", c: "text-tatan-acento-verde bg-tatan-acento-verde/15" },
-                    { Icon: Truck, t: "Envío en 3-7 días", c: "text-[#7BA5C9] bg-tatan-acento-azul/20" },
-                    { Icon: RotateCcw, t: "Cambios 30 días", c: "text-[#E58BA0] bg-tatan-acento-rosa/25" },
-                    { Icon: Shield, t: "Garantía 3 meses", c: "text-[#B9A89B] bg-tatan-secundario1/40" },
+                    { Icon: Truck, t: "Envíos a todo el país", c: "text-[#7BA5C9] bg-tatan-acento-azul/20" },
+                    { Icon: CreditCard, t: "Hasta 12 cuotas", c: "text-tatan-acento-verde bg-tatan-acento-verde/15" },
+                    { Icon: Shield, t: "Pago seguro con Mercado Pago", c: "text-[#B9A89B] bg-tatan-secundario1/40" },
+                    { Icon: Package, t: "Seguimiento por correo", c: "text-[#E58BA0] bg-tatan-acento-rosa/25" },
                   ].map(({ Icon, t, c }) => (
                     <li
                       key={t}

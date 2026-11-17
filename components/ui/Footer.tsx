@@ -2,12 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   Heart,
-  Smartphone,
   Mail,
   MapPin,
-  Share2,
-  Users,
-  Music2,
 } from "lucide-react";
 
 export default function Footer({
@@ -94,18 +90,10 @@ export default function Footer({
               </li>
               <li>
                 <Link
-                  href="/envios#cambios"
-                  className="hover:text-zinc-700 transition-colors"
-                >
-                  Cambios y devoluciones
-                </Link>
-              </li>
-              <li>
-                <Link
                   href="/envios#costos"
                   className="hover:text-zinc-700 transition-colors"
                 >
-                  Medios de pago y costos
+                  Medios de pago
                 </Link>
               </li>
               <li>
@@ -123,16 +111,12 @@ export default function Footer({
             <h4 className="font-bold text-zinc-800 mb-3">Contacto</h4>
             <ul className="space-y-2 text-sm text-zinc-500">
               <li className="flex items-center gap-2">
-                <Smartphone className="w-4 h-4" strokeWidth={2} />
-                WhatsApp
-              </li>
-              <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4" strokeWidth={2} />
                 <Link
-                  href="mailto:hola@tatan.com"
+                  href="mailto:contacto@tatankids.com.ar"
                   className="hover:text-zinc-700 transition-colors"
                 >
-                  hola@tatan.com
+                  contacto@tatankids.com.ar
                 </Link>
               </li>
               <li className="flex items-center gap-2">
@@ -140,22 +124,6 @@ export default function Footer({
                 Buenos Aires, Argentina
               </li>
             </ul>
-            <div className="flex gap-3 mt-4">
-              {[
-                { Icon: Share2, label: "Instagram", href: "#" },
-                { Icon: Users, label: "Facebook", href: "#" },
-                { Icon: Music2, label: "TikTok", href: "#" },
-              ].map(({ Icon, label, href }, i) => (
-                <Link
-                  key={i}
-                  href={href}
-                  className="w-9 h-9 rounded-full paper-card flex items-center justify-center text-zinc-600 hover:bg-tatan-primario1/30 transition-colors"
-                  aria-label={label}
-                >
-                  <Icon className="w-4 h-4" strokeWidth={2} />
-                </Link>
-              ))}
-            </div>
           </div>
         </div>
 

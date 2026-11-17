@@ -18,7 +18,7 @@ import { productHref } from "@/lib/product-url";
 export const metadata = {
   title: "Ofertas",
   description:
-    "Ofertas en bodys, remeras, pijamas y accesorios para bebés y niños. Hasta 40% OFF. Envío gratis a partir de $25.000.",
+    "Ofertas en ropa para bebés y niños: bodys, ajuares, batitas y accesorios. Envíos a todo el país y hasta 12 cuotas.",
 };
 
 import type { Product as ApiProduct } from "@/lib/tatan-api";
