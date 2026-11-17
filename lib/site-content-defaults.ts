@@ -61,7 +61,7 @@ export const PRODUCTS_PAGE_DEFAULT: ProductsPageContent = {
     show: true,
     label: "¿Buscás algo en oferta?",
     title: "Mirá las ofertas de la semana",
-    text: "Hasta 40% OFF en prendas seleccionadas. Envío gratis y cambios sin cargo.",
+    text: "Precios especiales en prendas seleccionadas. Envíos a todo el país.",
     buttonText: "Ir a Ofertas",
     buttonHref: "/ofertas",
   },
@@ -108,8 +108,8 @@ export const HOME_HERO_DEFAULT: HomeHeroData = {
   shippingBadge: {
     show: true,
     showIcon: true,
-    title: "Envío gratis",
-    subtitle: "Compras mayores a $25k",
+    title: "Envíos a todo el país",
+    subtitle: "Hasta 12 cuotas con Mercado Pago",
   },
   benefits: [
     {
@@ -132,9 +132,9 @@ export const HOME_HERO_DEFAULT: HomeHeroData = {
       show: true,
       showIcon: true,
       iconKey: "Heart",
-      title: "Cambios sin costo",
+      title: "Pago seguro",
       description:
-        "Si no te convence, lo cambiás gratis en los primeros 30 días",
+        "Pagás con Mercado Pago sin salir de la tienda: crédito, débito o efectivo",
       color: "#E58BA0",
     },
   ],
