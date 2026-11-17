@@ -546,6 +546,33 @@ export default function ProductsCrm({
     null,
   );
   const [isCreating, setIsCreating] = React.useState(false);
+
+  // Al abrir un producto (o "Nuevo producto") la página arranca arriba: la
+  // lista y el formulario son la misma página y quedaba el scroll de la lista.
+  // Al volver a la lista, se vuelve a donde estaba.
+  const formKey = isCreating ? "new" : (editingProduct?.id ?? null);
+  const listScroll = React.useRef(0);
+  const prevFormKey = React.useRef<string | null>(null);
+  /** true mientras se ve el formulario (el scroll ya no es el de la lista) */
+  const formShown = React.useRef(false);
+  React.useLayoutEffect(() => {
+    const prev = prevFormKey.current;
+    prevFormKey.current = formKey;
+    formShown.current = !!formKey;
+    if (formKey && formKey !== prev) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    } else if (!formKey && prev) {
+      window.scrollTo({ top: listScroll.current, behavior: "auto" });
+    }
+  }, [formKey]);
+  // Recuerda hasta dónde bajó en la lista (para volver ahí al cerrar el formulario)
+  React.useEffect(() => {
+    const save = () => {
+      if (!formShown.current) listScroll.current = window.scrollY;
+    };
+    window.addEventListener("scroll", save, { passive: true });
+    return () => window.removeEventListener("scroll", save);
+  }, []);
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState("");
   const [categoryFilter, setCategoryFilter] = React.useState<
