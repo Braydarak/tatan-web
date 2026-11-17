@@ -10,7 +10,6 @@ import {
   Sparkles,
   Gift,
   Search,
-  ChevronRight,
   X,
   LayoutGrid,
   Baby,
@@ -385,89 +384,8 @@ export default async function ProductosPage({
   return (
     <div className="min-h-dvh flex flex-col relative z-10">
       <main className="flex-1 w-full">
-        {/* ───────── Encabezado ───────── */}
-        <section className="relative overflow-hidden">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute -top-10 -left-10 w-56 h-56 rounded-full bg-tatan-acento-azul/25 blur-3xl" />
-            <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-tatan-acento-verde/20 blur-3xl" />
-            <div className="absolute -bottom-20 left-1/3 w-60 h-60 rounded-full bg-tatan-acento-rosa/25 blur-3xl" />
-          </div>
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-6 sm:pt-10 sm:pb-8">
-            <nav
-              aria-label="Ruta"
-              className="anim-rise mb-3 flex items-center gap-1.5 text-xs font-semibold text-zinc-500"
-            >
-              <Link href="/" className="hover:text-zinc-800">
-                Inicio
-              </Link>
-              <ChevronRight className="h-3 w-3" strokeWidth={2.4} />
-              <Link href="/productos" className="hover:text-zinc-800">
-                Productos
-              </Link>
-              {categoryLabel && (
-                <>
-                  <ChevronRight className="h-3 w-3" strokeWidth={2.4} />
-                  <span className="text-zinc-700">{categoryLabel}</span>
-                </>
-              )}
-            </nav>
-            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-              <div className="min-w-0 max-w-2xl">
-                <h1
-                  className="anim-rise text-3xl sm:text-4xl lg:text-5xl font-bold text-zinc-800 leading-tight"
-                  style={{ "--d": "0.08s" } as React.CSSProperties}
-                >
-                  {categoryLabel ?? page.title}
-                </h1>
-                {page.subtitle && (
-                  <p
-                    className="anim-rise mt-2 text-sm sm:text-base text-zinc-600 leading-relaxed"
-                    style={{ "--d": "0.16s" } as React.CSSProperties}
-                  >
-                    {page.subtitle}
-                  </p>
-                )}
-              </div>
-              <form
-                action="/productos"
-                role="search"
-                className="anim-rise relative w-full md:w-80 shrink-0"
-                style={{ "--d": "0.22s" } as React.CSSProperties}
-              >
-                {state.cat !== "todos" && (
-                  <input type="hidden" name="c" value={state.cat} />
-                )}
-                {state.size !== "todos" && (
-                  <input type="hidden" name="t" value={state.size} />
-                )}
-                {state.pr !== "todos" && (
-                  <input type="hidden" name="pr" value={state.pr} />
-                )}
-                {state.sort !== "recomendado" && (
-                  <input type="hidden" name="s" value={state.sort} />
-                )}
-                <Search
-                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
-                  strokeWidth={2.2}
-                />
-                <input
-                  type="search"
-                  name="q"
-                  defaultValue={state.q}
-                  placeholder="Buscar producto"
-                  aria-label="Buscar productos"
-                  className="h-12 w-full rounded-2xl border border-tatan-secundario1/70 bg-white/90 pl-10 pr-24 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/70"
-                />
-                <button
-                  type="submit"
-                  className="btn-primary absolute right-1.5 top-1/2 -translate-y-1/2 rounded-xl px-3.5 py-2 text-xs font-bold"
-                >
-                  Buscar
-                </button>
-              </form>
-            </div>
-          </div>
-        </section>
+        {/* Título para buscadores y lectores de pantalla (el buscador está en el encabezado) */}
+        <h1 className="sr-only">{categoryLabel ?? page.title}</h1>
 
         {/* ───────── Filtros ───────── */}
         <div className="sticky top-[var(--header-h,101px)] z-30 border-y border-tatan-secundario1/50 bg-[#FBF7F0]/90 backdrop-blur-md">

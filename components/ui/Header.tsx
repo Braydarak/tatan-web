@@ -5,7 +5,7 @@ import ProductPhoto from "@/components/ui/ProductPhoto";
 import Link from "next/link";
 import * as React from "react";
 import MessageBanner from "@/components/ui/MessageBanner";
-import CustomInput from "@/components/ui/CustomInput";
+import SearchBox from "@/components/ui/SearchBox";
 import MercadoPagoSvg from "@/assets/svg/mercadoPago";
 import type { HeaderContent } from "@/components/sections/HomeHeroEditor";
 import type { OffersInfo } from "@/lib/card-props";
@@ -142,6 +142,7 @@ export default function Header({
   const hasBanner = bannerMessages.length > 0;
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [cartOpen, setCartOpen] = React.useState(false);
+  const [searchOpen, setSearchOpen] = React.useState(false);
   const mobilePanelId = React.useId();
   const cartPanelId = React.useId();
   const openStateRef = React.useRef({ menuOpen: false, cartOpen: false });
@@ -320,7 +321,10 @@ export default function Header({
             aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={menuOpen}
             aria-controls={mobilePanelId}
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => {
+              setSearchOpen(false);
+              setMenuOpen((v) => !v);
+            }}
           >
             {menuOpen ? (
               <IconClose className="h-5 w-5" />
@@ -372,22 +376,22 @@ export default function Header({
           </nav>
 
           <div className="flex items-center gap-2 ml-auto shrink-0">
-            <form
-              action="/productos"
-              role="search"
-              className="relative hidden w-96 lg:block"
+            <SearchBox className="hidden w-96 lg:block" />
+
+            {/* Celular: la lupa abre el buscador debajo del encabezado */}
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                setCartOpen(false);
+                setSearchOpen((v) => !v);
+              }}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-tatan-secundario1/50 bg-white text-zinc-900 shadow-sm transition hover:bg-tatan-primario1/60 active:scale-[0.98] lg:hidden shrink-0"
+              aria-label={searchOpen ? "Cerrar buscador" : "Buscar productos"}
+              aria-expanded={searchOpen}
             >
-              <CustomInput
-                type="search"
-                name="q"
-                aria-label="Buscar productos"
-                placeholder="Buscar producto"
-                inputClassName={cx(
-                  "h-11 rounded-2xl border border-tatan-secundario1/60 bg-white text-sm text-zinc-900 shadow-sm",
-                  "pr-3 py-0",
-                )}
-              />
-            </form>
+              {searchOpen ? <IconClose className="h-5 w-5" /> : <IconSearch className="h-5 w-5" strokeWidth={2} />}
+            </button>
 
             <button
               type="button"
@@ -421,6 +425,12 @@ export default function Header({
           </div>
         </div>
 
+        {searchOpen && (
+          <div className="border-t border-black/5 px-4 py-3 lg:hidden">
+            <SearchBox autoFocus inputClassName="h-12 text-base" onNavigate={() => setSearchOpen(false)} />
+          </div>
+        )}
+
         <div
           id={mobilePanelId}
           role="dialog"
@@ -446,16 +456,7 @@ export default function Header({
             }}
           >
             <div className="px-5 py-4 border-b border-zinc-100">
-              <div className="relative">
-                <CustomInput
-                  type="search"
-                  placeholder="Buscar producto"
-                  inputClassName="h-12 rounded-2xl border border-tatan-secundario1/60 bg-white text-base pl-10 pr-3"
-                />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-tatan-primario4">
-                  <IconSearch className="w-5 h-5" strokeWidth={2} />
-                </span>
-              </div>
+              <SearchBox inputClassName="h-12 text-base" onNavigate={() => setMenuOpen(false)} />
             </div>
 
             <div className="flex-1 px-5 py-6">
