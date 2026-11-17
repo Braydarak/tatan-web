@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Minus, Plus, Ruler, ShoppingCart, Zap } from "lucide-react";
 import type { BuyOptions } from "@/lib/buy-options";
+import type { SizeGuide } from "@/lib/size-guide";
+import SizeGuideButton from "@/components/product/SizeGuideButton";
 import { useBuySelection } from "./useBuySelection";
 
 function cx(...classes: Array<string | undefined | null | false>) {
@@ -18,6 +20,8 @@ type Props = {
   options: BuyOptions;
   /** Número de artículo del producto */
   sku?: string;
+  /** Guía de talles (dibujo + medidas), si el producto la tiene */
+  sizeGuide?: SizeGuide;
 };
 
 /** Talle, color, cantidad y botones de compra de la página de producto. */
@@ -28,6 +32,7 @@ export default function ProductBuyBox({
   unitPrice,
   options,
   sku,
+  sizeGuide,
 }: Props) {
   const router = useRouter();
   const sel = useBuySelection(
@@ -56,6 +61,8 @@ export default function ProductBuyBox({
                 </span>
               )}
             </span>
+            <span className="inline-flex items-center gap-2">
+            <SizeGuideButton guide={sizeGuide} sizes={options.sizes} selectedSize={sel.size} />
             <span className="text-xs font-semibold text-tatan-secundario2 inline-flex items-center gap-1">
               <Ruler className="w-3.5 h-3.5" strokeWidth={2.2} />
               {sel.size
@@ -65,6 +72,7 @@ export default function ProductBuyBox({
                     : "Hay stock"
                   : "Ya tenés todo el stock en el carrito"
                 : "Elegí tu talle"}
+            </span>
             </span>
           </div>
           <div

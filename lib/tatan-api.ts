@@ -360,7 +360,7 @@ export async function apiProductDelete(id: string): Promise<boolean> {
   }
 }
 
-export type SiteContentKey = "home_hero" | "envios";
+export type SiteContentKey = "home_hero" | "envios" | "size_guides";
 
 export async function apiSiteContent<T = unknown>(
   key: SiteContentKey,

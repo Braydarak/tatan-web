@@ -22,8 +22,12 @@ import {
   apiProducts,
   apiProductSave,
   apiProductDelete,
+  apiRevalidateTag,
+  apiSiteContent,
+  apiSiteContentSave,
   type Product,
 } from "@/lib/tatan-api";
+import { EMPTY_SIZE_GUIDES, parseSizeGuides, type SizeGuide, type SizeGuides } from "@/lib/size-guide";
 import { matchesProduct } from "@/lib/product-search";
 import { colorKey, hasColorStock } from "@/lib/stock";
 
@@ -619,6 +623,51 @@ export default function ProductsCrm({
     };
   };
 
+  // Guías de talles (site_content "size_guides"): una fila con todas, por id de producto
+  const [sizeGuides, setSizeGuides] = React.useState<SizeGuides>(EMPTY_SIZE_GUIDES);
+  /** "error" = no se pudieron leer: no se guardan cambios (para no pisar las que hay) */
+  const [guidesStatus, setGuidesStatus] = React.useState<"loading" | "ok" | "error">("loading");
+  const readSizeGuides = React.useCallback(async (): Promise<SizeGuides | null> => {
+    const r = await apiSiteContent<unknown>("size_guides");
+    if (r.ok) return parseSizeGuides(r.data);
+    // Todavía no se guardó ninguna: está vacío
+    if (r.error === "NOT_FOUND" || /not.?found|404/i.test(r.error ?? "")) return { version: 1, byProduct: {} };
+    return null;
+  }, []);
+  React.useEffect(() => {
+    let alive = true;
+    void readSizeGuides().then((g) => {
+      if (!alive) return;
+      if (g) {
+        setSizeGuides(g);
+        setGuidesStatus("ok");
+      } else {
+        setGuidesStatus("error");
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [readSizeGuides]);
+
+  /** Guarda (o borra, con null) la guía de un producto. Devuelve si se pudo. */
+  const saveSizeGuide = async (productId: string, guide: SizeGuide | null): Promise<boolean> => {
+    if (guidesStatus === "error") return false;
+    const before = sizeGuides.byProduct[productId] ?? null;
+    if (JSON.stringify(before) === JSON.stringify(guide)) return true;
+    // Se relee justo antes de guardar, por si otro usuario cambió otra guía
+    const latest = (await readSizeGuides()) ?? sizeGuides;
+    const byProduct = { ...latest.byProduct };
+    if (guide) byProduct[productId] = guide;
+    else delete byProduct[productId];
+    const next: SizeGuides = { version: 1, byProduct };
+    const r = await apiSiteContentSave("size_guides", next);
+    if (!r.ok) return false;
+    setSizeGuides(next);
+    void apiRevalidateTag("tatan-site-content");
+    return true;
+  };
+
   const loadProducts = React.useCallback(async () => {
     try {
       const list = await apiProducts();
@@ -663,13 +712,19 @@ export default function ProductsCrm({
   ) => {
     setSaving(true);
     try {
+      // La guía de talles no va a products.php: se guarda aparte
+      const { sizeGuide, ...product } = data;
       // El id va al final: decide POST (sin id → el servidor lo genera) vs PUT.
       const payload = {
-        ...data,
+        ...product,
         id: mode === "update" && editingProduct ? editingProduct.id : undefined,
       };
       const r = await apiProductSave(payload);
       if (!r.ok) throw new Error(r.error || "No se pudo guardar el producto");
+      const savedId = r.id ?? r.data?.id ?? payload.id;
+      if (savedId && !(await saveSizeGuide(savedId, sizeGuide ?? null))) {
+        notify("err", "El producto se guardó, pero no la guía de talles. Probá guardarlo de nuevo.");
+      }
       setSavedMsg(
         mode === "create"
           ? `El producto "${data.name}" se creó correctamente.`
@@ -693,6 +748,7 @@ export default function ProductsCrm({
     try {
       const r = await apiProductDelete(p.id);
       if (!r) throw new Error("No se pudo borrar (¿sesión expirada?)");
+      if (sizeGuides.byProduct[p.id]) void saveSizeGuide(p.id, null);
       setSavedMsg(`El producto "${p.name}" se borró correctamente.`);
       void loadProducts();
     } catch (e) {
@@ -700,10 +756,15 @@ export default function ProductsCrm({
     }
   };
 
+  const otherSizeGuides = remoteProducts
+    .filter((p) => sizeGuides.byProduct[p.id])
+    .map((p) => ({ id: p.id, name: p.name, guide: sizeGuides.byProduct[p.id] }));
+
   if (isCreating) {
     return (
       <section id="productos" className={cx("w-full scroll-mt-20", className)}>
         <ProductForm
+          otherSizeGuides={otherSizeGuides}
           onSubmit={(data) => handleCreateOrSave(data, "create")}
           onCancel={() => setIsCreating(false)}
           submitting={saving}
@@ -741,12 +802,15 @@ export default function ProductsCrm({
       rating: editingProduct.rating,
       reviews: editingProduct.reviews,
       relatedIds: editingProduct.relatedIds,
+      sizeGuide: sizeGuides.byProduct[editingProduct.id] ?? null,
     };
 
     return (
       <section id="productos" className={cx("w-full scroll-mt-20", className)}>
         <ProductForm
+          key={`${editingProduct.id}-${guidesStatus}`}
           initialData={initialData}
+          otherSizeGuides={otherSizeGuides}
           onSubmit={(data) => handleCreateOrSave(data, "update")}
           onCancel={() => setEditingProduct(null)}
           submitting={saving}

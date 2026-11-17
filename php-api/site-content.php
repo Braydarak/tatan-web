@@ -1,6 +1,6 @@
 <?php
 /**
- * GET  /api/site-content.php                → todas las keys (home_hero, envios)
+ * GET  /api/site-content.php                → todas las keys (home_hero, envios, size_guides)
  * GET  /api/site-content.php?key=home_hero  → una sola key
  * PUT  /api/site-content.php?key=home_hero  → guardar / versionar  (requiere sesión CRM)
  *   JSON body: { data: { ... } }  (o el objeto directo)
@@ -8,7 +8,8 @@
 declare(strict_types=1);
 require __DIR__ . '/config.php';
 
-$VALID = ['home_hero', 'envios'];
+// size_guides: guías de talles de los productos (lib/size-guide.ts)
+$VALID = ['home_hero', 'envios', 'size_guides'];
 $method = method();
 $key    = input('key', null);
 

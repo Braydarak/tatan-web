@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { apiUploadImage } from "@/lib/tatan-api";
 import { suggestProductTitle } from "@/lib/product-title";
+import type { SizeGuide } from "@/lib/size-guide";
+import SizeGuideEditor from "@/components/crm/SizeGuideEditor";
 import { fetchPhotoFile, isSquarePhoto } from "@/lib/square-photo";
 import { isPlaceholderImage } from "@/lib/is-placeholder";
 import ColorPicker, { AddColorButton, paletteName } from "@/components/ui/ColorPicker";
@@ -95,6 +97,8 @@ export type ProductFormData = {
   rating: number;
   reviews: number;
   relatedIds: string[];
+  /** Guía de talles (dibujo + medidas). null = sin guía. Se guarda aparte (site_content "size_guides") */
+  sizeGuide?: SizeGuide | null;
 };
 
 export type ProductFormProps = {
@@ -103,6 +107,8 @@ export type ProductFormProps = {
   onCancel?: () => void;
   className?: string;
   submitting?: boolean;
+  /** Guías de talles de otros productos (para copiar las medidas) */
+  otherSizeGuides?: { id: string; name: string; guide: SizeGuide }[];
 };
 
 function initialStockFromSizes(
@@ -437,6 +443,7 @@ export default function ProductForm({
   onCancel,
   className,
   submitting = false,
+  otherSizeGuides = [],
 }: ProductFormProps) {
   const isEditing = Boolean(initialData?.id);
 
@@ -462,6 +469,7 @@ export default function ProductForm({
       ? [...SIZE_GROUP_BEBE]
       : ["2", "4", "6", "8"];
   const [sizes, setSizes] = React.useState<string[]>(sizesInit);
+  const [sizeGuide, setSizeGuide] = React.useState<SizeGuide | null>(initialData?.sizeGuide ?? null);
   const [stockBySize, setStockBySize] = React.useState<Record<string, number>>(
     () => initialStockFromSizes(sizesInit, initialData?.stockBySize ?? {}),
   );
@@ -835,6 +843,13 @@ export default function ProductForm({
       rating: Number(rating) || 5,
       reviews: Number(reviews) || 0,
       relatedIds,
+      // Solo las medidas de los talles que tiene el producto
+      sizeGuide: sizeGuide
+        ? {
+            garment: sizeGuide.garment,
+            rows: Object.fromEntries(sizes.map((sz) => [sz, sizeGuide.rows[sz] ?? {}])),
+          }
+        : null,
     };
     onSubmit(data);
   };
@@ -1592,6 +1607,19 @@ export default function ProductForm({
                     </div>
                   </div>
                 </div>
+              </OptionalSection>
+
+              <OptionalSection
+                title="Guía de talles"
+                description="Dibujo de la prenda y medidas en cm de cada talle (en la tienda: botón «Guía de talles»)"
+                filled={sizeGuide ? 1 : 0}
+              >
+                <SizeGuideEditor
+                  value={sizeGuide}
+                  sizes={sizes}
+                  onChange={setSizeGuide}
+                  others={otherSizeGuides.filter((o) => o.id !== initialData?.id)}
+                />
               </OptionalSection>
 
               <OptionalSection
