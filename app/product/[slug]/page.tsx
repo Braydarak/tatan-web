@@ -14,6 +14,7 @@ import { categoryLabel, fetchCategoriesSSR } from "@/lib/categories";
 import { pickRelated } from "@/lib/related";
 import ProductCard from "@/components/ui/productCard/ProductCard";
 import ProductBuyBox from "@/components/cart/ProductBuyBox";
+import { fetchSizeGuidesSSR } from "@/lib/size-guide";
 import ProductGallery from "@/components/product/ProductGallery";
 import { hasText, sanitizeHtml } from "@/lib/sanitize-html";
 import type { Product as ApiProduct } from "@/lib/tatan-api";
@@ -197,10 +198,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const product: FullProduct = mapApiToFullProduct(fromApi);
   const id = product.id;
 
-  const [content, combos, categories] = await Promise.all([
+  const [content, combos, categories, sizeGuides] = await Promise.all([
     fetchHomeContentSSR(),
     fetchCombosSSR([id], 4),
     fetchCategoriesSSR(),
+    fetchSizeGuidesSSR(),
   ]);
   // Nombre de la categoría tal como está en CRM → Categorías
   product.category = categoryLabel(categories, product.categoryKey);
@@ -357,6 +359,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                   unitPrice={product.price}
                   options={product.buy}
                   sku={product.sku}
+                  sizeGuide={sizeGuides.byProduct[product.id]}
                 />
 
                 {/* Por qué comprar tranquilo */}
