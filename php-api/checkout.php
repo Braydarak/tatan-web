@@ -35,10 +35,20 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/mercadopago.php';
 require_once __DIR__ . '/enviopack.php';
 
-// Para comprobar qué versión está subida: GET checkout.php?action=version
-const CHECKOUT_VERSION = '2026-11-13-orders';
+// Para comprobar qué versión está subida y cómo quedó Mercado Pago:
+//   GET checkout.php?action=version
+//   → { version, mercadoPago: "produccion" | "prueba" | "invalido" | …,
+//       webhookFirmado: bool, siteUrl }
+// No muestra ninguna clave: solo si están y con qué tipo de cuenta.
+const CHECKOUT_VERSION = '2026-11-19-produccion';
 if (method() === 'GET' && ($_GET['action'] ?? '') === 'version') {
-    send_json(['ok' => true, 'version' => CHECKOUT_VERSION]);
+    send_json([
+        'ok'             => true,
+        'version'        => CHECKOUT_VERSION,
+        'mercadoPago'    => mp_mode(),
+        'webhookFirmado' => defined('MP_WEBHOOK_SECRET') && MP_WEBHOOK_SECRET !== '',
+        'siteUrl'        => site_url(),
+    ]);
 }
 
 if (method() !== 'POST') {

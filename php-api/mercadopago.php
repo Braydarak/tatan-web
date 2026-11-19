@@ -22,6 +22,23 @@ function mp_configured(): bool
     return defined('MP_ACCESS_TOKEN') && MP_ACCESS_TOKEN !== '';
 }
 
+/**
+ * Con qué cuenta está conectado el Access Token (para el chequeo de versión):
+ *   'produccion' = cuenta real, cobra de verdad
+ *   'prueba'     = usuario de prueba de Mercado Pago (no cobra)
+ *   'invalido'   = Mercado Pago no acepta el token (mal copiado o revocado)
+ *   'sin-conexion' = no se pudo hablar con Mercado Pago
+ */
+function mp_mode(): string
+{
+    if (!mp_configured()) return 'sin-configurar';
+    [$status, $me] = mp_http('GET', '/users/me');
+    if ($status === 0) return 'sin-conexion';
+    if ($status !== 200 || !is_array($me)) return 'invalido';
+    $tags = is_array($me['tags'] ?? null) ? $me['tags'] : [];
+    return in_array('test_user', $tags, true) ? 'prueba' : 'produccion';
+}
+
 /** Dirección pública de la tienda, sin barra final. */
 function site_url(): string
 {

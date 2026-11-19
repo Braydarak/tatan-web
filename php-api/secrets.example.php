@@ -17,15 +17,24 @@ define('ENVIOPACK_SECRET_KEY', '');
 //   'S' = Tatan los lleva a una sucursal del correo
 define('ENVIOPACK_DESPACHO', 'D');
 
-// Mercado Pago → Tus integraciones → (tu aplicación) → Credenciales.
-// Para probar usá las credenciales DE PRUEBA (el Access Token empieza con
-// "APP_USR-" en cuentas de prueba o "TEST-" en las viejas). En producción,
-// las de producción.
+// ---------------------------------------------------------------- Mercado Pago
+// Mercado Pago → Tus integraciones → (tu aplicación) → Credenciales de
+// PRODUCCIÓN → "Access Token" (empieza con "APP_USR-"). Es secreto: va solo
+// acá, nunca en la web ni en git. La "Public Key" NO va acá: va en la web
+// (NEXT_PUBLIC_MP_PUBLIC_KEY, ver docs/mercadopago-produccion.md). El Client ID y el Client
+// Secret no se usan en esta integración.
+//
+// Para probar sin cobrar: el Access Token de un usuario de prueba.
+// Para ver qué quedó cargado: /api/checkout.php?action=version
+//   → "mercadoPago": "produccion" (cobra de verdad) o "prueba".
 define('MP_ACCESS_TOKEN', '');
 
-// Mercado Pago → (tu aplicación) → Webhooks → "Clave secreta". Con esto se
-// verifica que los avisos de pago vengan de verdad de Mercado Pago. Si queda
-// vacío no se verifica la firma (igual se consulta el pago a la API de MP).
+// Mercado Pago → (tu aplicación) → Webhooks → Modo productivo:
+//   URL:     https://tatankids.com.ar/api/mp-webhook.php
+//   Evento:  "Order (Mercado Pago)"
+// Al guardar, Mercado Pago muestra una "Clave secreta": pegala acá. Con eso
+// se verifica que los avisos de pago vengan de verdad de Mercado Pago. Si
+// queda vacío no se verifica la firma (igual se consulta el pago a la API).
 define('MP_WEBHOOK_SECRET', '');
 
 // Dirección pública de la tienda (a donde vuelve el comprador después de
