@@ -29,6 +29,13 @@ define('ENVIOPACK_DESPACHO', 'D');
 //   → "mercadoPago": "produccion" (cobra de verdad) o "prueba".
 define('MP_ACCESS_TOKEN', '');
 
+// Pagos que se acreditan después (efectivo): los revisa mp-sync.php con un
+// cron de Ferozo cada 15 minutos (ver docs/mercadopago-produccion.md). Esta
+// clave solo hace falta si el cron abre la dirección web
+// (mp-sync.php?key=...); con "php .../mp-sync.php" no se usa.
+define('MP_SYNC_KEY', '');
+
+// Opcional, si el panel de Mercado Pago lo permite:
 // Mercado Pago → (tu aplicación) → Webhooks → Modo productivo:
 //   URL:     https://tatankids.com.ar/api/mp-webhook.php
 //   Evento:  "Order (Mercado Pago)"

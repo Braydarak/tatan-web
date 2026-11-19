@@ -248,3 +248,18 @@ function apply_order(array $o): ?array
         throw $e;
     }
 }
+
+/**
+ * Consulta una order a Mercado Pago y actualiza el pedido (lo usan el aviso
+ * de Mercado Pago, la página de resultado y mp-sync.php).
+ * @return array{orderNumber:string,status:string}|null
+ */
+function mp_sync_order(string $mpOrderId): ?array
+{
+    [$status, $o] = mp_http('GET', '/v1/orders/' . rawurlencode($mpOrderId));
+    if ($status !== 200 || !is_array($o)) {
+        error_log("[mp] no se pudo leer la order {$mpOrderId} (HTTP {$status})");
+        return null;
+    }
+    return apply_order($o);
+}
