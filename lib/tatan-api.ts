@@ -425,20 +425,13 @@ export type RevalidateTag =
   | "tatan-home-products";
 
 /**
- * Pide a Next que purgue el caché ISR de un tag.
- * Best-effort: si falla, queda el `revalidate` periódico como respaldo.
+ * Antes purgaba el caché del servidor de Next después de guardar en el CRM.
+ * La web ahora es estática y cada página pide los datos en vivo a la API
+ * (lib/live-data.ts), así que no hay nada que purgar: queda para no tocar
+ * los lugares del CRM que la llaman.
  */
-export async function apiRevalidateTag(tag: RevalidateTag): Promise<void> {
-  try {
-    const token = getSessionToken();
-    await fetch(`/api/revalidate?tag=${encodeURIComponent(tag)}`, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: token ? { [SESSION_HEADER]: token } : undefined,
-    });
-  } catch {
-    /* ignore */
-  }
+export async function apiRevalidateTag(_tag: RevalidateTag): Promise<void> {
+  void _tag;
 }
 
 export async function apiContactSubmit(payload: {
