@@ -49,17 +49,6 @@ function mp_signature_ok(string $dataId): bool
     return hash_equals(hash_hmac('sha256', $manifest, MP_WEBHOOK_SECRET), $v1);
 }
 
-/** Consulta la order a Mercado Pago y actualiza el pedido. */
-function sync_order(string $mpOrderId): ?array
-{
-    [$status, $o] = mp_http('GET', '/v1/orders/' . rawurlencode($mpOrderId));
-    if ($status !== 200 || !is_array($o)) {
-        error_log("[mp-webhook] no se pudo leer la order {$mpOrderId} (HTTP {$status})");
-        return null;
-    }
-    return apply_order($o);
-}
-
 // ---------------------------------------------------------------- estado (página de resultado)
 if (method() === 'GET' && ($_GET['action'] ?? '') === 'status') {
     $ref = trim((string)($_GET['ref'] ?? ''));
@@ -71,7 +60,7 @@ if (method() === 'GET' && ($_GET['action'] ?? '') === 'status') {
     // Pendiente: se pregunta a Mercado Pago por si el aviso todavía no llegó
     if ($o['status'] === 'pending' && is_string($o['payment_id']) && str_starts_with($o['payment_id'], 'ORD')) {
         try {
-            if ($res = sync_order($o['payment_id'])) $o['status'] = $res['status'];
+            if ($res = mp_sync_order($o['payment_id'])) $o['status'] = $res['status'];
         } catch (Throwable) {
         }
     }
@@ -93,7 +82,7 @@ if (!mp_signature_ok($dataId)) {
 }
 
 try {
-    $res = sync_order($dataId);
+    $res = mp_sync_order($dataId);
 } catch (Throwable) {
     // 500: Mercado Pago reintenta el aviso más tarde
     send_json(['ok' => false, 'error' => 'SYNC_FAILED'], 500);

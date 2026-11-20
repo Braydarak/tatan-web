@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Claves de la API PHP (el repo es público). Ver php-api/secrets.example.php
 php-api/secrets.php
+
+# Última corrida del cron de pagos (se genera en el servidor)
+php-api/mp-sync-last.json
