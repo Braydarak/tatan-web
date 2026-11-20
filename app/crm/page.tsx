@@ -28,7 +28,7 @@ const VIEW_META: Record<CrmView, { title: string; subtitle: string }> = {
   },
   ventas: {
     title: "Ventas",
-    subtitle: "Productos más vendidos e ingresos estimados",
+    subtitle: "Cada venta con quién compró, qué, cuándo y cuánto pagó",
   },
   productos: {
     title: "Productos",

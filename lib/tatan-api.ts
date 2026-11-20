@@ -267,6 +267,56 @@ export async function apiLogout(): Promise<boolean> {
   }
 }
 
+/* ================================================================
+ *  Ventas (pedidos) — solo CRM (php-api/orders.php)
+ * ============================================================== */
+
+export type OrderStatus = "pending" | "paid" | "shipped" | "delivered" | "cancelled" | "refunded" | "draft";
+
+export type Order = {
+  id: number;
+  orderNumber: string;
+  status: OrderStatus;
+  createdAt: string;
+  paidAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+  buyer: { name: string; email: string; phone: string; dni: string };
+  items: {
+    productId: string;
+    name: string;
+    color: string | null;
+    size: string | null;
+    unitPrice: number;
+    quantity: number;
+    subtotal: number;
+  }[];
+  amounts: { subtotal: number; shipping: number; discount: number; total: number; currency: string };
+  shipping: {
+    method: string;
+    mode: string;
+    carrier: string;
+    postalCode: string;
+    street: string;
+    number: string;
+    floor: string;
+    city: string;
+    province: string;
+    branch: { id?: string; name?: string; address?: string; city?: string } | null;
+    notes: string;
+    tracking: string | null;
+  };
+  payment: { provider: string; type: string | null; id: string | null };
+  events: { status: string; note: string | null; at: string }[];
+};
+
+/** Pedidos de la tienda (los más nuevos primero). Requiere sesión del CRM. */
+export async function apiOrders(): Promise<Order[]> {
+  const r = await apiFetch<{ ok: boolean; data: Order[] }>("orders.php");
+  return r.data ?? [];
+}
+
 export async function apiProducts(): Promise<Product[]> {
   const r = await apiFetch<{ ok: boolean; count: number; data: Product[] }>(
     "products.php",
