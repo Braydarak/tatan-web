@@ -6,10 +6,8 @@
  *  La API PHP corre en tatankids.com.ar/api/*.php  (con `localhost`
  *  de MySQL, por lo que funciona sin acceso remoto).
  *
- *  Desde el NAVEGADOR se llama directo a la API de Ferozo (CORS habilitado
- *  en config.php). No se usa el proxy `/api/php/*` de next.config.ts porque
- *  esos pedidos salen desde los servidores de Vercel y el anti-bot del
- *  hosting (Imunify360) los bloquea. La sesión del CRM viaja en el header
+ *  Desde el NAVEGADOR se llama directo a la API (mismo dominio, /api/*.php;
+ *  CORS habilitado en config.php para desarrollo). La sesión del CRM viaja en el header
  *  `X-Tatan-Session` en lugar de la cookie, que desde otro dominio sería de
  *  terceros (Safari/Brave la bloquean).
  *
@@ -323,7 +321,7 @@ export async function apiProductSave(
  * Sube una imagen comprimida. Manda la versión de respaldo (JPEG/PNG) y, si
  * el navegador pudo generarla, también la WebP: el servidor guarda las dos con
  * el mismo nombre (…-w.jpg y …-w.webp). Devuelve la URL de la de respaldo; la
- * tienda la sirve optimizada (AVIF/WebP achicada) vía next/image en Vercel.
+ * tienda la sirve optimizada (AVIF/WebP achicada) vía next/image.
  */
 /**
  * Sube una imagen. Con `square` (fotos de producto) se sube cuadrada, con la
@@ -431,7 +429,7 @@ export type RevalidateTag =
 export async function apiRevalidateTag(tag: RevalidateTag): Promise<void> {
   try {
     const token = getSessionToken();
-    await fetch(`/api/revalidate?tag=${encodeURIComponent(tag)}`, {
+    await fetch(`/revalidar?tag=${encodeURIComponent(tag)}`, {
       method: "POST",
       credentials: "same-origin",
       headers: token ? { [SESSION_HEADER]: token } : undefined,

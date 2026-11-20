@@ -32,7 +32,7 @@ async function hasCrmSession(request: Request): Promise<boolean> {
   if (token) headers[SESSION_HEADER] = token;
   if (cookieHeader) headers.cookie = cookieHeader;
 
-  // Este pedido sale desde Vercel y el anti-bot del hosting a veces responde
+  // El anti-bot del hosting (Imunify360) a veces responde
   // con una página HTML en vez del JSON: se reintenta un par de veces.
   for (let attempt = 0; attempt < 3; attempt++) {
     try {

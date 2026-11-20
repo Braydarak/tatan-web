@@ -45,3 +45,6 @@ php-api/secrets.php
 
 # Última corrida del cron de pagos (se genera en el servidor)
 php-api/mp-sync-last.json
+
+# Build para subir a Ferozo (scripts/build-ferozo.sh)
+/deploy/

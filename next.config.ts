@@ -1,15 +1,27 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
-/** Dominio real de la API PHP (Ferozo). */
-const API_ORIGIN = "https://tatankids.com.ar";
-
+/**
+ * La web corre en el hosting Node de Ferozo, en el mismo dominio que la API
+ * PHP. Por eso:
+ *  - `/api/*` es SOLO de PHP: la web no tiene rutas propias bajo /api
+ *    (la purga del caché del CRM está en /revalidar).
+ *  - `output: "standalone"` arma .next/standalone con todo lo necesario
+ *    para correr `node server.js` sin instalar dependencias en el servidor
+ *    (ver docs/deploy-ferozo.md y scripts/build-ferozo.sh).
+ */
 const nextConfig: NextConfig = {
+  output: "standalone",
+  // La raíz es esta carpeta (scripts/build-ferozo.sh compila en una copia
+  // dentro de deploy/ y Next no tiene que buscar otra raíz más arriba)
+  outputFileTracingRoot: path.resolve("."),
+  turbopack: { root: path.resolve(".") },
   /**
-   * Optimización de imágenes de Next (Vercel): las fotos de Ferozo se bajan
-   * una sola vez, se achican al tamaño real en pantalla (según `sizes`), se
-   * convierten a AVIF/WebP y quedan cacheadas en la CDN de Vercel. Así el
-   * cliente no espera al servidor lento de Ferozo ni baja fotos de 1600 px
-   * para una tarjeta de 300 px.
+   * Optimización de imágenes de Next: las fotos subidas se achican al tamaño
+   * real en pantalla (según `sizes`), se convierten a AVIF/WebP y quedan
+   * guardadas en .next/cache/images. Así el cliente no baja fotos de 1600 px
+   * para una tarjeta de 300 px. Usa `sharp` (en el build para Ferozo va la
+   * versión para Linux).
    */
   images: {
     formats: ["image/avif", "image/webp"],
@@ -20,21 +32,6 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "tatankids.com.ar", pathname: "/api/uploads/**" },
       { protocol: "https", hostname: "www.tatankids.com.ar", pathname: "/api/uploads/**" },
     ],
-  },
-  /**
-   * Proxy same-origin hacia la API PHP.
-   * El navegador llama a `/api/php/*` en el propio dominio (Vercel o Ferozo)
-   * y Next reenvía la petición server-side, así que:
-   *  - no hay CORS (el navegador nunca ve el dominio de Ferozo),
-   *  - la cookie de sesión del CRM (TATANCRMSESSID) es first-party.
-   */
-  async rewrites() {
-    return [
-      {
-        source: "/api/php/:path*",
-        destination: `${API_ORIGIN}/api/:path*`,
-      },
-    ];
   },
 };
 
