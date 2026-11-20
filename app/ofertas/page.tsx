@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { fetchAllProductsSSR } from "@/lib/card-props";
 import { buyOptionsFromApi, type BuyOptions } from "@/lib/buy-options";
 import { fetchHomeContentSSR } from "@/lib/home-content";
 import { fetchCategoriesSSR, type Category } from "@/lib/categories";
@@ -15,11 +17,25 @@ import {
 } from "lucide-react";
 import { productHref } from "@/lib/product-url";
 
-export const metadata = {
-  title: "Ofertas",
-  description:
-    "Ofertas en ropa para bebés y niños: bodys, ajuares, batitas y accesorios. Envíos a todo el país y hasta 12 cuotas.",
-};
+/** Sin ofertas cargadas, o con filtros, la página no se indexa */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}): Promise<Metadata> {
+  const [sp, products] = await Promise.all([searchParams, fetchAllProductsSSR()]);
+  const hasOffers = products.some(
+    (p) => p.active !== false && p.originalPrice && p.originalPrice > p.price,
+  );
+  const filtered = Object.values(sp).some((v) => typeof v === "string" && v !== "");
+  return {
+    title: "Ofertas en ropa para bebés",
+    description:
+      "Ofertas en ropa para bebés de Algodón Pima: bodys, ajuares, batitas y accesorios con descuento. Envíos a todo el país y cuotas con Mercado Pago.",
+    alternates: { canonical: "/ofertas" },
+    robots: hasOffers && !filtered ? undefined : { index: false, follow: true },
+  };
+}
 
 import type { Product as ApiProduct } from "@/lib/tatan-api";
 

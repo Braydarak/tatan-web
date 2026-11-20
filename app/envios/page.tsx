@@ -27,6 +27,7 @@ export const metadata: Metadata = {
   title: "Envíos y pagos",
   description:
     "Cómo funcionan los envíos y los pagos en Tatan: envíos a todo el país a domicilio o a sucursal, y pagos con Mercado Pago en cuotas, débito o efectivo.",
+  alternates: { canonical: "/envios" },
 };
 
 const PHP_API_BASE = "https://tatankids.com.ar/api";

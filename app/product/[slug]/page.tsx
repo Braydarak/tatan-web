@@ -28,6 +28,8 @@ import {
   CreditCard,
   Package,
 } from "lucide-react";
+import { absoluteUrl, categoryPath } from "@/lib/seo";
+import JsonLd from "@/components/seo/JsonLd";
 
 type ProductPageProps = {
   /** Nombre del producto en la URL (o el ID, en links viejos) */
@@ -156,23 +158,63 @@ async function findProduct(rawSlug: string): Promise<ApiProduct | null> {
   return fetchProductByIdSSR(match?.id ?? slug);
 }
 
-/** Título de la pestaña: el nombre del producto (+ " · Tatan" del layout) */
+/** Texto plano de la descripción del CRM (sin HTML) */
+function plainText(html: string | null | undefined): string {
+  return sanitizeHtml(html)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** "Body manga larga" → "Body manga larga para bebé" (si es de bebé y no lo dice) */
+function seoName(p: Pick<ApiProduct, "name" | "sizeGroup">): string {
+  if (p.sizeGroup === "bebe" && !/beb[eé]|reci[eé]n nacido/i.test(p.name)) return `${p.name} para bebé`;
+  return p.name;
+}
+
+/** Fotos del producto sin repetir (principal, galería y modelos), en URL absoluta */
+function productImages(p: ApiProduct): string[] {
+  return Array.from(
+    new Set([
+      p.imageSrc,
+      ...(Array.isArray(p.gallery) ? p.gallery : []),
+      ...(Array.isArray(p.colorVariants) ? p.colorVariants.map((c) => c.imageSrc ?? "") : []),
+    ]),
+  )
+    .filter(Boolean)
+    .map(absoluteUrl);
+}
+
+const ARS = (n: number) => `$${Math.round(n).toLocaleString("es-AR")}`;
+
+/** Título, descripción y URL canónica del producto (+ " · Tatan" del layout) */
 export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
   const p = await findProduct(slug);
-  if (!p) return { title: "Producto no encontrado" };
-  const text = (p.tagline ?? "").trim() ||
-    sanitizeHtml(p.description).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  const description = text ? text.slice(0, 160) : undefined;
+  if (!p) return { title: "Producto no encontrado", robots: { index: false } };
+  const title = seoName(p);
+  const text = (p.tagline ?? "").trim() || plainText(p.description);
+  const price = Number(p.price) || 0;
+  // Lo que se lee en Google: qué es, el precio y el envío (≈155 caracteres)
+  const tail = `${price ? ` ${ARS(price)}.` : ""} Envíos a todo el país y cuotas con Mercado Pago.`;
+  const room = Math.max(40, 158 - title.length - tail.length);
+  const intro = text ? (text.length > room ? `${text.slice(0, room).replace(/\s+\S*$/, "")}…` : text) : "";
+  const description = `${title}${intro ? `: ${intro}` : "."}${tail}`;
+  const path = productHref(p);
+  const images = productImages(p).slice(0, 4);
   return {
-    title: p.name,
+    title,
     description,
+    alternates: { canonical: path },
     openGraph: {
-      title: p.name,
+      type: "website",
+      title,
       description,
-      images: p.imageSrc ? [{ url: p.imageSrc }] : undefined,
+      url: path,
+      images: images.map((url) => ({ url, alt: p.name })),
     },
   };
 }
@@ -222,9 +264,45 @@ export default async function ProductPage({ params }: ProductPageProps) {
     : 0;
   const showDescription = hasText(product.description);
 
+  // Datos para Google: el producto con su precio, stock y fotos (sin
+  // calificaciones: solo se publicarían si fueran reseñas reales)
+  const stock = Object.values(fromApi.stockBySize ?? {}).reduce((a, n) => a + (Number(n) || 0), 0);
+  const url = absoluteUrl(productHref(listed));
+  const productLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: plainText(fromApi.description) || product.tagline || undefined,
+    image: productImages(fromApi),
+    sku: product.sku ?? product.id,
+    category: product.category,
+    brand: { "@type": "Brand", name: "Tatan" },
+    url,
+    offers: {
+      "@type": "Offer",
+      url,
+      priceCurrency: "ARS",
+      price: product.price.toFixed(2),
+      availability: stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      itemCondition: "https://schema.org/NewCondition",
+      seller: { "@type": "Organization", name: "Tatan" },
+    },
+  };
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { name: "Inicio", item: absoluteUrl("/") },
+      { name: "Productos", item: absoluteUrl("/productos") },
+      { name: product.category, item: absoluteUrl(categoryPath(product.categoryKey)) },
+      { name: product.name, item: url },
+    ].map((b, i) => ({ "@type": "ListItem", position: i + 1, ...b })),
+  };
+
   return (
     <div className="min-h-dvh flex flex-col relative z-10">
       <main className="flex-1 w-full">
+        <JsonLd data={[productLd, breadcrumbLd]} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
           <nav
             aria-label="Ruta"
@@ -239,7 +317,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </Link>
             <ChevronRight className="h-3 w-3" strokeWidth={2.4} />
             <Link
-              href={`/productos?c=${product.categoryKey}`}
+              href={categoryPath(product.categoryKey)}
               className="hover:text-zinc-800"
             >
               {product.category}
@@ -283,7 +361,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 <div>
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <Link
-                      href={`/productos?c=${product.categoryKey}`}
+                      href={categoryPath(product.categoryKey)}
                       className="rounded-full bg-tatan-primario2/70 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-700 hover:bg-tatan-primario2"
                     >
                       {product.category}
@@ -445,7 +523,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                   </h2>
                 </div>
                 <Link
-                  href={`/productos?c=${product.categoryKey}`}
+                  href={categoryPath(product.categoryKey)}
                   className="shrink-0 text-sm font-bold text-zinc-600 underline decoration-tatan-primario4 underline-offset-4 hover:text-zinc-900"
                 >
                   Ver más

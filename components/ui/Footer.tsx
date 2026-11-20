@@ -5,6 +5,7 @@ import {
   Mail,
   MapPin,
 } from "lucide-react";
+import { categoryPath } from "@/lib/seo";
 
 export default function Footer({
   hasOffers = true,
@@ -49,7 +50,7 @@ export default function Footer({
               {(categories ?? []).map((c) => (
                 <li key={c.key}>
                   <Link
-                    href={`/productos?c=${encodeURIComponent(c.key)}`}
+                    href={categoryPath(c.key)}
                     className="hover:text-zinc-700 transition-colors"
                   >
                     {c.label}
