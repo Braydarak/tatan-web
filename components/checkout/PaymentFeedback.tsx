@@ -11,7 +11,8 @@
 import { useEffect, useRef } from "react";
 import Bear, { type BearPhase } from "@/components/checkout/Bear";
 
-export type FeedbackPhase = BearPhase;
+/** Estados del pago (el osito además tiene "lost", para la página no encontrada) */
+export type FeedbackPhase = Exclude<BearPhase, "lost">;
 
 const COPY: Record<FeedbackPhase, { title: string; text: string }> = {
   processing: { title: "Procesando tu pago", text: "El osito está pasando tu tarjeta. No cierres esta página." },
