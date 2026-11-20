@@ -15,6 +15,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
+import BrandLogos, { brandsIn } from "@/components/ui/BrandLogos";
 import type {
   EnviosData,
   ZoneIconKey,
@@ -127,6 +128,16 @@ export default async function EnviosPage() {
                       {hero.ctaSecondaryText}
                     </Link>
                   </div>
+                  <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs font-semibold text-zinc-500">
+                    <span className="inline-flex items-center gap-2">
+                      Envíos con
+                      <BrandLogos brands={["enviopack"]} />
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      Pagos con
+                      <BrandLogos brands={["mercadopago"]} />
+                    </span>
+                  </div>
                 </div>
                 {hero.summaryCardShow && (
                   <div className="lg:col-span-2">
@@ -173,6 +184,14 @@ export default async function EnviosPage() {
                           <p className="text-[11px] text-zinc-500 leading-tight">
                             {hero.summaryFreeLabel}
                           </p>
+                          <BrandLogos
+                            className="mt-1"
+                            brands={brandsIn(
+                              hero.summaryFreeBadgeText,
+                              hero.summaryFreeAmount,
+                              hero.summaryFreeLabel,
+                            )}
+                          />
                         </div>
                         <div className="rounded-3xl bg-white/80 p-4 flex flex-col gap-1.5">
                           <div
@@ -190,6 +209,14 @@ export default async function EnviosPage() {
                           <p className="text-[11px] text-zinc-500 leading-tight">
                             {hero.summaryChangesLabel}
                           </p>
+                          <BrandLogos
+                            className="mt-1"
+                            brands={brandsIn(
+                              hero.summaryChangesDays,
+                              hero.summaryChangesTitle,
+                              hero.summaryChangesLabel,
+                            )}
+                          />
                         </div>
                       </div>
                     </div>
@@ -225,11 +252,17 @@ export default async function EnviosPage() {
                   {sections.zones.title}
                 </h2>
               </div>
-              {sections.zones.showDescription && (
-                <p className="max-w-md text-sm text-zinc-600 leading-relaxed">
-                  {sections.zones.description}
+              <div className="max-w-md">
+                {sections.zones.showDescription && (
+                  <p className="text-sm text-zinc-600 leading-relaxed">
+                    {sections.zones.description}
+                  </p>
+                )}
+                <p className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-zinc-500">
+                  Envíos gestionados con
+                  <BrandLogos brands={["enviopack"]} />
                 </p>
-              )}
+              </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {zones.map((z, i) => {
@@ -310,6 +343,10 @@ export default async function EnviosPage() {
                     {sections.costos.description}
                   </p>
                 )}
+                <BrandLogos
+                  className="mt-4 justify-center"
+                  brands={brandsIn(sections.costos.title, sections.costos.description)}
+                />
               </div>
               <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
                 {costos.map((c, i) => (
@@ -362,6 +399,10 @@ export default async function EnviosPage() {
                       >
                         {c.amount}
                       </p>
+                      <BrandLogos
+                        className="mt-3"
+                        brands={brandsIn(c.subtitle, c.title, c.amount, ...c.details)}
+                      />
                     </div>
                     <ul className="mt-4 space-y-2.5">
                       {c.details.map((d) => (
@@ -506,6 +547,10 @@ export default async function EnviosPage() {
                         <p className="mt-2 text-sm text-zinc-600 leading-relaxed">
                           {s.description}
                         </p>
+                        <BrandLogos
+                          className="mt-3"
+                          brands={brandsIn(s.title, s.description)}
+                        />
                         <ul className="mt-4 space-y-2">
                           {s.bullets.map((t) => (
                             <li
@@ -625,6 +670,7 @@ export default async function EnviosPage() {
                     <p className="text-sm sm:text-base text-zinc-600 leading-relaxed max-w-3xl">
                       {f.a}
                     </p>
+                    <BrandLogos className="mt-3" brands={brandsIn(f.a)} />
                   </div>
                 </details>
               ))}
