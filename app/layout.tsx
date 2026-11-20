@@ -8,7 +8,7 @@ import ScrollToTop from "@/components/ui/ScrollToTop";
 import AnimatedFavicon from "@/components/AnimatedFavicon";
 import StoreChrome from "@/components/ui/StoreChrome";
 import { fetchHomeContentSSR } from "@/lib/home-content";
-import { fetchAllProductsSSR, offersInfo } from "@/lib/card-props";
+import { fetchAllProductsSSR } from "@/lib/card-props";
 import { fetchCategoriesSSR } from "@/lib/categories";
 
 // Fuentes incluidas en el repo (variables, set "latin": cubre todo el
@@ -54,18 +54,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // Mensajes de la franja del header (se editan en CRM → Inicio y tienda)
-  const [{ header, store }, products, categories] = await Promise.all([
+  // Datos del momento del build; el header y el pie los actualizan en vivo
+  const [home, products, categories] = await Promise.all([
     fetchHomeContentSSR(),
     fetchAllProductsSSR(),
     fetchCategoriesSSR(),
   ]);
-  // Pie de página: las categorías visibles que tienen productos (máx. 4)
-  const footerCategories = categories
-    .filter((c) => c.active && products.some((p) => p.category === c.key))
-    .slice(0, 4)
-    .map((c) => ({ key: c.key, label: c.label }));
-  // Sin ofertas cargadas no se muestra el link a /ofertas
-  const offers = offersInfo(products);
+  const { header } = home;
   const hasBanner =
     !!header?.show && header.messages.some((m) => m.text.trim().length > 0);
   return (
@@ -118,10 +113,9 @@ export default async function RootLayout({
         </Suspense>
         <AnimatedFavicon />
         <StoreChrome
-          header={header}
-          store={store}
-          offers={offers}
-          footerCategories={footerCategories}
+          initialHome={home}
+          initialProducts={products}
+          initialCategories={categories}
         >
           {children}
         </StoreChrome>

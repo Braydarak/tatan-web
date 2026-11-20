@@ -44,6 +44,12 @@ define('MP_SYNC_KEY', '');
 // queda vacío no se verifica la firma (igual se consulta el pago a la API).
 define('MP_WEBHOOK_SECRET', '');
 
+// ---------------------------------------------------------------- Avisos de venta
+// Cuando se paga un pedido llega un mail con todo el detalle (orders-lib.php).
+// Opcionales: si quedan vacíos se usa contacto@tatankids.com.ar.
+define('ORDER_NOTIFY_EMAIL', '');  // a dónde llegan los avisos
+define('MAIL_FROM', '');           // remitente (una casilla del dominio)
+
 // Dirección pública de la tienda (a donde vuelve el comprador después de
 // pagar). Sin barra al final. En desarrollo: http://localhost:3000
 define('SITE_URL', 'https://tatankids.com.ar');

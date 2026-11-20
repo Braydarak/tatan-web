@@ -2,6 +2,9 @@ import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+// Web estática (output: "export"): se genera una vez, al compilar
+export const dynamic = "force-static";
+
 /**
  * Imagen que se ve al compartir la tienda (WhatsApp, Instagram, Facebook…).
  * Las páginas de producto usan la foto del producto.

@@ -8,11 +8,6 @@ export const metadata = {
 };
 
 export default async function CartPage() {
-  const [catalog, content] = await Promise.all([
-    fetchAllProductsSSR(),
-    fetchHomeContentSSR(),
-  ]);
-  return (
-    <Cart catalog={catalog} quickAdd={content.store?.quickAdd !== false} />
-  );
+  const [catalog, home] = await Promise.all([fetchAllProductsSSR(), fetchHomeContentSSR()]);
+  return <Cart catalog={catalog} initialHome={home} />;
 }

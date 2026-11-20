@@ -1,0 +1,86 @@
+# ============================================================
+#  Tatan · public_html/.htaccess  (web estática + API PHP)
+# ============================================================
+#  La web es la carpeta `out/` de `pnpm build` (archivos estáticos). La API
+#  PHP vive en /api y no se toca. Ver docs/deploy-ferozo.md.
+
+DirectoryIndex index.html
+ErrorDocument 404 /404.html
+Options -Indexes
+# /bebes es a la vez bebes.html y la carpeta bebes/ (datos de navegación):
+# sin esto Apache redirige a /bebes/ y da error
+DirectorySlash Off
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Forzar HTTPS (también detrás de Cloudflare)
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  # La API PHP: tal cual
+  RewriteRule ^api(/|$) - [END]
+
+  # Archivos que existen (JS, CSS, imágenes, páginas .html): tal cual
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [END]
+
+  # Links viejos del catálogo → URL limpia (para Google)
+  #   /productos?c=body  → /productos/body
+  #   /productos?t=bebe  → /bebes      /productos?t=ninios → /ninos
+  RewriteCond %{QUERY_STRING} ^c=([A-Za-z0-9_-]+)$
+  RewriteCond %{DOCUMENT_ROOT}/productos/%1.html -f
+  RewriteRule ^productos/?$ /productos/%1? [R=301,L]
+  RewriteCond %{QUERY_STRING} ^t=bebe$
+  RewriteRule ^productos/?$ /bebes? [R=301,L]
+  RewriteCond %{QUERY_STRING} ^t=ninios$
+  RewriteRule ^productos/?$ /ninos? [R=301,L]
+
+  # Sin barra final: /productos/ → /productos
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^(.+)/$ /$1 [R=301,L]
+
+  # URLs sin ".html": /productos/body → productos/body.html
+  # (END: no se vuelven a aplicar las reglas a la URL ya reescrita)
+  RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+  RewriteRule ^(.+)$ $1.html [END]
+
+  # Producto cargado después del último build (todavía sin página propia):
+  # se ve en /producto?s=… hasta el próximo build
+  RewriteCond %{DOCUMENT_ROOT}/product/$1.html !-f
+  RewriteRule ^product/([^/]+)$ /producto?s=$1 [R=302,L]
+
+  # Categoría creada después del último build → el catálogo filtrado
+  RewriteCond %{DOCUMENT_ROOT}/productos/$1.html !-f
+  RewriteRule ^productos/([^/]+)$ /productos?c=$1 [R=302,L]
+</IfModule>
+
+# Imagen para compartir en redes (archivo sin extensión)
+<Files "opengraph-image">
+  ForceType image/png
+</Files>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+  # HTML y datos de navegación: siempre se consulta si hay versión nueva,
+  # así al subir un build todos ven la web actualizada en la próxima visita
+  <FilesMatch "\.(html?|txt)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+    Header unset Expires
+  </FilesMatch>
+  # JS, CSS y fuentes de /_next/static llevan un hash en el nombre que cambia
+  # en cada build: se guardan un año
+  <If "%{REQUEST_URI} =~ m#^/_next/static/#">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
+  # Logos, íconos, sitemap…: una semana
+  <FilesMatch "\.(png|jpe?g|webp|avif|svg|ico|xml)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+</IfModule>

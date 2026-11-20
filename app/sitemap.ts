@@ -4,6 +4,9 @@ import { fetchCategoriesSSR } from "@/lib/categories";
 import { productHref } from "@/lib/product-url";
 import { SIZE_PATH, absoluteUrl, categoryPath } from "@/lib/seo";
 
+// Web estática (output: "export"): se genera una vez, al compilar
+export const dynamic = "force-static";
+
 /**
  * sitemap.xml: todas las páginas que queremos en Google, con la fecha de
  * la última modificación de cada producto y sus fotos. Las categorías y

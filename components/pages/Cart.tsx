@@ -22,14 +22,19 @@ import {
   useCart,
 } from "@/lib/cart";
 import { productHref } from "@/lib/product-url";
+import { useLive } from "@/lib/live-data";
+import type { HomeHeroData } from "@/components/sections/HomeHeroEditor";
 
 export default function Cart({
-  catalog = [],
-  quickAdd = true,
+  catalog: initialCatalog = [],
+  initialHome,
 }: {
   catalog?: ApiProduct[];
-  quickAdd?: boolean;
+  initialHome: HomeHeroData;
 }) {
+  // Catálogo y opciones de la tienda en vivo desde la API (lib/live-data.ts)
+  const catalog = useLive("products", initialCatalog);
+  const quickAdd = useLive("home", initialHome).store?.quickAdd !== false;
   const { items, count } = useCart();
   const quote = selectedQuote(useShipping());
   const { wholesaleMode } = useStoreSettings();

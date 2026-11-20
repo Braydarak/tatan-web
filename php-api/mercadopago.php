@@ -14,6 +14,7 @@ require_once __DIR__ . '/config.php';
 if (is_file(__DIR__ . '/secrets.php')) {
     require_once __DIR__ . '/secrets.php';
 }
+require_once __DIR__ . '/orders-lib.php';
 
 const MP_API = 'https://api.mercadopago.com';
 
@@ -201,6 +202,7 @@ function apply_order(array $o): ?array
     $method = (string)($pay['payment_method']['id'] ?? '');
 
     $pdo = pdo();
+    $justPaid = false; // pasó a "pagado" ahora (para avisar por mail una sola vez)
     $pdo->beginTransaction();
     try {
         $st = $pdo->prepare('SELECT id, status, total FROM orders WHERE order_number = ? FOR UPDATE');
@@ -228,6 +230,7 @@ function apply_order(array $o): ?array
                 if ($short) $note .= ' · ⚠️ sin stock suficiente: ' . implode('; ', $short);
                 order_event($orderId, 'paid', $note);
                 $current = 'paid';
+                $justPaid = true;
             }
         } elseif ($outcome === 'pending') {
             if (in_array($current, ['pending', 'draft', 'cancelled'], true)) {
@@ -252,6 +255,9 @@ function apply_order(array $o): ?array
             }
         }
         $pdo->commit();
+        // Mails a la tienda y al comprador (después de guardar: si falla un
+        // mail, el pago ya quedó registrado)
+        if ($justPaid) order_notify_paid($orderId);
         return ['orderNumber' => $ref, 'status' => $current];
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();

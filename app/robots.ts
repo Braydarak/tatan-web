@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo";
 
+// Web estática (output: "export"): se genera una vez, al compilar
+export const dynamic = "force-static";
+
 /**
  * robots.txt: Google puede recorrer toda la tienda menos lo privado
  * (CRM, login, carrito, checkout) y las búsquedas internas.
