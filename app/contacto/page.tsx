@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   title: "Contacto",
   description:
     "Escribinos por mail o por el formulario de contacto. Atención al cliente de Tatan Kids, ropa para bebés y niños.",
+  alternates: { canonical: "/contacto" },
 };
 
 const INFO_CARDS = [

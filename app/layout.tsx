@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
+import JsonLd from "@/components/seo/JsonLd";
+import { SITE_ALT_NAME, SITE_LOCALE, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
 import ScrollToTop from "@/components/ui/ScrollToTop";
 import AnimatedFavicon from "@/components/AnimatedFavicon";
 import StoreChrome from "@/components/ui/StoreChrome";
@@ -26,14 +28,24 @@ const fredoka = localFont({
 });
 
 export const metadata: Metadata = {
-  // Cada página define su título corto ("Productos", "Body manga larga"…)
-  // y se le agrega " · Tatan". La home usa el default.
+  // Base de las URLs absolutas (canonical, Open Graph): /productos → https://tatankids.com.ar/productos
+  metadataBase: new URL(SITE_URL),
+  // Cada página define su título corto ("Bodys para bebé…") y se le agrega
+  // " · Tatan". La home usa el default.
   title: {
-    default: "Tatan · Ropa para bebés y niños",
+    default: "Tatan · Ropa para bebés de Algodón Pima",
     template: "%s · Tatan",
   },
   description:
-    "Ropa cómoda y bonita para los más pequeños. Bodys, remeras y más.",
+    "Ropa para bebés en Algodón Pima: bodys, ajuares para recién nacido, batitas, ranitas y accesorios. Envíos a todo el país y cuotas con Mercado Pago.",
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: SITE_LOCALE,
+  },
+  twitter: { card: "summary_large_image" },
+  formatDetection: { telephone: false },
 };
 
 export default async function RootLayout({
@@ -58,12 +70,47 @@ export default async function RootLayout({
     !!header?.show && header.messages.some((m) => m.text.trim().length > 0);
   return (
     <html
-      lang="es"
+      lang="es-AR"
       className={`${nunito.variable} ${fredoka.variable} h-full antialiased`}
       // Alto del header fijo (con o sin la franja de mensajes)
       style={{ "--header-h": hasBanner ? "101px" : "69px" } as React.CSSProperties}
     >
       <body className="min-h-full flex flex-col relative">
+        {/* Quién es la tienda y su buscador (para Google) */}
+        <JsonLd
+          data={[
+            {
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "@id": `${SITE_URL}/#organizacion`,
+              name: SITE_NAME,
+              alternateName: SITE_ALT_NAME,
+              url: SITE_URL,
+              logo: absoluteUrl("/tatanLogo.png"),
+              description:
+                "Marca argentina de ropa para bebés en Algodón Pima.",
+              areaServed: { "@type": "Country", name: "Argentina" },
+            },
+            {
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "@id": `${SITE_URL}/#sitio`,
+              name: SITE_NAME,
+              alternateName: SITE_ALT_NAME,
+              url: SITE_URL,
+              inLanguage: "es-AR",
+              publisher: { "@id": `${SITE_URL}/#organizacion` },
+              potentialAction: {
+                "@type": "SearchAction",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate: `${SITE_URL}/productos?q={search_term_string}`,
+                },
+                "query-input": "required name=search_term_string",
+              },
+            },
+          ]}
+        />
         <Suspense fallback={null}>
           <ScrollToTop />
         </Suspense>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import SmartImage from "@/components/ui/SmartImage";
 import Link from "next/link";
 import {
@@ -41,6 +42,12 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { productHref } from "@/lib/product-url";
+import { categoryPath } from "@/lib/seo";
+
+export const metadata: Metadata = {
+  // Título y descripción: los del layout. La home es la URL principal.
+  alternates: { canonical: "/" },
+};
 
 const PHP_API_BASE = "https://tatankids.com.ar/api";
 
@@ -232,14 +239,14 @@ const AGE_SHORTCUTS = [
   {
     label: "Para bebés",
     hint: "Talles 0 a 4 (hasta 12 meses)",
-    href: "/productos?t=bebe",
+    href: "/bebes",
     Icon: Baby,
     color: "#E58BA0",
   },
   {
     label: "Para niños",
     hint: "Talles 2 a 10 años",
-    href: "/productos?t=ninios",
+    href: "/ninos",
     Icon: Shirt,
     color: "#7BA5C9",
   },
@@ -599,7 +606,7 @@ export default async function Home() {
               return (
                 <Link
                   key={name}
-                  href={`/productos?c=${key}`}
+                  href={categoryPath(key)}
                   data-reveal="pop"
                   style={{ ...delay(i * 0.08) }}
                   className="category-card group relative overflow-hidden rounded-3xl p-5 sm:p-6 border border-tatan-secundario1/50 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-[box-shadow,translate] duration-300 block"

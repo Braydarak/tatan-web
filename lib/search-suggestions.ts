@@ -6,6 +6,7 @@
 
 import { matchesProduct } from "@/lib/product-search";
 import { productHref } from "@/lib/product-url";
+import { categoryPath } from "@/lib/seo";
 
 export type SearchProduct = {
   id: string;
@@ -48,13 +49,13 @@ const SHORTCUTS: { words: string[]; label: string; hint: string; href: string }[
     words: ["bebe", "bebes", "baby", "recien nacido", "rn", "bebito", "bebita", "ajuar"],
     label: "Ver todo lo de bebés",
     hint: "Todos los productos con talle de bebé",
-    href: "/productos?t=bebe",
+    href: "/bebes",
   },
   {
     words: ["nino", "ninos", "nina", "ninas", "nene", "nenes", "nena", "nenas", "chicos", "infantil"],
     label: "Ver todo lo de niños",
     hint: "Todos los productos con talle de niños",
-    href: "/productos?t=ninios",
+    href: "/ninos",
   },
   {
     words: ["oferta", "ofertas", "descuento", "descuentos", "promo", "promocion", "rebaja", "sale"],
@@ -104,7 +105,7 @@ export function buildSuggestions(
         kind: "shortcut",
         label: `Ver todos: ${c.label}`,
         hint: "Categoría",
-        href: `/productos?c=${encodeURIComponent(c.key)}`,
+        href: categoryPath(c.key),
       });
     }
   }

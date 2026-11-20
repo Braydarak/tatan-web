@@ -240,7 +240,7 @@ export default function Categorias() {
                     className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm font-semibold text-zinc-900 outline-none transition hover:border-black/10 focus:border-tatan-primario4 focus:bg-white disabled:hover:border-transparent"
                   />
                   <p className="px-2 text-xs text-zinc-500">
-                    {count} {count === 1 ? "producto" : "productos"} · /productos?c={c.key}
+                    {count} {count === 1 ? "producto" : "productos"} · /productos/{c.key}
                     {!c.active && <span className="ml-1.5 font-semibold text-amber-700">· Oculta</span>}
                   </p>
                 </div>
