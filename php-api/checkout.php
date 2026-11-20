@@ -40,7 +40,7 @@ require_once __DIR__ . '/enviopack.php';
 //   → { version, mercadoPago: "produccion" | "prueba" | "invalido" | …,
 //       webhookFirmado: bool, siteUrl }
 // No muestra ninguna clave: solo si están y con qué tipo de cuenta.
-const CHECKOUT_VERSION = '2026-11-19-produccion';
+const CHECKOUT_VERSION = '2026-11-20-cron';
 if (method() === 'GET' && ($_GET['action'] ?? '') === 'version') {
     send_json([
         'ok'             => true,
@@ -48,6 +48,8 @@ if (method() === 'GET' && ($_GET['action'] ?? '') === 'version') {
         'mercadoPago'    => mp_mode(),
         'webhookFirmado' => defined('MP_WEBHOOK_SECRET') && MP_WEBHOOK_SECRET !== '',
         'siteUrl'        => site_url(),
+        // Última vez que corrió el cron de mp-sync.php (null = nunca)
+        'cron'           => mp_sync_last(),
     ]);
 }
 

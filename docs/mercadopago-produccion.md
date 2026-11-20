@@ -51,6 +51,9 @@ nueva tarea:
   php /home/USUARIO/public_html/api/mp-sync.php
   ```
 
+  El panel de Ferozo solo acepta comandos que empiecen con `php `, `curl `,
+  `wget `, etc. (no `/usr/local/bin/php`).
+
 Si el cron solo deja abrir una dirección web, definir una clave larga en
 `/api/secrets.php` y usar esa:
 
@@ -102,8 +105,10 @@ efecto.
    - en phpMyAdmin, tabla `orders`, el pedido figura `paid` y el stock del
      producto bajó;
    - el pago aparece en la cuenta de Mercado Pago;
-   - en el panel de Cron Jobs la tarea corre sin errores (Ferozo puede
-     mandar la salida por mail: tiene que decir `mp-sync: ok`).
+   - el cron corre: en `checkout.php?action=version` el campo `"cron"`
+     muestra la hora de la última corrida (cada 15 minutos) con `"ok": true`.
+     Si queda en `null`, el cron no está corriendo o no puede conectarse a
+     la base.
 3. Devolver ese pago desde Mercado Pago (Actividad → el pago → Devolver) y
    pasar el pedido a `refunded` en phpMyAdmin (el stock se repone a mano).
 

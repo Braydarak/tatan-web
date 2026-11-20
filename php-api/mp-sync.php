@@ -40,9 +40,22 @@ if (!$cli) {
     }
 }
 
-/** Resultado: texto en la consola (cron), JSON por la web */
+/**
+ * Resultado: texto en la consola (cron), JSON por la web. Además se guarda
+ * la hora y los totales de la última corrida (sin números de pedido) para
+ * verlos en checkout.php?action=version, ya que el panel de Ferozo descarta
+ * la salida del cron si no hay un email configurado.
+ */
 function done(array $out, bool $cli): never
 {
+    @file_put_contents(MP_SYNC_LAST_FILE, json_encode([
+        'hora'      => date('Y-m-d H:i:s'),
+        'ok'        => $out['ok'],
+        'error'     => $out['error'] ?? null,
+        'revisados' => $out['revisados'] ?? 0,
+        'cambiaron' => count($out['cambiaron'] ?? []),
+        'errores'   => $out['errores'] ?? 0,
+    ]));
     if ($cli) {
         echo date('Y-m-d H:i:s') . ' · mp-sync: ' . ($out['ok'] ? 'ok' : 'error') . ' · '
             . json_encode($out, JSON_UNESCAPED_UNICODE) . PHP_EOL;

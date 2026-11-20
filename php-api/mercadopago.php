@@ -17,6 +17,17 @@ if (is_file(__DIR__ . '/secrets.php')) {
 
 const MP_API = 'https://api.mercadopago.com';
 
+/** Última corrida de mp-sync.php (hora y totales, sin datos de pedidos) */
+const MP_SYNC_LAST_FILE = __DIR__ . '/mp-sync-last.json';
+
+/** Lo que dejó guardado la última corrida de mp-sync.php, o null si nunca corrió */
+function mp_sync_last(): ?array
+{
+    if (!is_file(MP_SYNC_LAST_FILE)) return null;
+    $data = json_decode((string)@file_get_contents(MP_SYNC_LAST_FILE), true);
+    return is_array($data) ? $data : null;
+}
+
 function mp_configured(): bool
 {
     return defined('MP_ACCESS_TOKEN') && MP_ACCESS_TOKEN !== '';
