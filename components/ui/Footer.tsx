@@ -144,13 +144,23 @@ export default function Footer({
           <p className="text-xs text-zinc-400">
             © {new Date().getFullYear()} Tatan. Todos los derechos reservados.
           </p>
-          <p className="text-xs text-zinc-400 inline-flex items-center gap-1">
+          <p className="text-xs text-zinc-400 inline-flex flex-wrap items-center justify-center gap-1">
             Hecho con
             <Heart
               className="w-3.5 h-3.5 fill-amber-400 text-amber-400"
               strokeWidth={0}
             />
             en Argentina
+            <span className="mx-1 text-zinc-300">·</span>
+            Web hecha por
+            <a
+              href="https://brian-darakdjian.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline transition-colors"
+            >
+              Brian Darakdjian
+            </a>
           </p>
         </div>
       </div>
