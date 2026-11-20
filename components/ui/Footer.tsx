@@ -5,7 +5,8 @@ import {
   Mail,
   MapPin,
 } from "lucide-react";
-import { categoryPath } from "@/lib/seo";
+import { categoryPath, INSTAGRAM_HANDLE, INSTAGRAM_URL } from "@/lib/seo";
+import InstagramIcon from "@/assets/svg/instagram";
 
 export default function Footer({
   hasOffers = true,
@@ -119,6 +120,17 @@ export default function Footer({
                 >
                   contacto@tatankids.com.ar
                 </Link>
+              </li>
+              <li className="flex items-center gap-2">
+                <InstagramIcon className="w-4 h-4" />
+                <a
+                  href={INSTAGRAM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-zinc-700 transition-colors"
+                >
+                  @{INSTAGRAM_HANDLE}
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <MapPin className="w-4 h-4" strokeWidth={2} />
