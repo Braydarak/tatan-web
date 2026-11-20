@@ -7,6 +7,7 @@ import * as React from "react";
 import MessageBanner from "@/components/ui/MessageBanner";
 import SearchBox from "@/components/ui/SearchBox";
 import MercadoPagoSvg from "@/assets/svg/mercadoPago";
+import EnviopackSvg from "@/assets/svg/enviopack";
 import type { HeaderContent } from "@/components/sections/HomeHeroEditor";
 import type { OffersInfo } from "@/lib/card-props";
 import { useStoreSettings } from "@/components/StoreSettingsContext";
@@ -295,17 +296,26 @@ export default function Header({
               from="alternate"
               intervalMs={Math.round((announcements?.intervalSec ?? 3.5) * 1000)}
               messages={bannerMessages.map((m, i) =>
-                m.mpLogo ? (
+                m.mpLogo || m.epLogo ? (
                   <span
-                    key={`mp-${i}`}
+                    key={`logo-${i}`}
                     className="inline-flex items-center justify-center gap-2"
                   >
                     {m.text}
-                    <MercadoPagoSvg
-                      className="h-20 w-20"
-                      color="black"
-                      title={undefined}
-                    />
+                    {m.epLogo ? (
+                      <EnviopackSvg
+                        className="h-3.5 w-auto shrink-0"
+                        color="black"
+                        title="Enviopack"
+                      />
+                    ) : null}
+                    {m.mpLogo ? (
+                      <MercadoPagoSvg
+                        className="h-20 w-20"
+                        color="black"
+                        title={undefined}
+                      />
+                    ) : null}
                   </span>
                 ) : (
                   m.text
