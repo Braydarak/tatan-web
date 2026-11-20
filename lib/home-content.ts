@@ -78,6 +78,11 @@ function mergeHeader(saved: unknown): typeof HEADER_DEFAULT {
     ? saved.messages.filter(isObj).map((m) => ({
         text: typeof m.text === "string" ? m.text : "",
         mpLogo: m.mpLogo === true,
+        // Sin guardar todavía: el mensaje de envíos lo trae marcado
+        epLogo:
+          typeof m.epLogo === "boolean"
+            ? m.epLogo
+            : typeof m.text === "string" && /env[ií]os? a todo el pa[ií]s/i.test(m.text),
       }))
     : HEADER_DEFAULT.messages;
   const sec = Number(saved.intervalSec);

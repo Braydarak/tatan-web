@@ -71,9 +71,9 @@ export const HEADER_DEFAULT: HeaderContent = {
   show: true,
   intervalSec: 3.5,
   messages: [
-    { text: "Envíos a todo el país", mpLogo: false },
-    { text: "Pagos suministrados por Mercado Pago", mpLogo: true },
-    { text: "Retiro en punto de entrega (CABA/GBA)", mpLogo: false },
+    { text: "Envíos a todo el país", mpLogo: false, epLogo: true },
+    { text: "Pagos suministrados por Mercado Pago", mpLogo: true, epLogo: false },
+    { text: "Retiro en punto de entrega (CABA/GBA)", mpLogo: false, epLogo: false },
   ],
 };
 

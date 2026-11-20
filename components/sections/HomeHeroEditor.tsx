@@ -125,6 +125,8 @@ export type HeaderMessage = {
   text: string;
   /** Muestra el logo de Mercado Pago al lado del texto */
   mpLogo: boolean;
+  /** Muestra el logo de Enviopack al lado del texto */
+  epLogo: boolean;
 };
 
 /** Franja de mensajes arriba del header (en todas las páginas). */
@@ -648,6 +650,15 @@ export default function HomeHeroEditor() {
                           />
                           Mostrar el logo de Mercado Pago al lado
                         </label>
+                        <label className="mt-1.5 ml-7 flex w-fit items-center gap-2 text-xs font-medium text-zinc-600">
+                          <input
+                            type="checkbox"
+                            checked={m.epLogo}
+                            onChange={(e) => setMessage(i, { epLogo: e.target.checked })}
+                            className="h-4 w-4 accent-[#8DBFA3]"
+                          />
+                          Mostrar el logo de Enviopack al lado
+                        </label>
                       </div>
                     ))}
                     {header.messages.length === 0 ? (
@@ -659,7 +670,7 @@ export default function HomeHeroEditor() {
                       type="button"
                       onClick={() =>
                         setHeader({
-                          messages: [...header.messages, { text: "", mpLogo: false }],
+                          messages: [...header.messages, { text: "", mpLogo: false, epLogo: false }],
                         })
                       }
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-black/15 py-2.5 text-sm font-semibold text-zinc-600 hover:border-tatan-primario4 hover:bg-tatan-primario1/20"
