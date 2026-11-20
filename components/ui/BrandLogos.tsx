@@ -4,7 +4,7 @@ import EnviopackSvg from "@/assets/svg/enviopack";
 
 /**
  * Logos de las marcas con las que trabaja la tienda (Mercado Pago, Enviopack,
- * Pago Fácil, Rapipago), cada uno en una "fichita" blanca del mismo alto.
+ * Pago Fácil, Rapipago), sueltos (sin recuadro) y todos del mismo alto.
  *
  * `brandsIn(...)` mira qué marcas se nombran en un texto: así los logos
  * aparecen solos al lado de lo que se escribe en el CRM (si un texto deja de
@@ -20,7 +20,7 @@ const PATTERNS: Array<[Brand, RegExp]> = [
   ["pagofacil", /pago\s*f[aá]cil/i],
 ];
 
-/** Logo de Rapipago: letras blancas, va sobre una fichita oscura */
+/** Logo de Rapipago (letras en azul oscuro para leerse sobre fondo claro) */
 const RAPIPAGO_SRC = "/logos/rapipago.png";
 
 /** Marcas nombradas en los textos, sin repetir y en un orden fijo */
@@ -29,21 +29,11 @@ export function brandsIn(...texts: Array<string | null | undefined>): Brand[] {
   return PATTERNS.filter(([, re]) => re.test(all)).map(([b]) => b);
 }
 
-function Chip({
-  children,
-  label,
-  dark = false,
-}: {
-  children: React.ReactNode;
-  label: string;
-  /** Fondo oscuro, para logos blancos */
-  dark?: boolean;
-}) {
+/** Caja invisible del mismo alto para todos los logos (sin fondo ni borde) */
+function Chip({ children, label }: { children: React.ReactNode; label: string }) {
   return (
     <span
-      className={`inline-flex h-8 shrink-0 items-center justify-center overflow-hidden rounded-xl border px-2.5 shadow-sm ${
-        dark ? "border-transparent bg-[#1F2A5C]" : "border-black/5 bg-white"
-      }`}
+      className="inline-flex h-8 shrink-0 items-center justify-center overflow-hidden"
       title={label}
     >
       {children}
@@ -56,7 +46,7 @@ function Logo({ brand }: { brand: Brand }) {
     case "mercadopago":
       return (
         <Chip label="Mercado Pago">
-          {/* El dibujo trae mucho margen: se agranda y se recorta con la fichita */}
+          {/* El dibujo trae mucho margen: se agranda y se recorta con la caja */}
           <MercadoPagoSvg className="-my-6 h-20 w-20" color="brand" title="Mercado Pago" />
         </Chip>
       );
@@ -81,14 +71,14 @@ function Logo({ brand }: { brand: Brand }) {
       );
     case "rapipago":
       return (
-        <Chip label="Rapipago" dark>
+        <Chip label="Rapipago">
           <Image
             src={RAPIPAGO_SRC}
             alt="Rapipago"
-            width={63}
-            height={14}
+            width={72}
+            height={16}
             unoptimized
-            className="h-3.5 w-auto"
+            className="h-4 w-auto"
           />
         </Chip>
       );
@@ -104,7 +94,7 @@ export default function BrandLogos({
 }) {
   if (brands.length === 0) return null;
   return (
-    <span className={`inline-flex flex-wrap items-center gap-1.5 ${className ?? ""}`}>
+    <span className={`inline-flex flex-wrap items-center gap-x-3 gap-y-1 ${className ?? ""}`}>
       {brands.map((b) => (
         <Logo key={b} brand={b} />
       ))}
