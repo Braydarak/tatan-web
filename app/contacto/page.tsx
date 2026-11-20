@@ -5,11 +5,10 @@ import {
   MapPin,
   Shield,
   Send,
-  Sparkles,
-  Heart,
-  Flower2,
 } from "lucide-react";
 import Link from "next/link";
+import InstagramIcon from "@/assets/svg/instagram";
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Contacto",
@@ -25,6 +24,13 @@ const INFO_CARDS = [
     href: "mailto:contacto@tatankids.com.ar",
     Icon: Mail,
     tone: "from-tatan-acento-rosa/40 to-tatan-primario1/50 text-tatan-secundario2",
+  },
+  {
+    title: "Instagram",
+    content: `@${INSTAGRAM_HANDLE}`,
+    href: INSTAGRAM_URL,
+    Icon: InstagramIcon,
+    tone: "from-tatan-acento-amarillo/40 to-tatan-acento-rosa/40 text-tatan-secundario2",
   },
   {
     title: "Ubicación",
@@ -118,8 +124,14 @@ export default function ContactoPage() {
                     </div>
                   </div>
                 );
+                const external = /^https?:\/\//.test(href);
                 return href ? (
-                  <Link key={title} href={href} className="block">
+                  <Link
+                    key={title}
+                    href={href}
+                    className="block"
+                    {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                  >
                     {Inner}
                   </Link>
                 ) : (
@@ -141,22 +153,15 @@ export default function ContactoPage() {
                   Nuevos ingresos, ofertas y tips de moda bebé todas las
                   semanas.
                 </p>
-                <div className="flex gap-3">
-                  {[
-                    { Icon: Sparkles, label: "Instagram", href: "#" },
-                    { Icon: Heart, label: "Facebook", href: "#" },
-                    { Icon: Flower2, label: "TikTok", href: "#" },
-                  ].map(({ Icon, label, href }) => (
-                    <Link
-                      key={label}
-                      href={href}
-                      className="w-11 h-11 rounded-2xl border border-tatan-secundario1/40 bg-white flex items-center justify-center text-zinc-600 hover:bg-tatan-primario1/30 transition-colors"
-                      aria-label={label}
-                    >
-                      <Icon className="w-5 h-5" strokeWidth={2} />
-                    </Link>
-                  ))}
-                </div>
+                <a
+                  href={INSTAGRAM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2.5 rounded-2xl border border-tatan-secundario1/40 bg-white px-4 py-2.5 text-sm font-bold text-zinc-700 hover:bg-tatan-primario1/30 transition-colors"
+                >
+                  <InstagramIcon className="w-5 h-5" />
+                  Seguinos en Instagram: @{INSTAGRAM_HANDLE}
+                </a>
               </div>
             </div>
           </div>

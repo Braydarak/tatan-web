@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
 import JsonLd from "@/components/seo/JsonLd";
-import { SITE_ALT_NAME, SITE_LOCALE, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
+import { INSTAGRAM_URL, SITE_ALT_NAME, SITE_LOCALE, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
 import ScrollToTop from "@/components/ui/ScrollToTop";
 import AnimatedFavicon from "@/components/AnimatedFavicon";
 import StoreChrome from "@/components/ui/StoreChrome";
@@ -90,6 +90,8 @@ export default async function RootLayout({
               description:
                 "Marca argentina de ropa para bebés en Algodón Pima.",
               areaServed: { "@type": "Country", name: "Argentina" },
+              // Perfiles de la marca: Google los vincula con la tienda
+              sameAs: [INSTAGRAM_URL],
             },
             {
               "@context": "https://schema.org",

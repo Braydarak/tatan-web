@@ -16,6 +16,10 @@ export const SITE_NAME = "Tatan";
 export const SITE_ALT_NAME = "Tatan Kids";
 export const SITE_LOCALE = "es_AR";
 
+/** Redes de la marca (Tatan tiene solo Instagram) */
+export const INSTAGRAM_HANDLE = "tatankids26";
+export const INSTAGRAM_URL = `https://www.instagram.com/${INSTAGRAM_HANDLE}/`;
+
 /** URL absoluta (para JSON-LD y el sitemap) */
 export function absoluteUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
