@@ -189,7 +189,90 @@ function order_mail_layout(string $title, string $inner): string
         . '</div></body></html>';
 }
 
-/** Manda un mail HTML. Devuelve si el servidor lo aceptó. */
+/* ---------------------------------------------------------------- envío
+ * Si en secrets.php está MAIL_SMTP_PASS, los mails salen por SMTP entrando
+ * con la casilla (MAIL_SMTP_USER, por defecto el remitente): es lo que pide
+ * el hosting y ayuda a que no caigan en spam. Si no, se usa mail() de PHP
+ * (si el servidor la tiene habilitada).
+ */
+
+function smtp_configured(): bool
+{
+    return defined('MAIL_SMTP_PASS') && MAIL_SMTP_PASS !== '';
+}
+
+/** Lee una respuesta SMTP completa (varias líneas "250-…" hasta "250 …") */
+function smtp_read($fp): array
+{
+    $text = '';
+    while (($line = fgets($fp, 1024)) !== false) {
+        $text .= $line;
+        if (strlen($line) < 4 || $line[3] !== '-') break;
+    }
+    return [(int)substr($text, 0, 3), trim($text)];
+}
+
+/** Manda un comando y verifica el código esperado */
+function smtp_cmd($fp, ?string $cmd, int $expect): void
+{
+    if ($cmd !== null) fwrite($fp, $cmd . "\r\n");
+    [$code, $text] = smtp_read($fp);
+    if ($code !== $expect) {
+        $shown = $cmd !== null && str_starts_with($cmd, 'AUTH') ? 'AUTH' : (string)$cmd;
+        throw new RuntimeException("SMTP: esperaba {$expect} y llegó {$code} ({$text}) después de \"{$shown}\"");
+    }
+}
+
+/** Envío por SMTP con usuario y contraseña. Lanza RuntimeException si falla. */
+function smtp_send(string $to, string $subject, string $html, array $headers): void
+{
+    $host = defined('MAIL_SMTP_HOST') && MAIL_SMTP_HOST !== '' ? MAIL_SMTP_HOST : 'mail.tatankids.com.ar';
+    $port = defined('MAIL_SMTP_PORT') && MAIL_SMTP_PORT ? (int)MAIL_SMTP_PORT : 465;
+    // 'ssl' (465), 'tls' (587, STARTTLS) o 'none' (solo para pruebas locales)
+    $secure = defined('MAIL_SMTP_SECURE') && MAIL_SMTP_SECURE !== '' ? MAIL_SMTP_SECURE : ($port === 587 ? 'tls' : 'ssl');
+    $user = defined('MAIL_SMTP_USER') && MAIL_SMTP_USER !== '' ? MAIL_SMTP_USER : order_mail_from();
+    $from = order_mail_from();
+
+    $ctx = stream_context_create(['ssl' => [
+        'verify_peer'      => !defined('MAIL_SMTP_VERIFY') || MAIL_SMTP_VERIFY,
+        'verify_peer_name' => !defined('MAIL_SMTP_VERIFY') || MAIL_SMTP_VERIFY,
+    ]]);
+    $scheme = $secure === 'ssl' ? 'ssl' : 'tcp';
+    $fp = @stream_socket_client("{$scheme}://{$host}:{$port}", $errno, $errstr, 15, STREAM_CLIENT_CONNECT, $ctx);
+    if (!$fp) throw new RuntimeException("SMTP: no se pudo conectar a {$host}:{$port} ({$errstr})");
+    stream_set_timeout($fp, 20);
+    try {
+        smtp_cmd($fp, null, 220);
+        smtp_cmd($fp, 'EHLO tatankids.com.ar', 250);
+        if ($secure === 'tls') {
+            smtp_cmd($fp, 'STARTTLS', 220);
+            if (!stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                throw new RuntimeException('SMTP: no se pudo activar TLS');
+            }
+            smtp_cmd($fp, 'EHLO tatankids.com.ar', 250);
+        }
+        smtp_cmd($fp, 'AUTH LOGIN', 334);
+        smtp_cmd($fp, base64_encode($user), 334);
+        smtp_cmd($fp, base64_encode(MAIL_SMTP_PASS), 235);
+        smtp_cmd($fp, "MAIL FROM:<{$from}>", 250);
+        smtp_cmd($fp, "RCPT TO:<{$to}>", 250);
+        smtp_cmd($fp, 'DATA', 354);
+        $domain = substr(strrchr($from, '@') ?: '@tatankids.com.ar', 1);
+        $msg = implode("\r\n", array_merge([
+            'Date: ' . date('r'),
+            'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $domain . '>',
+            'To: ' . $to,
+            'Subject: ' . $subject,
+        ], $headers, ['Content-Transfer-Encoding: base64']))
+            . "\r\n\r\n" . rtrim(chunk_split(base64_encode($html), 76, "\r\n")) . "\r\n.";
+        smtp_cmd($fp, $msg, 250);
+        fwrite($fp, "QUIT\r\n");
+    } finally {
+        fclose($fp);
+    }
+}
+
+/** Manda un mail HTML. Devuelve si salió (por SMTP o por mail()). */
 function order_send_mail(string $to, string $subject, string $html, ?string $replyTo = null): bool
 {
     if (!filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
@@ -201,7 +284,27 @@ function order_send_mail(string $to, string $subject, string $html, ?string $rep
     ];
     if ($replyTo && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) $headers[] = 'Reply-To: ' . $replyTo;
     $subject = mb_encode_mimeheader($subject, 'UTF-8', 'B', "\r\n");
-    return @mail($to, $subject, $html, implode("\r\n", $headers), '-f' . $from);
+
+    if (smtp_configured()) {
+        try {
+            smtp_send($to, $subject, $html, $headers);
+            return true;
+        } catch (Throwable $e) {
+            error_log('[orders] ' . $e->getMessage());
+            return false;
+        }
+    }
+    // Sin SMTP: mail() de PHP, si el hosting no la deshabilitó
+    if (!function_exists('mail')) {
+        error_log('[orders] mail() está deshabilitada y no hay SMTP configurado (MAIL_SMTP_PASS en secrets.php)');
+        return false;
+    }
+    try {
+        return @mail($to, $subject, $html, implode("\r\n", $headers), '-f' . $from);
+    } catch (Throwable $e) {
+        error_log('[orders] mail(): ' . $e->getMessage());
+        return false;
+    }
 }
 
 /**

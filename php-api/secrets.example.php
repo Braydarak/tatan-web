@@ -44,11 +44,17 @@ define('MP_SYNC_KEY', '');
 // queda vacío no se verifica la firma (igual se consulta el pago a la API).
 define('MP_WEBHOOK_SECRET', '');
 
-// ---------------------------------------------------------------- Avisos de venta
-// Cuando se paga un pedido llega un mail con todo el detalle (orders-lib.php).
-// Opcionales: si quedan vacíos se usa contacto@tatankids.com.ar.
-define('ORDER_NOTIFY_EMAIL', '');  // a dónde llegan los avisos
-define('MAIL_FROM', '');           // remitente (una casilla del dominio)
+// ---------------------------------------------------------------- Mails (avisos de venta)
+// Los avisos salen por SMTP entrando con la casilla contacto@tatankids.com.ar
+// (el hosting no deja usar mail() de PHP). Escribí la contraseña de esa
+// casilla entre las comillas de MAIL_SMTP_PASS. Si queda vacía, se intenta
+// con mail() de PHP.
+define('MAIL_FROM', 'contacto@tatankids.com.ar');          // remitente
+define('ORDER_NOTIFY_EMAIL', 'contacto@tatankids.com.ar'); // a dónde llegan los avisos de venta
+define('MAIL_SMTP_HOST', 'mail.tatankids.com.ar');
+define('MAIL_SMTP_PORT', 465);                              // 465 = SSL · 587 = TLS
+define('MAIL_SMTP_USER', 'contacto@tatankids.com.ar');
+define('MAIL_SMTP_PASS', '');                               // contraseña de la casilla (secreta)
 
 // Dirección pública de la tienda (a donde vuelve el comprador después de
 // pagar). Sin barra al final. En desarrollo: http://localhost:3000
