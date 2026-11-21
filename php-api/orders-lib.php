@@ -44,7 +44,11 @@ function order_full(int $orderId): ?array
     $o = $st->fetch();
     if (!$o) return null;
 
-    $it = pdo()->prepare('SELECT product_id, product_name, variant_name, size, unit_price, quantity, subtotal_line FROM order_items WHERE order_id = ? ORDER BY id');
+    $it = pdo()->prepare(
+        'SELECT i.product_id, i.product_name, i.variant_name, i.size, i.unit_price, i.quantity, i.subtotal_line, p.image_src
+         FROM order_items i LEFT JOIN products p ON p.id = i.product_id
+         WHERE i.order_id = ? ORDER BY i.id'
+    );
     $it->execute([$orderId]);
     $ev = pdo()->prepare('SELECT status, note, created_at FROM order_events WHERE order_id = ? ORDER BY id');
     $ev->execute([$orderId]);
@@ -90,6 +94,7 @@ function order_full(int $orderId): ?array
             'unitPrice' => (float)$i['unit_price'],
             'quantity'  => (int)$i['quantity'],
             'subtotal'  => (float)$i['subtotal_line'],
+            'image'     => $i['image_src'] === null ? null : (string)$i['image_src'],
         ], $it->fetchAll()),
         'amounts' => [
             'subtotal' => (float)$o['subtotal'],
@@ -157,36 +162,121 @@ function order_payment_label(?string $type): string
     return 'Mercado Pago · ' . ($names[$type] ?? $type);
 }
 
-/** Tabla HTML de productos para los mails */
+/* ---------------------------------------------------------------- diseño de los mails
+ * Estilo Tatan: logo arriba, paleta pastel, tarjetas redondeadas y el
+ * osito. Hecho con tablas y estilos en línea (es lo que muestran bien
+ * Gmail, Outlook y los celulares). Las imágenes están en el sitio:
+ * /email/logo.png, /email/osito-feliz.png y las fotos vía /api/img.php.
+ */
+
+const MAIL_SITE = 'https://tatankids.com.ar';
+const MAIL_INSTAGRAM = 'https://www.instagram.com/tatankids26/';
+// Tipografías de la web si el programa de correo las tiene; si no, parecidas
+const MAIL_TITLE_FONT = "'Fredoka','Trebuchet MS',Verdana,Arial,sans-serif";
+const MAIL_TEXT_FONT = "'Nunito','Segoe UI',Helvetica,Arial,sans-serif";
+
+/** Foto de un producto, achicada por img.php (o null si no tiene) */
+function mail_img_url(?string $src, int $w): ?string
+{
+    if (!$src) return null;
+    if (preg_match('~/api/uploads/([^?#]+\.(?:jpe?g|png|webp))$~i', $src, $m)) {
+        return MAIL_SITE . '/api/img.php?f=' . str_replace('%2F', '/', rawurlencode($m[1])) . "&w={$w}&q=80";
+    }
+    return preg_match('~^https?://~', $src) ? $src : MAIL_SITE . '/' . ltrim($src, '/');
+}
+
+/** El ticket: productos con foto, talle, color y cantidad, y los totales */
 function order_items_html(array $o): string
 {
     $rows = '';
     foreach ($o['items'] as $i) {
-        $detail = implode(' · ', array_filter([$i['color'] ? 'Color: ' . e($i['color']) : null, $i['size'] !== null ? 'Talle: ' . e($i['size']) : null]));
+        $img = mail_img_url($i['image'] ?? null, 128);
+        $thumb = $img
+            ? '<img src="' . e($img) . '" width="56" height="56" alt="" style="display:block;width:56px;height:56px;border-radius:14px;background:#F6F1EA;object-fit:contain">'
+            : '<div style="width:56px;height:56px;border-radius:14px;background:#F6F1EA"></div>';
+        $detail = implode(' · ', array_filter([
+            $i['color'] ? 'Color: ' . e($i['color']) : null,
+            $i['size'] !== null ? 'Talle: ' . e($i['size']) : null,
+            (int)$i['quantity'] . ' × ' . money_ars((float)$i['unitPrice']),
+        ]));
         $rows .= '<tr>'
-            . '<td style="padding:8px 0;border-bottom:1px solid #eee">' . e($i['name']) . ($detail ? '<br><span style="color:#888;font-size:13px">' . $detail . '</span>' : '') . '</td>'
-            . '<td style="padding:8px;border-bottom:1px solid #eee;text-align:center">' . (int)$i['quantity'] . '</td>'
-            . '<td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right">' . money_ars($i['subtotal']) . '</td>'
+            . '<td width="64" style="padding:10px 0;vertical-align:middle">' . $thumb . '</td>'
+            . '<td style="padding:10px 8px;vertical-align:middle;font-family:' . MAIL_TEXT_FONT . '">'
+            . '<div style="font-size:15px;font-weight:bold;color:#3F3F46">' . e($i['name']) . '</div>'
+            . '<div style="font-size:13px;color:#8A7F76;margin-top:3px">' . $detail . '</div></td>'
+            . '<td align="right" style="padding:10px 0;vertical-align:middle;font-family:' . MAIL_TEXT_FONT . ';font-size:15px;font-weight:bold;color:#3F3F46;white-space:nowrap">' . money_ars((float)$i['subtotal']) . '</td>'
             . '</tr>';
     }
     $a = $o['amounts'];
-    $rows .= '<tr><td colspan="2" style="padding:6px 0;color:#666">Subtotal</td><td style="text-align:right;color:#666">' . money_ars($a['subtotal']) . '</td></tr>';
-    $rows .= '<tr><td colspan="2" style="padding:6px 0;color:#666">Envío (' . e($o['shipping']['method']) . ')</td><td style="text-align:right;color:#666">' . money_ars($a['shipping']) . '</td></tr>';
-    $rows .= '<tr><td colspan="2" style="padding:8px 0;font-weight:bold;font-size:16px">Total</td><td style="text-align:right;font-weight:bold;font-size:16px">' . money_ars($a['total']) . '</td></tr>';
-    return '<table style="width:100%;border-collapse:collapse;font-size:14px">'
-        . '<tr><th style="text-align:left;padding-bottom:6px;color:#888;font-weight:normal">Producto</th><th style="color:#888;font-weight:normal">Cant.</th><th style="text-align:right;color:#888;font-weight:normal">Importe</th></tr>'
-        . $rows . '</table>';
+    $line = fn(string $label, string $value, bool $strong = false) =>
+        '<tr><td colspan="2" style="padding:' . ($strong ? '12px' : '4px') . ' 0 0;font-family:' . MAIL_TEXT_FONT . ';font-size:' . ($strong ? '17px' : '14px') . ';color:' . ($strong ? '#3F3F46' : '#8A7F76') . ';' . ($strong ? 'font-weight:bold' : '') . '">' . $label . '</td>'
+        . '<td align="right" style="padding:' . ($strong ? '12px' : '4px') . ' 0 0;font-family:' . MAIL_TEXT_FONT . ';font-size:' . ($strong ? '20px' : '14px') . ';color:' . ($strong ? '#4DA96C' : '#8A7F76') . ';font-weight:bold;white-space:nowrap">' . $value . '</td></tr>';
+    $totals = $line('Subtotal', money_ars($a['subtotal']))
+        . $line('Envío · ' . e($o['shipping']['method']), money_ars($a['shipping']))
+        . ($a['discount'] > 0 ? $line('Descuento', '−' . money_ars($a['discount'])) : '')
+        . $line('Total', money_ars($a['total']), true);
+
+    return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border:1px solid #F0E6DA;border-radius:20px">'
+        . '<tr><td style="padding:16px 20px 18px">'
+        . '<div style="font-family:' . MAIL_TEXT_FONT . ';font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#B9A89B;padding-bottom:4px">🛍️ Tu pedido</div>'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px dashed #F0E6DA">' . $rows . '</table>'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' . $totals . '</table>'
+        . '</td></tr></table>';
 }
 
-function order_mail_layout(string $title, string $inner): string
+/** Una tarjeta de información con su color (comprador, entrega, pago…) */
+function mail_section(string $emoji, string $title, string $bg, string $body): string
 {
-    return '<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#FEFDF8;font-family:Arial,Helvetica,sans-serif;color:#3f3f46">'
-        . '<div style="max-width:560px;margin:0 auto;padding:24px">'
-        . '<div style="background:#fff;border-radius:16px;padding:24px;border:1px solid #f0e6da">'
-        . '<h1 style="margin:0 0 16px;font-size:20px;color:#3f3f46">' . $title . '</h1>'
-        . $inner
-        . '</div><p style="text-align:center;color:#b9a89b;font-size:12px;margin-top:16px">Tatan · tatankids.com.ar</p>'
-        . '</div></body></html>';
+    return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;background:' . $bg . ';border-radius:18px">'
+        . '<tr><td style="padding:14px 18px;font-family:' . MAIL_TEXT_FONT . ';font-size:14px;line-height:1.6;color:#3F3F46">'
+        . '<div style="font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#8A7F76;padding-bottom:2px">' . $emoji . ' ' . $title . '</div>'
+        . $body . '</td></tr></table>';
+}
+
+function mail_button(string $href, string $label): string
+{
+    return '<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:22px auto 4px"><tr>'
+        . '<td style="background:#FCD1B1;border-radius:16px">'
+        . '<a href="' . e($href) . '" style="display:inline-block;padding:13px 26px;font-family:' . MAIL_TITLE_FONT . ';font-size:15px;font-weight:bold;color:#3F3F46;text-decoration:none">' . $label . '</a>'
+        . '</td></tr></table>';
+}
+
+/**
+ * El mail completo: franja con el logo, el osito con el título, el número
+ * de pedido, el contenido y el pie con Instagram y la web.
+ */
+function order_mail_layout(string $preheader, string $title, string $subtitle, ?string $pill, string $inner): string
+{
+    $t = MAIL_TITLE_FONT;
+    $x = MAIL_TEXT_FONT;
+    return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        . '<title>' . e($title) . '</title></head>'
+        . '<body style="margin:0;padding:0;background:#FEFDF8">'
+        // Texto de vista previa (lo que se ve en la bandeja antes de abrir)
+        . '<div style="display:none;max-height:0;overflow:hidden;opacity:0">' . e($preheader) . '</div>'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FEFDF8"><tr><td align="center" style="padding:24px 12px">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">'
+        // Logo
+        . '<tr><td align="center" style="background:#FDE7D6;border-radius:24px 24px 0 0;padding:22px 20px 18px">'
+        . '<a href="' . MAIL_SITE . '"><img src="' . MAIL_SITE . '/email/logo.png" width="170" alt="Tatan Kids" style="display:block;width:170px;height:auto;border:0"></a>'
+        . '</td></tr>'
+        // Osito + título
+        . '<tr><td align="center" style="background:#FFFFFF;padding:22px 24px 6px;border-left:1px solid #F0E6DA;border-right:1px solid #F0E6DA">'
+        . '<img src="' . MAIL_SITE . '/email/osito-feliz.png" width="120" alt="" style="display:block;width:120px;height:auto;border:0">'
+        . '<h1 style="margin:10px 0 6px;font-family:' . $t . ';font-size:26px;line-height:1.2;color:#3F3F46">' . $title . '</h1>'
+        . '<p style="margin:0;font-family:' . $x . ';font-size:15px;line-height:1.6;color:#6B6159">' . $subtitle . '</p>'
+        . ($pill ? '<div style="display:inline-block;margin-top:12px;padding:6px 14px;border-radius:999px;background:#C7E2D6;font-family:' . $x . ';font-size:13px;font-weight:bold;color:#3F5F52">Pedido ' . e($pill) . '</div>' : '')
+        . '</td></tr>'
+        // Contenido
+        . '<tr><td style="background:#FFFFFF;padding:18px 20px 24px;border-left:1px solid #F0E6DA;border-right:1px solid #F0E6DA;border-bottom:1px solid #F0E6DA;border-radius:0 0 24px 24px">'
+        . $inner . '</td></tr>'
+        // Pie
+        . '<tr><td align="center" style="padding:20px 10px 4px;font-family:' . $x . ';font-size:12px;line-height:1.8;color:#B9A89B">'
+        . 'Hecho con 💛 en Argentina<br>'
+        . '<a href="' . MAIL_INSTAGRAM . '" style="color:#B9A89B;font-weight:bold;text-decoration:none">Instagram @tatankids26</a>'
+        . ' &nbsp;·&nbsp; <a href="' . MAIL_SITE . '" style="color:#B9A89B;font-weight:bold;text-decoration:none">tatankids.com.ar</a>'
+        . '</td></tr>'
+        . '</table></td></tr></table></body></html>';
 }
 
 /* ---------------------------------------------------------------- envío
@@ -323,34 +413,45 @@ function order_notify_paid(int $orderId): void
         $delivery = e(order_delivery_line($o));
         $pay = e(order_payment_label($o['payment']['type']));
 
-        // --- A la tienda
-        $storeHtml = order_mail_layout('🧸 ¡Nueva venta! ' . e($num),
-            '<p style="margin:0 0 16px">Entró un pago aprobado por <strong>' . money_ars($o['amounts']['total']) . '</strong>.</p>'
-            . order_items_html($o)
-            . '<h2 style="font-size:15px;margin:20px 0 6px">Comprador</h2>'
-            . '<p style="margin:0;line-height:1.6">' . e($b['name']) . '<br>'
-            . '<a href="mailto:' . e($b['email']) . '">' . e($b['email']) . '</a><br>'
-            . 'Tel: ' . e($b['phone']) . ($b['dni'] !== '' ? ' · DNI: ' . e($b['dni']) : '') . '</p>'
-            . '<h2 style="font-size:15px;margin:20px 0 6px">Entrega</h2>'
-            . '<p style="margin:0;line-height:1.6">' . e($o['shipping']['method']) . '<br>' . $delivery
-            . ($o['shipping']['notes'] !== '' ? '<br>Notas: ' . e($o['shipping']['notes']) : '') . '</p>'
-            . '<h2 style="font-size:15px;margin:20px 0 6px">Pago</h2>'
-            . '<p style="margin:0;line-height:1.6">' . $pay . '<br><span style="color:#888;font-size:13px">ID: ' . e((string)$o['payment']['id']) . '</span></p>'
-            . '<p style="margin:24px 0 0"><a href="' . e(site_url()) . '/crm#ventas" style="display:inline-block;background:#FCD1B1;color:#3f3f46;padding:10px 18px;border-radius:12px;text-decoration:none;font-weight:bold">Ver en el CRM</a></p>'
+        // --- A la tienda: todo para preparar y despachar el pedido
+        $total = money_ars($o['amounts']['total']);
+        $storeInner = order_items_html($o)
+            . mail_section('👶', 'Quién compró', '#F3F8F5',
+                '<strong>' . e($b['name']) . '</strong><br>'
+                . '<a href="mailto:' . e($b['email']) . '" style="color:#3F3F46">' . e($b['email']) . '</a><br>'
+                . 'Tel: ' . e($b['phone']) . ($b['dni'] !== '' ? ' · DNI ' . e($b['dni']) : ''))
+            . mail_section('🚚', 'Entrega', '#FEF6EC',
+                '<strong>' . e($o['shipping']['method']) . '</strong><br>' . $delivery
+                . ($o['shipping']['notes'] !== '' ? '<br><span style="color:#8A7F76">Notas: ' . e($o['shipping']['notes']) . '</span>' : ''))
+            . mail_section('💳', 'Pago', '#F2F6FB',
+                $pay . '<br><span style="color:#8A7F76;font-size:12px">ID ' . e((string)$o['payment']['id']) . '</span>')
+            . mail_button(MAIL_SITE . '/crm#ventas', 'Ver en el CRM →');
+        $storeHtml = order_mail_layout(
+            "Nueva venta {$num} por {$total}",
+            '¡Nueva venta! 🎉',
+            'Entró un pago aprobado por <strong>' . $total . '</strong>. Acá tenés todo para prepararlo.',
+            $num,
+            $storeInner
         );
-        $okStore = order_send_mail(order_notify_to(), "🧸 Nueva venta {$num} · " . money_ars($o['amounts']['total']), $storeHtml, $b['email']);
+        $okStore = order_send_mail(order_notify_to(), "🧸 Nueva venta {$num} · {$total}", $storeHtml, $b['email']);
 
-        // --- Al comprador
+        // --- Al comprador: resumen y qué sigue
         $first = explode(' ', trim($b['name']))[0] ?? '';
-        $buyerHtml = order_mail_layout('¡Gracias por tu compra' . ($first !== '' ? ', ' . e($first) : '') . '!',
-            '<p style="margin:0 0 16px">Recibimos tu pago. Tu pedido es el <strong>' . e($num) . '</strong>.</p>'
-            . order_items_html($o)
-            . '<h2 style="font-size:15px;margin:20px 0 6px">Entrega</h2>'
-            . '<p style="margin:0;line-height:1.6">' . e($o['shipping']['method']) . '<br>' . $delivery . '</p>'
-            . '<p style="margin:20px 0 0;line-height:1.6">Ya estamos preparando tu pedido. Cuando lo despachemos te mandamos el código de seguimiento.</p>'
-            . '<p style="margin:12px 0 0;line-height:1.6;color:#666">¿Dudas? Respondé este mail o escribinos a ' . e(order_notify_to()) . '.</p>'
+        $buyerInner = order_items_html($o)
+            . mail_section('🚚', 'Entrega', '#FEF6EC', '<strong>' . e($o['shipping']['method']) . '</strong><br>' . $delivery)
+            . mail_section('✨', '¿Qué sigue?', '#F3F8F5',
+                'Ya estamos preparando tu pedido con mucho cariño. Cuando lo despachemos te mandamos el código de seguimiento para que sepas dónde está.')
+            . mail_button(MAIL_SITE . '/productos', 'Seguir comprando')
+            . '<p style="margin:14px 0 0;text-align:center;font-family:' . MAIL_TEXT_FONT . ';font-size:13px;line-height:1.6;color:#8A7F76">'
+            . '¿Dudas? Respondé este mail o escribinos a <a href="mailto:' . e(order_notify_to()) . '" style="color:#8A7F76">' . e(order_notify_to()) . '</a></p>';
+        $buyerHtml = order_mail_layout(
+            "Recibimos tu pago. Tu pedido es el {$num}",
+            '¡Gracias por tu compra' . ($first !== '' ? ', ' . e($first) : '') . '!',
+            'Recibimos tu pago y tu pedido ya está en camino a prepararse. 💛',
+            $num,
+            $buyerInner
         );
-        $okBuyer = order_send_mail($b['email'], "¡Gracias por tu compra! Pedido {$num}", $buyerHtml, order_notify_to());
+        $okBuyer = order_send_mail($b['email'], "¡Gracias por tu compra! Pedido {$num} 🧸", $buyerHtml, order_notify_to());
 
         if (!$okStore || !$okBuyer) {
             order_event($orderId, 'paid', 'No se pudo mandar el mail ' . (!$okStore ? 'a la tienda' : '') . (!$okStore && !$okBuyer ? ' ni ' : '') . (!$okBuyer ? 'al comprador' : ''));
