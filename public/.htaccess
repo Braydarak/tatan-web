@@ -20,6 +20,10 @@ DirectorySlash Off
   RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
+  # Una sola dirección para Google: www.tatankids.com.ar → tatankids.com.ar
+  RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+  RewriteRule ^ https://%1%{REQUEST_URI} [R=301,L]
+
   # La API PHP: tal cual
   RewriteRule ^api(/|$) - [END]
 
