@@ -226,7 +226,8 @@ function smtp_cmd($fp, ?string $cmd, int $expect): void
 /** Envío por SMTP con usuario y contraseña. Lanza RuntimeException si falla. */
 function smtp_send(string $to, string $subject, string $html, array $headers): void
 {
-    $host = defined('MAIL_SMTP_HOST') && MAIL_SMTP_HOST !== '' ? MAIL_SMTP_HOST : 'mail.tatankids.com.ar';
+    // El nombre tiene que coincidir con el certificado del servidor (*.ferozo.com)
+    $host = defined('MAIL_SMTP_HOST') && MAIL_SMTP_HOST !== '' ? MAIL_SMTP_HOST : 'a0190966.ferozo.com';
     $port = defined('MAIL_SMTP_PORT') && MAIL_SMTP_PORT ? (int)MAIL_SMTP_PORT : 465;
     // 'ssl' (465), 'tls' (587, STARTTLS) o 'none' (solo para pruebas locales)
     $secure = defined('MAIL_SMTP_SECURE') && MAIL_SMTP_SECURE !== '' ? MAIL_SMTP_SECURE : ($port === 587 ? 'tls' : 'ssl');

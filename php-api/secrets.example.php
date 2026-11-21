@@ -51,8 +51,8 @@ define('MP_WEBHOOK_SECRET', '');
 // con mail() de PHP.
 define('MAIL_FROM', 'contacto@tatankids.com.ar');          // remitente
 define('ORDER_NOTIFY_EMAIL', 'contacto@tatankids.com.ar'); // a dónde llegan los avisos de venta
-define('MAIL_SMTP_HOST', 'mail.tatankids.com.ar');
-define('MAIL_SMTP_PORT', 465);                              // 465 = SSL · 587 = TLS
+define('MAIL_SMTP_HOST', 'a0190966.ferozo.com');       // Ferozo → Correo → la casilla → Datos de configuración
+define('MAIL_SMTP_PORT', 465);                              // SSL
 define('MAIL_SMTP_USER', 'contacto@tatankids.com.ar');
 define('MAIL_SMTP_PASS', '');                               // contraseña de la casilla (secreta)
 
