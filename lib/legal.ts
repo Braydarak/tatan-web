@@ -9,8 +9,11 @@
 export const LEGAL = {
   /** Nombre comercial */
   brand: "Tatan Kids",
-  /** Titular de la tienda y de la marca */
-  owner: "Claudio Marcelo Darakdjian",
+  /**
+   * Titular de la tienda y de la marca. Vacío = no se publica su nombre
+   * (la tienda se presenta como Tatan Kids).
+   */
+  owner: "",
   /** CUIT del titular (aparece en el aviso legal) */
   cuit: "",
   /** Número de registro / acta de la marca en el INPI (p. ej. "3.123.456") */

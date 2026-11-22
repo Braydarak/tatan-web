@@ -18,15 +18,16 @@ export default function TerminosPage() {
     >
       <h2>1. Quiénes somos (aviso legal)</h2>
       <p>
-        <strong>{LEGAL.brand}</strong> es una tienda online de ropa para bebés.
-        Titular: <strong>{LEGAL.owner}</strong>
-        {LEGAL.cuit ? <> · CUIT {LEGAL.cuit}</> : null} · Domicilio: {LEGAL.address} · Contacto:{" "}
+        <strong>{LEGAL.brand}</strong> es una tienda online de ropa para bebés
+        {LEGAL.owner ? <>, de {LEGAL.owner}</> : null}
+        {LEGAL.cuit ? <> · CUIT {LEGAL.cuit}</> : null}. Domicilio: {LEGAL.address}. Contacto:{" "}
         <a href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a>.
       </p>
-      <p>
-        {LEGAL.brand} es una marca de {LEGAL.owner}
-        {LEGAL.trademarkNumber ? <>, registrada en el Instituto Nacional de la Propiedad Industrial (INPI) bajo el N.º {LEGAL.trademarkNumber}</> : null}.
-      </p>
+      {LEGAL.trademarkNumber ? (
+        <p>
+          {LEGAL.brand} es una marca registrada en el Instituto Nacional de la Propiedad Industrial (INPI) bajo el N.º {LEGAL.trademarkNumber}.
+        </p>
+      ) : null}
 
       <h2>2. Productos, precios y stock</h2>
       <ul>
