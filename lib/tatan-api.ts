@@ -490,6 +490,8 @@ export async function apiContactSubmit(payload: {
   phone?: string;
   reason?: "general" | "pedido" | "cambios" | "mayorista" | "otro";
   message: string;
+  /** Campo trampa para bots: siempre vacío desde la web */
+  website?: string;
 }): Promise<{
   ok: boolean;
   id?: number;
