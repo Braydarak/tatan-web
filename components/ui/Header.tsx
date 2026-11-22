@@ -85,24 +85,6 @@ function IconClose(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-function IconSearch(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      {...props}
-    >
-      <path d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
-      <path d="M21 21l-5.2-5.2" />
-    </svg>
-  );
-}
-
 function IconCart(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -143,7 +125,6 @@ export default function Header({
   const hasBanner = bannerMessages.length > 0;
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [cartOpen, setCartOpen] = React.useState(false);
-  const [searchOpen, setSearchOpen] = React.useState(false);
   const mobilePanelId = React.useId();
   const cartPanelId = React.useId();
   const openStateRef = React.useRef({ menuOpen: false, cartOpen: false });
@@ -335,10 +316,7 @@ export default function Header({
             aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={menuOpen}
             aria-controls={mobilePanelId}
-            onClick={() => {
-              setSearchOpen(false);
-              setMenuOpen((v) => !v);
-            }}
+            onClick={() => setMenuOpen((v) => !v)}
           >
             {menuOpen ? (
               <IconClose className="h-5 w-5" />
@@ -392,21 +370,6 @@ export default function Header({
           <div className="flex items-center gap-2 ml-auto shrink-0">
             <SearchBox className="hidden w-96 lg:block" />
 
-            {/* Celular: la lupa abre el buscador debajo del encabezado */}
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                setCartOpen(false);
-                setSearchOpen((v) => !v);
-              }}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-tatan-secundario1/50 bg-white text-zinc-900 shadow-sm transition hover:bg-tatan-primario1/60 active:scale-[0.98] lg:hidden shrink-0"
-              aria-label={searchOpen ? "Cerrar buscador" : "Buscar productos"}
-              aria-expanded={searchOpen}
-            >
-              {searchOpen ? <IconClose className="h-5 w-5" /> : <IconSearch className="h-5 w-5" strokeWidth={2} />}
-            </button>
-
             <button
               type="button"
               onClick={() => {
@@ -438,12 +401,6 @@ export default function Header({
             </button>
           </div>
         </div>
-
-        {searchOpen && (
-          <div className="border-t border-black/5 px-4 py-3 lg:hidden">
-            <SearchBox autoFocus inputClassName="h-12 text-base" onNavigate={() => setSearchOpen(false)} />
-          </div>
-        )}
 
         <div
           id={mobilePanelId}
