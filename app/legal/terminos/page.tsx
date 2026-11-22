@@ -18,15 +18,16 @@ export default function TerminosPage() {
     >
       <h2>1. Quiénes somos (aviso legal)</h2>
       <p>
-        <strong>{LEGAL.brand}</strong> es una tienda online de ropa para bebés.
-        Titular: <strong>{LEGAL.owner}</strong>
-        {LEGAL.cuit ? <> · CUIT {LEGAL.cuit}</> : null} · Domicilio: {LEGAL.address} · Contacto:{" "}
+        <strong>{LEGAL.brand}</strong> es una tienda online de ropa para bebés
+        {LEGAL.owner ? <>, de {LEGAL.owner}</> : null}
+        {LEGAL.cuit ? <> · CUIT {LEGAL.cuit}</> : null}. Domicilio: {LEGAL.address}. Contacto:{" "}
         <a href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a>.
       </p>
-      <p>
-        {LEGAL.brand} es una marca de {LEGAL.owner}
-        {LEGAL.trademarkNumber ? <>, registrada en el Instituto Nacional de la Propiedad Industrial (INPI) bajo el N.º {LEGAL.trademarkNumber}</> : null}.
-      </p>
+      {LEGAL.trademarkNumber ? (
+        <p>
+          {LEGAL.brand} es una marca registrada en el Instituto Nacional de la Propiedad Industrial (INPI) bajo el N.º {LEGAL.trademarkNumber}.
+        </p>
+      ) : null}
 
       <h2>2. Productos, precios y stock</h2>
       <ul>
@@ -52,7 +53,7 @@ export default function TerminosPage() {
 
       <h2>5. Cambios, devoluciones y arrepentimiento</h2>
       <p>
-        Podés arrepentirte de tu compra dentro de los <strong>{LEGAL.withdrawalDays} días corridos</strong> desde que la recibís, sin dar motivos (art. 34 de la Ley 24.240 y art. 1110 del Código Civil y Comercial), usando el{" "}
+        Podés arrepentirte de tu compra dentro de los <strong>{LEGAL.withdrawalDays} días corridos</strong> desde que la recibís (art. 34 de la Ley 24.240 y art. 1110 del Código Civil y Comercial), usando el{" "}
         <Link href="/arrepentimiento">Botón de arrepentimiento</Link>. Las condiciones de cambios y devoluciones están en{" "}
         <Link href="/legal/cambios">Cambios y devoluciones</Link>.
       </p>

@@ -19,7 +19,7 @@ export default function CambiosPage() {
     >
       <h2>1. Arrepentimiento: {LEGAL.withdrawalDays} días para devolver tu compra</h2>
       <p>
-        Como compraste a distancia, tenés derecho a <strong>arrepentirte dentro de los {LEGAL.withdrawalDays} días corridos</strong> desde que recibís el pedido, sin tener que explicar el motivo (art. 34 de la Ley 24.240 y art. 1110 del Código Civil y Comercial). Es un derecho irrenunciable.
+        Como compraste a distancia, tenés derecho a <strong>arrepentirte dentro de los {LEGAL.withdrawalDays} días corridos</strong> desde que recibís el pedido (art. 34 de la Ley 24.240 y art. 1110 del Código Civil y Comercial). Es un derecho irrenunciable: nos indicás el motivo, y si simplemente cambiaste de opinión también es válido.
       </p>
       <ul>
         <li>Pedilo desde el <Link href="/arrepentimiento">Botón de arrepentimiento</Link> o escribiendo a {mail}. No hace falta tener una cuenta.</li>

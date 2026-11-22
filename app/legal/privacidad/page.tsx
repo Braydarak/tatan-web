@@ -18,8 +18,7 @@ export default function PrivacidadPage() {
     >
       <h2>1. Responsable</h2>
       <p>
-        El responsable de tus datos es <strong>{LEGAL.owner}</strong> ({LEGAL.brand})
-        {LEGAL.cuit ? <>, CUIT {LEGAL.cuit}</> : null}, con domicilio en {LEGAL.address}. Contacto:{" "}
+        El responsable de tus datos es <strong>{LEGAL.brand}</strong>, con domicilio en {LEGAL.address}. Contacto:{" "}
         <a href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a>.
       </p>
 

@@ -11,6 +11,25 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { apiBaseUrl } from "@/lib/tatan-api";
 import { LEGAL } from "@/lib/legal";
 
+/** Motivos (obligatorio elegir uno; "Cambié de opinión" es válido y no hay que probar nada) */
+export const REASONS = [
+  { key: "cambio-opinion", label: "Cambié de opinión / ya no lo quiero" },
+  { key: "talle", label: "No le quedó el talle" },
+  { key: "color-modelo", label: "No me gustó el color o el modelo" },
+  { key: "falla", label: "Llegó con una falla o defecto" },
+  { key: "producto-distinto", label: "Llegó un producto distinto al que pedí" },
+  { key: "otro", label: "Otro motivo" },
+] as const;
+
+/** Orientación según el motivo elegido */
+const HINTS: Record<string, string> = {
+  talle: "¿Sabías que podés cambiarlo por otro talle en vez de devolverlo? Escribinos y lo coordinamos.",
+  "color-modelo": "Si preferís, también podés cambiarlo por otro color o modelo.",
+  falla: "Lo resolvemos sin costo para vos. Si podés, contanos en el comentario qué tiene y mandanos una foto al mail.",
+  "producto-distinto": "Disculpas por el error: lo resolvemos sin costo para vos.",
+  otro: "Contanos brevemente el motivo en el comentario.",
+};
+
 const input =
   "w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-400 focus:border-tatan-primario4 focus:ring-2 focus:ring-tatan-primario1/50";
 const label = "block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1.5";
@@ -20,6 +39,7 @@ export default function ArrepentimientoForm() {
   const [code, setCode] = React.useState("");
   const [mailed, setMailed] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [reason, setReason] = React.useState("");
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -36,7 +56,15 @@ export default function ArrepentimientoForm() {
       if (!json.ok || !json.code) {
         setError(
           json.message ??
-            (json.errors?.includes("EMAIL") ? "Revisá tu mail." : json.errors?.includes("NAME") ? "Escribí tu nombre y apellido." : "No pudimos enviar la solicitud."),
+            (json.errors?.includes("EMAIL")
+                ? "Revisá tu mail."
+                : json.errors?.includes("NAME")
+                  ? "Escribí tu nombre y apellido."
+                  : json.errors?.includes("REASON")
+                    ? "Elegí el motivo."
+                    : json.errors?.includes("COMMENT")
+                      ? "Contanos el motivo en el comentario."
+                      : "No pudimos enviar la solicitud."),
         );
         setState("error");
         return;
@@ -96,8 +124,37 @@ export default function ArrepentimientoForm() {
         </div>
       </div>
       <div>
-        <label className={label} htmlFor="arr-comment">Comentario (opcional)</label>
-        <textarea id="arr-comment" name="comment" rows={3} className={input} placeholder="No hace falta explicar el motivo." />
+        <label className={label} htmlFor="arr-reason">Motivo *</label>
+        <select
+          id="arr-reason"
+          name="reason"
+          required
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          className={`${input} cursor-pointer`}
+        >
+          <option value="" disabled>
+            Elegí un motivo
+          </option>
+          {REASONS.map((r) => (
+            <option key={r.key} value={r.key}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+        {HINTS[reason] && <p className="mt-2 rounded-2xl bg-tatan-primario2/40 px-4 py-2.5 text-sm text-zinc-700">{HINTS[reason]}</p>}
+      </div>
+      <div>
+        <label className={label} htmlFor="arr-comment">Comentario{reason === "otro" ? " *" : " (opcional)"}</label>
+        <textarea
+          id="arr-comment"
+          name="comment"
+          rows={3}
+          required={reason === "otro"}
+          minLength={reason === "otro" ? 5 : undefined}
+          className={input}
+          placeholder={reason === "otro" ? "Contanos el motivo" : "Algo más que quieras contarnos"}
+        />
       </div>
       {state === "error" && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p>}
       <button
