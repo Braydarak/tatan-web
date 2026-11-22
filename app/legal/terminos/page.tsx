@@ -53,7 +53,7 @@ export default function TerminosPage() {
 
       <h2>5. Cambios, devoluciones y arrepentimiento</h2>
       <p>
-        Podés arrepentirte de tu compra dentro de los <strong>{LEGAL.withdrawalDays} días corridos</strong> desde que la recibís, sin dar motivos (art. 34 de la Ley 24.240 y art. 1110 del Código Civil y Comercial), usando el{" "}
+        Podés arrepentirte de tu compra dentro de los <strong>{LEGAL.withdrawalDays} días corridos</strong> desde que la recibís (art. 34 de la Ley 24.240 y art. 1110 del Código Civil y Comercial), usando el{" "}
         <Link href="/arrepentimiento">Botón de arrepentimiento</Link>. Las condiciones de cambios y devoluciones están en{" "}
         <Link href="/legal/cambios">Cambios y devoluciones</Link>.
       </p>

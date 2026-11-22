@@ -5,7 +5,9 @@
  * ============================================================
  *
  *   POST arrepentimiento.php
- *     body: { name, email, phone?, orderNumber?, purchaseDate?, products?, comment?, website? }
+ *     body: { name, email, reason, phone?, orderNumber?, purchaseDate?, products?, comment?, website? }
+ *     reason: cambio-opinion | talle | color-modelo | falla | producto-distinto | otro
+ *             (obligatorio; "cambio-opinion" es un motivo válido: no hay que probar nada)
  *     → { ok: true, code: "ARR-20261122-A1B2C3", mailed: bool }
  *
  *   Resolución SCI 424/2020: el consumidor pide la revocación de su compra
@@ -41,10 +43,22 @@ $orderNumber = strtoupper($f('orderNumber', 40));
 $purchaseDate = $f('purchaseDate', 20);
 $products = $f('products', 500);
 $comment = $f('comment', 1000);
+$REASONS = [
+    'cambio-opinion'    => 'Cambié de opinión / ya no lo quiero',
+    'talle'             => 'No le quedó el talle',
+    'color-modelo'      => 'No me gustó el color o el modelo',
+    'falla'             => 'Llegó con una falla o defecto',
+    'producto-distinto' => 'Llegó un producto distinto al que pedí',
+    'otro'              => 'Otro motivo',
+];
+$reasonKey = $f('reason', 30);
+$reason = $REASONS[$reasonKey] ?? '';
 
 $errors = [];
 if (mb_strlen($name) < 2) $errors[] = 'NAME';
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'EMAIL';
+if ($reason === '') $errors[] = 'REASON';
+if ($reasonKey === 'otro' && mb_strlen($comment) < 5) $errors[] = 'COMMENT';
 if ($errors) send_json(['ok' => false, 'errors' => $errors], 400);
 
 // Límite simple: hasta 5 solicitudes por mail en 24 h
@@ -58,6 +72,7 @@ $code = 'ARR-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
 $lines = array_filter([
     'BOTÓN DE ARREPENTIMIENTO',
     "Código: {$code}",
+    "Motivo: {$reason}",
     $orderNumber !== '' ? "Pedido: {$orderNumber}" : 'Pedido: (no indicado)',
     $purchaseDate !== '' ? "Fecha de compra/entrega: {$purchaseDate}" : null,
     $products !== '' ? "Productos: {$products}" : null,
@@ -71,6 +86,7 @@ pdo()->prepare('INSERT INTO contact_messages (name, email, phone, reason, messag
 
 // --- Mails (si fallan, el código ya se mostró en pantalla y la solicitud quedó guardada)
 $detail = '<strong>Código:</strong> ' . e($code)
+    . '<br><strong>Motivo:</strong> ' . e($reason)
     . '<br><strong>Pedido:</strong> ' . ($orderNumber !== '' ? e($orderNumber) : 'no indicado')
     . ($purchaseDate !== '' ? '<br><strong>Fecha de compra/entrega:</strong> ' . e($purchaseDate) : '')
     . ($products !== '' ? '<br><strong>Productos:</strong> ' . e($products) : '')
