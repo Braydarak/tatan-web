@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { LEGAL } from "@/lib/legal";
+import CookieSettingsButton from "@/components/legal/CookieSettingsButton";
 import Image from "next/image";
 import {
   Heart,
+  Undo2,
   Mail,
   MapPin,
 } from "lucide-react";
@@ -140,9 +143,46 @@ export default function Footer({
           </div>
         </div>
 
+        {/* Legales (Argentina): botón de arrepentimiento (Res. SCI 424/2020),
+            reclamos de consumidores (Res. SCI 274/2021) y Data Fiscal de ARCA */}
+        <div className="border-t border-tatan-secundario1/40 py-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/arrepentimiento"
+              className="inline-flex items-center gap-2 rounded-2xl border-2 border-tatan-primario4 bg-white px-4 py-2 text-sm font-extrabold text-zinc-800 hover:bg-tatan-primario1/40 transition-colors"
+            >
+              <Undo2 className="h-4 w-4" strokeWidth={2.4} />
+              Botón de arrepentimiento
+            </Link>
+            <a
+              href={LEGAL.consumerClaimsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs leading-snug text-zinc-500 hover:text-zinc-800 transition-colors"
+            >
+              <span className="font-bold">Defensa de las y los Consumidores.</span>
+              <br />
+              Para reclamos <span className="underline underline-offset-2">ingrese aquí</span>
+            </a>
+            {LEGAL.dataFiscalUrl && LEGAL.dataFiscalImage && (
+              <a href={LEGAL.dataFiscalUrl} target="_blank" rel="noopener noreferrer" aria-label="Data Fiscal (ARCA)">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={LEGAL.dataFiscalImage} alt="Data Fiscal" width={44} height={60} className="h-14 w-auto" />
+              </a>
+            )}
+          </div>
+          <nav aria-label="Legales" className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-500">
+            <Link href="/legal/terminos" className="hover:text-zinc-800 transition-colors">Términos y condiciones</Link>
+            <Link href="/legal/privacidad" className="hover:text-zinc-800 transition-colors">Política de privacidad</Link>
+            <Link href="/legal/cookies" className="hover:text-zinc-800 transition-colors">Política de cookies</Link>
+            <Link href="/legal/cambios" className="hover:text-zinc-800 transition-colors">Cambios y devoluciones</Link>
+            <CookieSettingsButton className="hover:text-zinc-800 transition-colors" />
+          </nav>
+        </div>
+
         <div className="border-t border-tatan-secundario1/40 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p className="text-xs text-zinc-400">
-            © {new Date().getFullYear()} Tatan. Todos los derechos reservados.
+          <p className="text-xs text-zinc-400 text-center sm:text-left">
+            © {new Date().getFullYear()} {LEGAL.brand} · {LEGAL.owner}. Todos los derechos reservados.
           </p>
           <p className="text-xs text-zinc-400 inline-flex flex-wrap items-center justify-center gap-1">
             Hecho con
