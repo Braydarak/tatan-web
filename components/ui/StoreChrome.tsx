@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import * as React from "react";
 import Footer from "@/components/ui/Footer";
 import Header from "@/components/ui/Header";
+import CookieConsent from "@/components/legal/CookieConsent";
 import type { HomeHeroData } from "@/components/sections/HomeHeroEditor";
 import { StoreSettingsProvider } from "@/components/StoreSettingsContext";
 import { offersInfo } from "@/lib/card-props";
@@ -65,6 +66,8 @@ export default function StoreChrome({
           hasOffers={(offers?.count ?? 0) > 0}
           categories={footerCategories}
         />}
+      {/* Aviso de cookies (solo en la tienda, no en el CRM) */}
+      {bare ? null : <CookieConsent />}
     </StoreSettingsProvider>
   );
 }
