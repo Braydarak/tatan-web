@@ -15,7 +15,7 @@ export const LEGAL = {
    */
   owner: "",
   /** CUIT del titular (aparece en el aviso legal) */
-  cuit: "",
+  cuit: "20-17478143-6",
   /** Número de registro / acta de la marca en el INPI (p. ej. "3.123.456") */
   trademarkNumber: "",
   /** Domicilio (ciudad y provincia alcanzan si no se quiere publicar la calle) */
@@ -29,8 +29,10 @@ export const LEGAL = {
    * obtiene en ARCA → "Formulario 960/D - Data Fiscal" con Clave Fiscal.
    * Mientras alguno esté vacío no se muestra.
    */
-  dataFiscalUrl: "",
-  dataFiscalImage: "",
+  // El link lo da ARCA así (solo responde por http y redirige a su página segura)
+  dataFiscalUrl: "http://qr.afip.gob.ar/?qr=U6cK-d8TUb4QQ5_cpu_hNA,,",
+  // La imagen oficial, por https (por http el navegador la bloquearía en una web https)
+  dataFiscalImage: "https://www.afip.gob.ar/images/f960/DATAWEB.jpg",
 
   /** Ventanilla Federal Única de Reclamos (Res. SCI 274/2021, Disp. 890/2025) */
   consumerClaimsUrl: "https://autogestion.produccion.gob.ar/consumidores",
