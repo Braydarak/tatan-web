@@ -339,7 +339,7 @@ export default function Header({
             >
               <SmartImage
                 fill
-                src="/tatanLogo.png"
+                src="/logo-tatan.webp"
                 alt="Tatan logo"
                 priority
                 sizes="88px"

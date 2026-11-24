@@ -1,6 +1,11 @@
 "use client";
 
-import { gsap } from "gsap";
+/**
+ * Muestra u oculta su contenido deslizándolo hacia arriba o abajo con un
+ * fundido. Usa las animaciones nativas del navegador (Web Animations API):
+ * antes usaba gsap, que pesaba ~70 KB en todas las páginas solo para esto.
+ */
+
 import * as React from "react";
 
 export type UpDownAnimationProps = {
@@ -10,21 +15,16 @@ export type UpDownAnimationProps = {
   from?: "top" | "bottom";
   exitTo?: "top" | "bottom";
   distance?: number;
+  /** Segundos (como antes con gsap) */
   duration?: number;
   ease?: string;
   onEntered?: () => void;
   onExited?: () => void;
 };
 
-function cx(...classes: Array<string | undefined | null | false>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function getPrefersReducedMotion() {
+function prefersReducedMotion() {
   if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false
-  );
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
 }
 
 export default function UpDownAnimation({
@@ -35,75 +35,62 @@ export default function UpDownAnimation({
   exitTo,
   distance = 16,
   duration = 0.22,
-  ease = "power2.out",
+  ease = "cubic-bezier(0.33, 1, 0.68, 1)", // equivalente a power2.out
   onEntered,
   onExited,
 }: UpDownAnimationProps) {
   const resolvedExitTo = exitTo ?? (from === "top" ? "bottom" : "top");
-  const prefersReducedMotion = getPrefersReducedMotion();
-
-  const elementRef = React.useRef<HTMLDivElement | null>(null);
+  const ref = React.useRef<HTMLDivElement | null>(null);
+  // Callbacks actuales sin reiniciar la animación cuando cambian
+  const cbs = React.useRef({ onEntered, onExited });
+  React.useEffect(() => {
+    cbs.current = { onEntered, onExited };
+  });
 
   React.useLayoutEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
+    const el = ref.current;
+    if (!el) return;
+    el.getAnimations().forEach((a) => a.cancel());
 
-    gsap.killTweensOf(element);
-
-    if (prefersReducedMotion) {
-      gsap.set(element, {
-        clearProps: "transform",
-        autoAlpha: show ? 1 : 0,
-        display: show ? "block" : "none",
-      });
+    if (prefersReducedMotion() || typeof el.animate !== "function") {
+      el.style.display = show ? "block" : "none";
+      el.style.opacity = show ? "1" : "0";
+      (show ? cbs.current.onEntered : cbs.current.onExited)?.();
       return;
     }
 
     const enterY = from === "top" ? -distance : distance;
     const exitY = resolvedExitTo === "top" ? -distance : distance;
+    const ms = duration * 1000;
 
     if (show) {
-      gsap.set(element, { display: "block" });
-      gsap.fromTo(
-        element,
-        { y: enterY, autoAlpha: 0 },
-        {
-          y: 0,
-          autoAlpha: 1,
-          duration,
-          ease,
-          onComplete: () => {
-            onEntered?.();
-          },
-        },
+      el.style.display = "block";
+      const a = el.animate(
+        [
+          { transform: `translateY(${enterY}px)`, opacity: 0 },
+          { transform: "translateY(0)", opacity: 1 },
+        ],
+        { duration: ms, easing: ease, fill: "both" },
       );
+      a.onfinish = () => cbs.current.onEntered?.();
       return;
     }
 
-    gsap.to(element, {
-      y: exitY,
-      autoAlpha: 0,
-      duration,
-      ease,
-      onComplete: () => {
-        gsap.set(element, { display: "none" });
-        onExited?.();
-      },
-    });
-  }, [
-    distance,
-    duration,
-    ease,
-    from,
-    onEntered,
-    onExited,
-    prefersReducedMotion,
-    resolvedExitTo,
-    show,
-  ]);
+    const a = el.animate(
+      [
+        { transform: "translateY(0)", opacity: 1 },
+        { transform: `translateY(${exitY}px)`, opacity: 0 },
+      ],
+      { duration: ms, easing: ease, fill: "both" },
+    );
+    a.onfinish = () => {
+      el.style.display = "none";
+      cbs.current.onExited?.();
+    };
+  }, [distance, duration, ease, from, resolvedExitTo, show]);
 
   return (
-    <div ref={elementRef} className={cx(className)}>
+    <div ref={ref} className={className}>
       {children}
     </div>
   );

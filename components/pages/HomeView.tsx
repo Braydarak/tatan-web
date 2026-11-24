@@ -370,7 +370,7 @@ export default function HomeView({
               <div className="grid md:grid-cols-2 gap-8 md:gap-10 items-center">
                 <div className="order-2 md:order-1">
                   <div
-                    className="anim-rise inline-flex items-center gap-2 rounded-full bg-tatan-primario2/60 px-3.5 sm:px-4 py-1.5 mb-4 sm:mb-5"
+                    className="inline-flex items-center gap-2 rounded-full bg-tatan-primario2/60 px-3.5 sm:px-4 py-1.5 mb-4 sm:mb-5"
                     style={delay(0.05)}
                   >
                     <Sparkles className="w-5 h-5 text-zinc-700" strokeWidth={2} />
@@ -379,11 +379,11 @@ export default function HomeView({
                     </span>
                   </div>
                   <h1 className="text-[2.1rem] sm:text-5xl lg:text-6xl font-bold text-zinc-800 leading-[1.1] mb-4 sm:mb-5">
-                    <span className="anim-rise block" style={delay(0.15)}>
+                    <span className="block" style={delay(0.15)}>
                       {hero.titleLine1}
                     </span>
                     <span
-                      className="anim-rise relative inline-block text-tatan-primario4 drop-shadow-sm"
+                      className="relative inline-block text-tatan-primario4 drop-shadow-sm"
                       style={delay(0.28)}
                     >
                       {hero.titleLine2}
@@ -391,13 +391,13 @@ export default function HomeView({
                     </span>
                   </h1>
                   <p
-                    className="anim-rise text-base sm:text-lg text-zinc-600 mb-6 sm:mb-8 max-w-md leading-relaxed"
+                    className="text-base sm:text-lg text-zinc-600 mb-6 sm:mb-8 max-w-md leading-relaxed"
                     style={delay(0.4)}
                   >
                     {hero.description}
                   </p>
                   <div
-                    className="anim-rise flex gap-3 sm:gap-4"
+                    className="flex gap-3 sm:gap-4"
                     style={delay(0.5)}
                   >
                     <Link
@@ -426,14 +426,14 @@ export default function HomeView({
 
                   {sec.socialProof.show && (
                   <div
-                    className="anim-rise flex items-center gap-6 mt-10"
+                    className="flex items-center gap-6 mt-10"
                     style={delay(0.62)}
                   >
                     <div className="flex -space-x-3">
                       {reviewIcons.map((Icon, i) => (
                         <div
                           key={i}
-                          className="anim-pop w-10 h-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center hover:-translate-y-1 transition-transform"
+                          className="w-10 h-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center hover:-translate-y-1 transition-transform"
                           style={{
                             backgroundColor: reviewColors[i],
                             ...delay(0.7 + i * 0.08),
@@ -451,7 +451,7 @@ export default function HomeView({
                         {Array.from({ length: 5 }).map((_, i) => (
                           <Star
                             key={i}
-                            className="anim-pop w-4 h-4 fill-current"
+                            className="w-4 h-4 fill-current"
                             strokeWidth={0}
                             style={delay(0.9 + i * 0.07)}
                           />
@@ -466,7 +466,7 @@ export default function HomeView({
                 </div>
 
                 <div
-                  className="anim-pop order-1 md:order-2 relative w-full max-w-[min(300px,72vw)] mx-auto md:max-w-none"
+                  className="order-1 md:order-2 relative w-full max-w-[min(300px,72vw)] mx-auto md:max-w-none"
                   style={delay(0.1)}
                 >
                   <div className="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-tatan-acento-amarillo/30 blur-2xl" />
@@ -497,7 +497,7 @@ export default function HomeView({
                   </div>
                   {hero.cottonBadge.show && (
                     <div
-                      className="anim-pop absolute -top-4 -right-2 z-10"
+                      className="absolute -top-4 -right-2 z-10"
                       style={delay(0.8)}
                     >
                       <div className="bg-white rounded-2xl shadow-lg px-4 py-2 flex items-center gap-2 border border-tatan-secundario1/50 badge-float-1 origin-bottom-left">
@@ -520,7 +520,7 @@ export default function HomeView({
                   )}
                   {hero.shippingBadge.show && (
                     <div
-                      className="anim-pop absolute -bottom-3 -left-3 z-10"
+                      className="absolute -bottom-3 -left-3 z-10"
                       style={delay(1)}
                     >
                       <div className="bg-white rounded-2xl shadow-lg px-4 py-2 border border-tatan-secundario1/50 badge-float-2 origin-top-right">
@@ -718,8 +718,8 @@ export default function HomeView({
                     buy={quickAdd ? p.buy : undefined}
                     wholesale={p.buy.wholesale}
                     showPointsBadge={p.showPointsBadge}
-                    loading={idx < 2 ? "eager" : "lazy"}
-                    priority={idx === 0 && !promoProduct}
+                    // Están más abajo de la portada: que no compitan con la foto principal al cargar
+                    loading="lazy"
                   />
                 </div>
               ))}
