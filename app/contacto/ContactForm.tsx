@@ -18,6 +18,15 @@ const REASONS: { key: ReasonKey; label: string }[] = [
   { key: "otro", label: "Otro" },
 ];
 
+/** Mensajes claros para los errores que devuelve la API */
+const ERROR_TEXT: Record<string, string> = {
+  NAME_TOO_SHORT: "Escribí tu nombre.",
+  INVALID_EMAIL: "Revisá tu mail.",
+  MESSAGE_TOO_SHORT: "El mensaje es muy corto.",
+  TOO_MANY: "Recibimos varios mensajes tuyos recién. Probá de nuevo en un rato o escribinos a contacto@tatankids.com.ar.",
+  UNKNOWN: "Hubo un problema. Probá de nuevo o escribinos a contacto@tatankids.com.ar.",
+};
+
 export default function ContactForm() {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -29,6 +38,8 @@ export default function ContactForm() {
   );
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<string[]>([]);
+  // Campo trampa para bots (invisible para las personas)
+  const trapRef = React.useRef<HTMLInputElement>(null);
 
   const valid =
     name.trim().length >= 2 &&
@@ -48,6 +59,7 @@ export default function ContactForm() {
         phone: phone.trim() || undefined,
         reason,
         message: message.trim(),
+        website: trapRef.current?.value ?? "",
       });
       if (!r.ok) {
         setFieldErrors(r.errors ?? ["UNKNOWN"]);
@@ -76,6 +88,7 @@ export default function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <input ref={trapRef} type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label
@@ -190,7 +203,7 @@ export default function ContactForm() {
               {fieldErrors.length ? (
                 <ul className="mt-1.5 text-[11px] space-y-0.5">
                   {fieldErrors.map((fe) => (
-                    <li key={fe}>· {fe}</li>
+                    <li key={fe}>· {ERROR_TEXT[fe] ?? ERROR_TEXT.UNKNOWN}</li>
                   ))}
                 </ul>
               ) : null}
