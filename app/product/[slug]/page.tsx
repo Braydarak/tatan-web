@@ -7,6 +7,7 @@ import { fetchHomeContentSSR } from "@/lib/home-content";
 import { productHref, productSlug } from "@/lib/product-url";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { absoluteUrl, categoryPath } from "@/lib/seo";
+import { LEGAL } from "@/lib/legal";
 import { fetchSizeGuidesSSR } from "@/lib/size-guide";
 import type { Product as ApiProduct } from "@/lib/tatan-api";
 
@@ -132,6 +133,16 @@ export default async function ProductPage({ params }: Props) {
               availability: stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
               itemCondition: "https://schema.org/NewCondition",
               seller: { "@type": "Organization", name: "Tatan" },
+              // Devolución: arrepentimiento dentro de los 10 días, con los gastos de
+              // devolución a cargo de la tienda (art. 34 Ley 24.240)
+              hasMerchantReturnPolicy: {
+                "@type": "MerchantReturnPolicy",
+                applicableCountry: "AR",
+                returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+                merchantReturnDays: LEGAL.withdrawalDays,
+                returnMethod: "https://schema.org/ReturnByMail",
+                returnFees: "https://schema.org/FreeReturn",
+              },
             },
           },
           {

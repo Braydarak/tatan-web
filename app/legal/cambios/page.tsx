@@ -34,7 +34,10 @@ export default function CambiosPage() {
         <li>Pedilo dentro de los <strong>{LEGAL.exchangeDays} días corridos</strong> desde que recibiste el pedido, escribiendo a {mail} con tu número de pedido (empieza con TTN) y qué querés cambiar.</li>
         <li>La prenda tiene que estar <strong>sin uso, sin lavar y con sus etiquetas</strong>.</li>
         <li>El cambio está sujeto al stock disponible. Si no hay lo que buscás, podés elegir otro producto o pedir la devolución del dinero.</li>
-        <li>Te respondemos por mail con los pasos para enviarlo y, si hubiera un costo de envío, te lo informamos antes de confirmar el cambio.</li>
+        <li>
+          <strong>El envío de la prenda hacia nosotros corre por tu cuenta</strong>, y
+          <strong> el envío del cambio hacia vos lo pagamos nosotros</strong>. Te respondemos por mail con los pasos para enviarla.
+        </li>
       </ul>
 
       <h2>3. Productos con falla</h2>
