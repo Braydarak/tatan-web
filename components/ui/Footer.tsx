@@ -35,7 +35,7 @@ export default function Footer({
               >
                 <Image
                   fill
-                  src="/tatanLogo.png"
+                  src="/logo-tatan.webp"
                   alt="Tatan logo"
                   sizes="80px"
                   className="object-contain"
@@ -167,7 +167,7 @@ export default function Footer({
             {LEGAL.dataFiscalUrl && LEGAL.dataFiscalImage && (
               <a href={LEGAL.dataFiscalUrl} target="_blank" rel="noopener noreferrer" aria-label="Data Fiscal (ARCA)">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={LEGAL.dataFiscalImage} alt="Data Fiscal" width={33} height={45} className="h-11 w-auto" />
+                <img src={LEGAL.dataFiscalImage} alt="Data Fiscal" width={33} height={45} loading="lazy" decoding="async" className="h-11 w-auto" />
               </a>
             )}
           </div>

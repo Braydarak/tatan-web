@@ -76,7 +76,7 @@ export default function PromoHero({
         <div className="grid md:grid-cols-2 gap-8 md:gap-10 items-center">
           <div className="order-2 md:order-1">
             <div
-              className="anim-rise inline-flex items-center gap-2 rounded-full bg-tatan-acento-rosa/45 px-3.5 sm:px-4 py-1.5 mb-4 sm:mb-5"
+              className="inline-flex items-center gap-2 rounded-full bg-tatan-acento-rosa/45 px-3.5 sm:px-4 py-1.5 mb-4 sm:mb-5"
               style={delay(0.05)}
             >
               <Tag className="w-4 h-4 text-zinc-700" strokeWidth={2.2} />
@@ -86,12 +86,12 @@ export default function PromoHero({
             </div>
 
             <h1 className="text-[2.1rem] sm:text-5xl lg:text-6xl font-bold text-zinc-800 leading-[1.1] mb-4 sm:mb-5">
-              <span className="anim-rise block" style={delay(0.15)}>
+              <span className="block" style={delay(0.15)}>
                 {title}
               </span>
               {off > 0 && (
                 <span
-                  className="anim-rise relative inline-block text-tatan-primario4 drop-shadow-sm"
+                  className="relative inline-block text-tatan-primario4 drop-shadow-sm"
                   style={delay(0.28)}
                 >
                   {off}% OFF
@@ -102,7 +102,7 @@ export default function PromoHero({
 
             {text && (
               <p
-                className="anim-rise text-base sm:text-lg text-zinc-600 mb-5 max-w-md leading-relaxed"
+                className="text-base sm:text-lg text-zinc-600 mb-5 max-w-md leading-relaxed"
                 style={delay(0.4)}
               >
                 {text}
@@ -110,7 +110,7 @@ export default function PromoHero({
             )}
 
             <div
-              className="anim-rise mb-6 flex flex-wrap items-end gap-x-3 gap-y-1"
+              className="mb-6 flex flex-wrap items-end gap-x-3 gap-y-1"
               style={delay(0.46)}
             >
               <span className="text-3xl sm:text-4xl font-extrabold text-[#4da96c] leading-none">
@@ -124,7 +124,7 @@ export default function PromoHero({
             </div>
 
             <div
-              className="anim-rise flex gap-3 sm:gap-4"
+              className="flex gap-3 sm:gap-4"
               style={delay(0.52)}
             >
               <Link
@@ -146,14 +146,14 @@ export default function PromoHero({
             </div>
 
             {promo.endsAt && (
-              <div className="anim-rise mt-5" style={delay(0.62)}>
+              <div className="mt-5" style={delay(0.62)}>
                 <PromoCountdown endsAt={promo.endsAt} />
               </div>
             )}
           </div>
 
           <div
-            className="anim-pop order-1 md:order-2 relative w-full max-w-[min(300px,72vw)] mx-auto md:max-w-none"
+            className="order-1 md:order-2 relative w-full max-w-[min(300px,72vw)] mx-auto md:max-w-none"
             style={delay(0.1)}
           >
             <div className="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-tatan-acento-amarillo/30 blur-2xl" />
@@ -206,7 +206,7 @@ export default function PromoHero({
 
             {off > 0 && (
               <div
-                className="anim-pop absolute -top-4 -right-3 sm:-top-6 sm:-right-5 z-10"
+                className="absolute -top-4 -right-3 sm:-top-6 sm:-right-5 z-10"
                 style={delay(0.8)}
               >
                 <div className="promo-sticker flex h-20 w-20 sm:h-24 sm:w-24 flex-col items-center justify-center rounded-full bg-tatan-acento-rosa text-zinc-800 shadow-lg ring-4 ring-white">
@@ -222,7 +222,7 @@ export default function PromoHero({
 
             {hero.shippingBadge.show && (
               <div
-                className="anim-pop absolute -bottom-3 -left-3 z-10"
+                className="absolute -bottom-3 -left-3 z-10"
                 style={delay(1)}
               >
                 <div className="bg-white rounded-2xl shadow-lg px-4 py-2 border border-tatan-secundario1/50 badge-float-2 origin-top-right">

@@ -9,8 +9,8 @@ function cx(...classes: Array<string | undefined | null | false>) {
 }
 
 /**
- * Fotos de la portada (hasta 5) que van pasando en bucle con un fundido y
- * un zoom lento. Con una sola foto queda fija. Respeta "reducir movimiento".
+ * Fotos de la portada (hasta 5) que van pasando en bucle con un fundido.
+ * Con una sola foto queda fija. Respeta "reducir movimiento".
  */
 export default function HeroSlideshow({
   images,
@@ -69,13 +69,14 @@ export default function HeroSlideshow({
               priority={priority && i === 0}
               loading={i === 0 ? "eager" : "lazy"}
               sizes={sizes}
-              className={cx(
+              // Sin zoom: el zoom agrandaba cada foto nueva y el navegador la
+              // volvía a contar como "elemento más grande" (LCP), así la carga
+              // parecía durar hasta que terminaba el carrusel
+              className={
                 placeholder
                   ? "object-contain p-6 drop-shadow-lg"
-                  : "object-cover",
-                // Zoom lento mientras la foto está visible
-                many && i === active && "hero-kenburns",
-              )}
+                  : "object-cover"
+              }
             />
           </div>
         );
